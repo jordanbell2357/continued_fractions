@@ -18,3 +18,18 @@ for k in range(1, N):
 
 Fraction(*P[N - 1][:,0])
 ```
+
+```python
+import numpy as np
+
+x = np.sqrt(2)
+N = 10
+
+value_array = np.empty(N)
+
+for i in range(N):
+    value_array[i] = x
+    x = np.modf(np.reciprocal(x))[0]
+
+coefficient_array = np.floor(np.reciprocal(np.roll(value_array, -1)))
+```
