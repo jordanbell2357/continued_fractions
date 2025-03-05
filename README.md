@@ -1,11 +1,26 @@
 # continued_fractions
 
 ```python
-from fractions import Fraction
 import numpy as np
 
-a = [1, 1, 1, 1, 1, 1, 1, 1]
-N = len(a)
+x = np.sqrt(3)
+N = 10
+
+value_array = np.empty(N)
+
+t = x
+
+for i in range(N):
+    value_array[i] = t
+    t = np.modf(np.reciprocal(t))[0]
+
+a = np.floor(np.reciprocal(np.roll(value_array, -1)))
+```
+
+```python
+import numpy as np
+
+N = len(a) - 1 # subtract 1 because we used np.roll
 
 A = np.empty(N * 4, dtype='uint').reshape(N, 2, 2)
 for k in range(N):
@@ -15,21 +30,12 @@ P = np.empty(N * 4, dtype='uint').reshape(N, 2, 2)
 P[0] = A[0]
 for k in range(1, N):
     P[k] = P[k-1] @ A[k]
-
-Fraction(*P[N - 1][:,0])
 ```
 
 ```python
-import numpy as np
+from fractions import Fraction
+from decimal import Decimal
 
-x = np.sqrt(2)
-N = 10
-
-value_array = np.empty(N)
-
-for i in range(N):
-    value_array[i] = x
-    x = np.modf(np.reciprocal(x))[0]
-
-coefficient_array = np.floor(np.reciprocal(np.roll(value_array, -1)))
+convergent_fractions = [Fraction(*P[n][:,0]) for n in range(N)]
+convergent_decimals = [Decimal(int(f.numerator)) / Decimal(int(f.denominator)) for f in convergent_fractions]
 ```
