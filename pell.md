@@ -12,14 +12,14 @@ For positive real numbers $x$ and $y$, it is true that
 
 $$
 x - y < \left\lfloor \frac{x}{y} \right\rfloor y \leq x
-\label{eq1}
+\tag{eq1}
 $$
 
 Let $p$ and $q$ be positive integers with $p>q$. Let $v_0 = p$ and $v_1 = q$. By hypothesis, $v_0 > v_1$.
 
 Define $a_0 = \lfloor \frac{v_0}{v_1} \rfloor$ and define $v_2 = v_0 - a_0 v_1$.
 
-By \eqref{eq1} we have $v_0 - v_1 < \lfloor \frac{v_0}{v_1} \rfloor v_1 \leq v_0$, i.e. $v_0 - v_1 < a_0 v_1 \leq v_0$,
+By \ref{eq1} we have $v_0 - v_1 < \lfloor \frac{v_0}{v_1} \rfloor v_1 \leq v_0$, i.e. $v_0 - v_1 < a_0 v_1 \leq v_0$,
 so $v_0 - a_0 v_1 - v_1  < 0 \leq v_0 - a_0v_1$,
 so $v_2 - v_1 < 0 \leq v_2$. From $v_2-v_1<0$ we get $v_1 > v_2$. From $0 \leq v_2$ we get $v_2 \geq 0$. So $v_1 > v_2 \geq 0$.
 
