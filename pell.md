@@ -29,7 +29,7 @@ $$\begin{gather}a_{m-1} = \left\lfloor \frac{v_{m-1}}{v_m} \right\rfloor\end{gat
 
 and 
 
-$$\qquad v_{m+1} = v_{m-1} - a_{m-1}v_m.$$
+$$\begin{gather}a_{m-1}v_{m+1} = v_{m-1} - a_{m-1}v_m\end{gather}.$$
 
 Since $v_m$ is a strictly decreasing sequence of nonnegative integers, there is some $M \geq 2$ such that $v_M >0$ and $v_{M+1}=0$.
 
@@ -43,7 +43,7 @@ $$\begin{gather}v_m = a_m v_{m+1} + v_{m+2}\end{gather}\tag{3}$$
 
 and
 
-$$v_0 > v_1 > \cdots > v_M > v_{M+1}$$
+$$\begin{gather}v_0 > v_1 > \cdots > v_M > v_{M+1}\end{gather}$$
 
 where $v_0=p$, $v_1=q$, and $v_{M+1}=0$.
 
