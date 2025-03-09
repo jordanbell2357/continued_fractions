@@ -10,16 +10,9 @@ $M_0=0$, $D_0=1$, $a_0 = \lfloor \sqrt{d} \rfloor$
 
 For positive real numbers $x$ and $y$, it is true that
 
-```{math}
-:label: my_label
-w_{t+1} = (1 + r_{t+1}) s(w_t) + y_{t+1}
-```
-
-- A link to an equation directive: {eq}`my_label`
-
 $$
 x - y < \left\lfloor \frac{x}{y} \right\rfloor y \leq x
-$$ 
+$$ \tag{1}
 
 Let $p$ and $q$ be positive integers with $p>q$. Let $v_0 = p$ and $v_1 = q$. By hypothesis, $v_0 > v_1$.
 
