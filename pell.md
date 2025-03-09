@@ -12,7 +12,8 @@ For positive real numbers $x$ and $y$, it is true that
 
 $$
 x - y < \left\lfloor \frac{x}{y} \right\rfloor y \leq x
-$$ \tag{1}
+\tag{1}
+$$ 
 
 Let $p$ and $q$ be positive integers with $p>q$. Let $v_0 = p$ and $v_1 = q$. By hypothesis, $v_0 > v_1$.
 
