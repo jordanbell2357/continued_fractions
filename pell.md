@@ -6,7 +6,11 @@ https://realpython.com/python-rounding/
 
 https://realpython.com/python-square-root-function/
 
-$M_0=0$, $D_0=1$, $a_0 = \lfloor \sqrt{d} \rfloor$
+https://realpython.com/python-linear-algebra/
+
+https://realpython.com/numpy-reshape/
+
+## gcd
 
 For positive real numbers $x$ and $y$, it is true that
 
@@ -57,3 +61,14 @@ Therefore $v_M = \gcd(p,q)$.
 
 For example let $p=42$ and $q=12$. $v_0=42$ and $v_1=12$. Then $a_0 =  \lfloor \frac{v_0}{v_1} \rfloor = \lfloor \frac{42}{12} \rfloor = 3$ and $v_2 = v_0-a_0v_1 = 42 - (3)(12) = 42 - 36 = 6$. Finally, $a_1 =  \lfloor \frac{v_1}{v_2} \rfloor = \lfloor \frac{12}{6} \rfloor = 2$ and $v_3 = v_1 - a_1 v_2 = 12 - (2)(6) = 0$.
 
+## Pell
+
+$M_0=0$, $D_0=1$, $a_0 = \lfloor \sqrt{d} \rfloor$
+
+Define
+
+$$M_{k+1} = D_ka_k - M_k,$$
+
+$$D_{k+1} = \dfrac{d - M_{k+1}^2}{D_k},$$
+
+$$a_{k+1} = \left\lfloor \dfrac{M_{k+1} + a_0}{D_{k+1}} \right\rfloor.$$
