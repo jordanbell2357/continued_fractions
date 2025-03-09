@@ -16,14 +16,16 @@ Let $p$ and $q$ be positive integers with $p>q$. Let $v_0 = p$ and $v_1 = q$. By
 
 Define $a_0 = \lfloor \frac{v_0}{v_1} \rfloor$ and define $v_2 = v_0 - a_0 v_1$.
 
-By [(1)](#1) we have $v_0 - v_1 < \lfloor \frac{v_0}{v_1} \rfloor v_1 \leq v_0$, i.e. $v_0 - v_1 < a_0 v_1 \leq v_0$,
+By (1) we have $v_0 - v_1 < \lfloor \frac{v_0}{v_1} \rfloor v_1 \leq v_0$,
+i.e. $v_0 - v_1 < a_0 v_1 \leq v_0$,
 so $v_0 - a_0 v_1 - v_1  < 0 \leq v_0 - a_0v_1$,
-so $v_2 - v_1 < 0 \leq v_2$. From $v_2-v_1<0$ we get $v_1 > v_2$. From $0 \leq v_2$ we get $v_2 \geq 0$. So $v_1 > v_2 \geq 0$.
+so $v_2 - v_1 < 0 \leq v_2$. From $v_2-v_1<0$ we get $v_1 > v_2$.
+From $0 \leq v_2$ we get $v_2 \geq 0$. So $v_1 > v_2 \geq 0$.
 
 
 For $m > 1$, if $v_m > 0$ define
 
-$$a_{m-1} = \left\lfloor \frac{v_{m-1}}{v_m} \right\rfloor$$
+$$\begin{gather}a_{m-1} = \left\lfloor \frac{v_{m-1}}{v_m} \right\rfloor\end{gather}$$
 
 and 
 
@@ -33,11 +35,11 @@ Since $v_m$ is a strictly decreasing sequence of nonnegative integers, there is 
 
 For $0 \leq m \leq M-1$,
 
-$$a_m = \left\lfloor \frac{v_m}{v_{m+1}} \right\rfloor\tag{2}$$
+$$\begin{gather}a_m = \left\lfloor \frac{v_m}{v_{m+1}} \right\rfloor\end{gather}\tag{2}$$
 
 and
 
-$$v_m = a_m v_{m+1} + v_{m+2}\tag{3}$$
+$$\begin{gather}v_m = a_m v_{m+1} + v_{m+2}\end{gather}\tag{3}$$
 
 and
 
