@@ -11,6 +11,13 @@ $M_0=0$, $D_0=1$, $a_0 = \lfloor \sqrt{d} \rfloor$
 For positive real numbers $x$ and $y$, it is true that
 
 $$
+\begin{equation} 
+  f\left(k\right) = \binom{n}{k} p^k\left(1-p\right)^{n-k}
+  (\#eq:binom)
+\end{equation}
+$$
+
+$$
 x - y < \left\lfloor \frac{x}{y} \right\rfloor y \leq x
 $$ {#eq-floor}
 
