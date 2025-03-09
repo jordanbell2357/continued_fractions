@@ -10,9 +10,9 @@ $M_0=0$, $D_0=1$, $a_0 = \lfloor \sqrt{d} \rfloor$
 
 For positive real numbers $x$ and $y$, it is true that
 
-```math
+$$
 x - y < \left\lfloor \frac{x}{y} \right\rfloor y \leq x
-``` {#eq-floor}
+$$ {#eq-floor}
 
 Let $p$ and $q$ be positive integers with $p>q$. Let $v_0 = p$ and $v_1 = q$. By hypothesis, $v_0 > v_1$.
 
