@@ -1,13 +1,13 @@
 import math
 from fractions import Fraction
+import decimal
 import numpy as np
 
 
 def sqrt_continued_fraction(d: int) -> tuple[list[int], list[int]]:
-    a0 = int(math.isqrt(d))  # floor(sqrt(d))
+    a0 = math.isqrt(d)  # floor(sqrt(d))
     if a0 ** 2 == d:
-        # d is a square, so sqrt(d) is an integer and
-        # the continued fraction has length 1
+        # d is a square, so sqrt(d) is an integer and the continued fraction has length 1
         return ([a0], [])
 
     # Initialize (M, D, a)
@@ -41,7 +41,7 @@ def sqrt_continued_fraction(d: int) -> tuple[list[int], list[int]]:
             expansion.append(a)
 
 
-def convergents_from_partial_quotients(a):
+def convergents_from_partial_quotients(a: list[int]) -> list[Fraction]:
     N = len(a)
 
     A = np.empty(N * 4, dtype='uint').reshape(N, 2, 2)
@@ -60,20 +60,64 @@ def convergents_from_partial_quotients(a):
         p[k] = P[k][0,0]
         q[k] = P[k][1,0]
 
-    return p, q
+    fraction_list = [Fraction(int(p[k]), int(q[k])) for k in range(N)]
 
-# x^2 - d y^2 = 1
-# x https://oeis.org/A002350 and y https://oeis.org/A002349
+    return fraction_list
+
+
+def do_decimal_approximation(d, non_periodic_part, periodic_part, num_terms, num_decimals):
+    decimal.getcontext().prec = num_decimals
+    l = num_terms - len(non_periodic_part)
+    partial_quotients = non_periodic_part + math.ceil(l / len(periodic_part)) * periodic_part
+    convergents = convergents_from_partial_quotients(partial_quotients)
+    convergent = convergents[num_terms]
+    convergent_decimal = decimal.Decimal(convergent.numerator) / decimal.Decimal(convergent.denominator)
+    sqrt_d_decimal = decimal.Decimal(d).sqrt()
+    print(f"sqrt({d}) \t\t=", sqrt_d_decimal)
+    print(f"p_{num_terms} / q_{num_terms} \t\t=", convergent_decimal)
+    print(f"sqrt({d}) - p_{num_terms} / q_{num_terms} \t=", convergent_decimal - sqrt_d_decimal)
+
+
+def do_pell_equation(d, non_periodic_part, periodic_part):
+    r = len(periodic_part)
+    if r % 2 == 0:
+        partial_quotients = non_periodic_part + periodic_part
+        fraction_list = convergents_from_partial_quotients(partial_quotients)
+        x, y = fraction_list[r-1].numerator, fraction_list[r-1].denominator
+    else:
+        partial_quotients = non_periodic_part + 2 * periodic_part
+        fraction_list = convergents_from_partial_quotients(partial_quotients)
+        x, y = fraction_list[2 * r - 1].numerator, fraction_list[2 * r - 1].denominator
+
+    assert x**2 - d * y**2 == 1
+
+    print(f"{d=}")
+    print(f"Fundamental solution {x=}, {y=}")
+    print(f"x^2 - {d} * y^2 = {x**2} - {d} * {y**2} =  {x**2 - d * y**2}")
+
+
+def main(d: int, num_terms: int, num_decimals) -> None:
+    non_periodic_part, periodic_part = sqrt_continued_fraction(d)
+
+    print(f"Periodic continued fraction for sqrt({d})")
+    print(f"non-periodic part \t= {non_periodic_part}")
+    print(f"periodic part \t\t= {periodic_part}")
+
+    print()
+
+    print(f"Decimal approximation of sqrt({d})")
+    do_decimal_approximation(d, non_periodic_part, periodic_part, num_terms, num_decimals)
+
+    print()
+    
+    print(f"Pell equation x^2 - {d} * y^2 = 1")
+    do_pell_equation(d, non_periodic_part, periodic_part)
+
+
 # Example usage:
 if __name__ == "__main__":
-    n = 19
-    non_periodic_part, periodic_part = sqrt_continued_fraction(n)
-    print(non_periodic_part, periodic_part)
-    r = len(periodic_part)
-    r = r if r % 2 == 0 else 2 * r
-    partial_quotients = non_periodic_part + 2 * periodic_part
-    p, q = convergents_from_partial_quotients(partial_quotients)
-    print(p[r-1], q[r-1])
+    d = 61
+    num_terms = 20
+    num_decimals = 30
 
-    convergent_fraction_list = [Fraction(p[k], q[k]) for k in range(len(p))]
-    print(convergent_fraction_list)
+    main(d, num_terms, num_decimals)
