@@ -141,9 +141,11 @@ if __name__ == "__main__":
     sqrtd = decimal.Decimal(d).sqrt()
     cf_sqrtd = cf_decimal(sqrtd, num_terms=num_terms)
 
+    print(f"Convergents for sqrt({d})")
     convergents = convergents_from_partial_quotients(cf_sqrtd)
     print(convergents)
 
+    print("Using NumPy matrix multiplication")
     convergents_np = convergents_from_partial_quotients_np(cf_sqrtd)
     print(convergents_np)
 
@@ -156,7 +158,17 @@ if __name__ == "__main__":
 
     sqrtd = decimal.Decimal(d).sqrt()
     cf_sqrtd = cf_decimal(sqrtd, num_terms=num_terms)
-    convergents_np = convergents_from_partial_quotients_np(cf_sqrtd)
-    matrices, determinants = determinants_from_partial_quotients_np(convergents_np)
+    convergents_sqrtd = convergents_from_partial_quotients(cf_sqrtd)
+    matrices, determinants = determinants_from_partial_quotients_np(convergents_sqrtd)
     print("Determinants of 2x2 matrices of convergents")
     print(determinants)
+
+    print()
+
+    # Example 6: Cotes continued fraction for e
+    num_terms = 40
+    decimal.getcontext().prec = 50
+    e = decimal.Decimal(1).exp()
+    cf_e = cf_decimal(e, num_terms=num_terms)
+    print("Partial quotients of e")
+    print(cf_e)
