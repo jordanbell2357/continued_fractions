@@ -1,10 +1,9 @@
 import math
 from fractions import Fraction
 import decimal
-import numpy as np
 
 
-def sqrt_continued_fraction(d: int) -> tuple[list[int], list[int]]:
+def sqrt_periodic_continued_fraction(d: int) -> tuple[list[int], list[int]]:
     a0 = math.isqrt(d)  # floor(sqrt(d))
     if a0 ** 2 == d:
         # d is a square, so sqrt(d) is an integer and the continued fraction has length 1
@@ -43,26 +42,22 @@ def sqrt_continued_fraction(d: int) -> tuple[list[int], list[int]]:
 
 def convergents_from_partial_quotients(a: list[int]) -> list[Fraction]:
     N = len(a)
-
-    A = np.empty(N * 4, dtype='uint').reshape(N, 2, 2)
+    if N == 0:
+        return []
+    
+    p_prev2, p_prev1 = 0, 1
+    q_prev2, q_prev1 = 1, 0
+    convergent_list = []
+    
     for k in range(N):
-        A[k] = np.array([[a[k], 1], [1, 0]])
+        p_k = a[k] * p_prev1 + p_prev2
+        q_k = a[k] * q_prev1 + q_prev2
+        convergent_list.append(Fraction(p_k, q_k))
 
-    P = np.empty(N * 4, dtype='uint').reshape(N, 2, 2)
-    P[0] = A[0]
-    for k in range(1, N):
-        P[k] = P[k-1] @ A[k]
-
-    p = np.empty(N, dtype='uint')
-    q = np.empty(N, dtype='uint')
-
-    for k in range(N):
-        p[k] = P[k][0,0]
-        q[k] = P[k][1,0]
-
-    fraction_list = [Fraction(int(p[k]), int(q[k])) for k in range(N)]
-
-    return fraction_list
+        p_prev2, p_prev1 = p_prev1, p_k
+        q_prev2, q_prev1 = q_prev1, q_k
+    
+    return convergent_list
 
 
 def do_decimal_approximation(d, non_periodic_part, periodic_part, num_terms, num_decimals):
@@ -97,7 +92,7 @@ def do_pell_equation(d, non_periodic_part, periodic_part):
 
 
 def main(d: int, num_terms: int, num_decimals) -> None:
-    non_periodic_part, periodic_part = sqrt_continued_fraction(d)
+    non_periodic_part, periodic_part = sqrt_periodic_continued_fraction(d)
 
     print(f"Periodic continued fraction for sqrt({d})")
     print(f"non-periodic part \t= {non_periodic_part}")
