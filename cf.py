@@ -34,6 +34,26 @@ def cf_fraction(x: Fraction) -> list[int]:
     return cf
 
 
+def convergents_from_partial_quotients(a: list[int]) -> list[Fraction]:
+    N = len(a)
+    if N == 0:
+        return []
+    
+    p_prev2, p_prev1 = 0, 1
+    q_prev2, q_prev1 = 1, 0
+    convergent_list = []
+    
+    for k in range(N):
+        p_k = a[k] * p_prev1 + p_prev2
+        q_k = a[k] * q_prev1 + q_prev2
+        convergent_list.append(Fraction(p_k, q_k))
+
+        p_prev2, p_prev1 = p_prev1, p_k
+        q_prev2, q_prev1 = q_prev1, q_k
+    
+    return convergent_list
+
+
 def convergents_from_partial_quotients_np(a: list[int]) -> list[Fraction]:
     N = len(a)
 
@@ -58,24 +78,19 @@ def convergents_from_partial_quotients_np(a: list[int]) -> list[Fraction]:
     return fraction_list
 
 
-def convergents_from_partial_quotients(a: list[int]) -> list[Fraction]:
+def determinants_from_partial_quotients_np(a: list[int]) -> list[int]:
     N = len(a)
-    if N == 0:
-        return []
-    
-    p_prev2, p_prev1 = 0, 1
-    q_prev2, q_prev1 = 1, 0
-    convergent_list = []
-    
-    for k in range(N):
-        p_k = a[k] * p_prev1 + p_prev2
-        q_k = a[k] * q_prev1 + q_prev2
-        convergent_list.append(Fraction(p_k, q_k))
 
-        p_prev2, p_prev1 = p_prev1, p_k
-        q_prev2, q_prev1 = q_prev1, q_k
-    
-    return convergent_list
+    A = np.empty(N * 4, dtype='uint').reshape(N, 2, 2)
+    for k in range(N):
+        A[k] = np.array([[a[k], 1], [1, 0]])
+
+    P = np.empty(N * 4, dtype='uint').reshape(N, 2, 2)
+    P[0] = A[0]
+    for k in range(1, N):
+        P[k] = P[k-1] @ A[k]
+
+    return A, [int(np.linalg.det(A[k])) for k in range(N)]
 
 
 # Example usage:
@@ -131,3 +146,17 @@ if __name__ == "__main__":
 
     convergents_np = convergents_from_partial_quotients_np(cf_sqrtd)
     print(convergents_np)
+
+    print()
+
+    # Example 5: Determinants
+    d = 7
+    num_terms = 20
+    decimal.getcontext().prec = 50
+
+    sqrtd = decimal.Decimal(d).sqrt()
+    cf_sqrtd = cf_decimal(sqrtd, num_terms=num_terms)
+    convergents_np = convergents_from_partial_quotients_np(cf_sqrtd)
+    matrices, determinants = determinants_from_partial_quotients_np(convergents_np)
+    print("Determinants of 2x2 matrices of convergents")
+    print(determinants)
