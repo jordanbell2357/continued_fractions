@@ -35,7 +35,7 @@ def euclid(x: int, y: int) -> tuple[list[int], list[int], list[int], list[int]]:
 
 # Example usage
 if __name__ == '__main__':
-    x, y = 7921, 4050
+    x, y = 71755875, 61735500
     decimal.getcontext().prec = 20
 
     print(f"{x=}", f"{y=}")
@@ -72,5 +72,5 @@ if __name__ == '__main__':
 
     print("Decimal expansions")
     for k, (xk, yk) in enumerate(zip(x_list[2:], y_list[2:])):
-        print(f"x_{k} / y_{k} \t=\t {decimal.Decimal(xk) / decimal.Decimal(yk)}")
-    print(f"x / y \t\t=\t {decimal.Decimal(x) / decimal.Decimal(y)}")
+        print(f"x_{k} / y_{k}\t= {decimal.Decimal(xk) / decimal.Decimal(yk)}")
+    print(f"x / y\t\t= {decimal.Decimal(x) / decimal.Decimal(y)}")
