@@ -2,7 +2,7 @@ import decimal
 from fractions import Fraction
 import numpy as np
 
-def cf_decimal(x: decimal.Decimal, num_terms: int = 20) -> list[int]:
+def decimal_to_cf(x: decimal.Decimal, num_terms: int = 20) -> list[int]:
     """Compute the first `num_terms` partial quotients of the real number x."""
 
     cf = []
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     decimal.getcontext().prec = 50
 
     sqrtd = decimal.Decimal(d).sqrt()
-    cf_sqrtd = cf_decimal(sqrtd, num_terms=num_terms)
+    cf_sqrtd = decimal_to_cf(sqrtd, num_terms=num_terms)
     print(f"Partial quotients for sqrt({d})")
     print(f"[a_0, ..., a_{num_terms -1}]", '=', cf_sqrtd)
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     decimal.getcontext().prec = 50
 
     sqrtd = decimal.Decimal(d).sqrt()
-    cf_sqrtd = cf_decimal(sqrtd, num_terms=num_terms)
+    cf_sqrtd = decimal_to_cf(sqrtd, num_terms=num_terms)
 
     print(f"Convergents for sqrt({d})")
     convergents = convergents_from_partial_quotients(cf_sqrtd)
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     decimal.getcontext().prec = 50
 
     sqrtd = decimal.Decimal(d).sqrt()
-    cf_sqrtd = cf_decimal(sqrtd, num_terms=num_terms)
+    cf_sqrtd = decimal_to_cf(sqrtd, num_terms=num_terms)
     convergents_sqrtd = convergents_from_partial_quotients(cf_sqrtd)
     matrices, determinants = determinants_from_partial_quotients_np(convergents_sqrtd)
     print("Determinants of 2x2 matrices of convergents")
@@ -169,6 +169,6 @@ if __name__ == "__main__":
     num_terms = 40
     decimal.getcontext().prec = 50
     e = decimal.Decimal(1).exp()
-    cf_e = cf_decimal(e, num_terms=num_terms)
+    cf_e = decimal_to_cf(e, num_terms=num_terms)
     print("Partial quotients of e")
     print(cf_e)
