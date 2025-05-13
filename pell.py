@@ -1,6 +1,7 @@
 import math
 from fractions import Fraction
 import decimal
+import itertools as it
 
 
 def sqrt_periodic_continued_fraction(d: int) -> tuple[list[int], list[int]]:
@@ -30,7 +31,7 @@ def sqrt_periodic_continued_fraction(d: int) -> tuple[list[int], list[int]]:
 
         # If we see a triple (M, D, a) twice, we've found the start of the period
         if (M, D, a) in triples_dict:
-            # We now know the block from triples_dict[(M,D,a)] to i-1 is the repeating cycle
+            # The terms from index triples_dict[(M,D,a)] to index i-1 are the repeating cycle
             start_period = triples_dict[(M, D, a)]
             non_periodic_part = expansion[:start_period]
             periodic_part = expansion[start_period:]
@@ -100,7 +101,7 @@ def main(d: int, num_terms: int, num_decimals) -> None:
 
     print()
 
-    print(f"Decimal approximation of sqrt({d})")
+    print(f"Decimal approximation of sqrt({d}) using first {num_terms} partial quotients.")
     do_decimal_approximation(d, non_periodic_part, periodic_part, num_terms, num_decimals)
 
     print()
@@ -108,11 +109,17 @@ def main(d: int, num_terms: int, num_decimals) -> None:
     print(f"Pell equation x^2 - {d} * y^2 = 1")
     do_pell_equation(d, non_periodic_part, periodic_part)
 
+    print()
+
+    print(f"Partial quotients a_0,...,a_{num_terms-1} of sqrt({d})")
+    cf = it.chain(non_periodic_part, it.cycle(periodic_part))
+    print([a for a, _ in zip(cf, range(num_terms))])
+
 
 # Example usage:
 if __name__ == "__main__":
-    d = 61
-    num_terms = 20
+    d = 3
+    num_terms = 30
     num_decimals = 30
 
     main(d, num_terms, num_decimals)

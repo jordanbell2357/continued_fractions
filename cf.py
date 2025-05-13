@@ -121,7 +121,7 @@ if __name__ == "__main__":
     
     print()
 
-    # Example 3: sqrt(d)
+    # Example 3: sqrt(n)
     d = 7
     num_terms = 20
     decimal.getcontext().prec = 50
