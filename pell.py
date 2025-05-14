@@ -2,6 +2,7 @@ import math
 from fractions import Fraction
 import decimal
 import itertools as it
+import cflib
 
 
 def sqrt_periodic_continued_fraction(d: int) -> tuple[list[int], list[int]]:
@@ -41,32 +42,12 @@ def sqrt_periodic_continued_fraction(d: int) -> tuple[list[int], list[int]]:
             expansion.append(a)
 
 
-def convergents_from_partial_quotients(a: list[int]) -> list[Fraction]:
-    N = len(a)
-    if N == 0:
-        return []
-    
-    p_prev2, p_prev1 = 0, 1
-    q_prev2, q_prev1 = 1, 0
-    convergent_list = []
-    
-    for k in range(N):
-        p_k = a[k] * p_prev1 + p_prev2
-        q_k = a[k] * q_prev1 + q_prev2
-        convergent_list.append(Fraction(p_k, q_k))
-
-        p_prev2, p_prev1 = p_prev1, p_k
-        q_prev2, q_prev1 = q_prev1, q_k
-    
-    return convergent_list
-
-
-def do_decimal_approximation(d, non_periodic_part, periodic_part, num_terms, num_decimals):
+def pell_decimal_approximation(d, non_periodic_part, periodic_part, num_terms, num_decimals):
     decimal.getcontext().prec = num_decimals
     l = num_terms - len(non_periodic_part)
     partial_quotients = non_periodic_part + math.ceil(l / len(periodic_part)) * periodic_part
-    convergents = convergents_from_partial_quotients(partial_quotients)
-    convergent = convergents[num_terms]
+    convergents = cflib.cf_to_convergent_list(partial_quotients)
+    convergent = Fraction(*convergents[num_terms])
     convergent_decimal = decimal.Decimal(convergent.numerator) / decimal.Decimal(convergent.denominator)
     sqrt_d_decimal = decimal.Decimal(d).sqrt()
     print(f"sqrt({d}) \t\t=", sqrt_d_decimal)
@@ -74,16 +55,16 @@ def do_decimal_approximation(d, non_periodic_part, periodic_part, num_terms, num
     print(f"sqrt({d}) - p_{num_terms} / q_{num_terms} \t=", convergent_decimal - sqrt_d_decimal)
 
 
-def do_pell_equation(d, non_periodic_part, periodic_part):
+def pell_equation(d, non_periodic_part, periodic_part):
     r = len(periodic_part)
     if r % 2 == 0:
         partial_quotients = non_periodic_part + periodic_part
-        fraction_list = convergents_from_partial_quotients(partial_quotients)
-        x, y = fraction_list[r-1].numerator, fraction_list[r-1].denominator
+        fraction_list = cflib.cf_to_convergent_list(partial_quotients)
+        x, y = fraction_list[r - 1]
     else:
         partial_quotients = non_periodic_part + 2 * periodic_part
-        fraction_list = convergents_from_partial_quotients(partial_quotients)
-        x, y = fraction_list[2 * r - 1].numerator, fraction_list[2 * r - 1].denominator
+        fraction_list = cflib.cf_to_convergent_list(partial_quotients)
+        x, y = fraction_list[2 * r - 1]
 
     assert x**2 - d * y**2 == 1
 
@@ -102,12 +83,12 @@ def main(d: int, num_terms: int, num_decimals) -> None:
     print()
 
     print(f"Decimal approximation of sqrt({d}) using first {num_terms} partial quotients.")
-    do_decimal_approximation(d, non_periodic_part, periodic_part, num_terms, num_decimals)
+    pell_decimal_approximation(d, non_periodic_part, periodic_part, num_terms, num_decimals)
 
     print()
     
     print(f"Pell equation x^2 - {d} * y^2 = 1")
-    do_pell_equation(d, non_periodic_part, periodic_part)
+    pell_equation(d, non_periodic_part, periodic_part)
 
     print()
 
