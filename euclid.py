@@ -1,8 +1,6 @@
-def euclid(x, y):
-    r0, r = x, y
-    
-    #   r0 = 1 * x - 0 * y
-    #   r  = 0 * x - (-1) * y
+def euclid(x: int, y: int) -> tuple[list[int], list[int], list[int], list[int]]:
+    r0 = 1 * x - 0 * y
+    r  = 0 * x - (-1) * y
 
     a0, a = 1, 0
     b0, b = 0, 1

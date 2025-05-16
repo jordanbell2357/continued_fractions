@@ -3,8 +3,9 @@ import functools as ft
 import operator
 from fractions import Fraction
 import math
-import cflib
+import typing
 
+import cflib
 
 class CalkinWilf:
     ROOT_FRACTION_TUPLE = (1, 1)
@@ -13,9 +14,9 @@ class CalkinWilf:
     MOVE_ENCODE_DICT = {"L": "0", "R": "1"}
 
     @classmethod
-    def bfs_index_to_fraction_tuple_recursive(cls, bfs_index):
+    def bfs_index_to_fraction_tuple_recursive(cls, bfs_index: int) -> tuple[int, int]:
         @ft.lru_cache
-        def recurse_q(n):
+        def recurse_q(n: int) -> Fraction:
             if n == 0:
                 return Fraction(*cls.ROOT_FRACTION_TUPLE)
             else:
@@ -24,7 +25,7 @@ class CalkinWilf:
         return q.as_integer_ratio()
     
     @classmethod
-    def bfs_index_to_fraction_tuple(cls, bfs_index) -> tuple[int, int]:
+    def bfs_index_to_fraction_tuple(cls, bfs_index: int) -> tuple[int, int]:
         bit_string = f"{bfs_index:b}"
         runs = [(bit, len(list(g))) for bit, g in it.groupby(reversed(bit_string))]
         move_label_tuple, run_length_tuple = zip(*runs)
@@ -32,8 +33,7 @@ class CalkinWilf:
         if move_label_list[0] == "0":
             run_length_list.insert(0, 0)
             move_label_list.insert(0, "1")
-        convergent_list = cflib.cf_to_convergent_list(run_length_list)
-        return convergent_list[-1]
+        return cflib.cf_to_fraction_tuple(run_length_list)
 
     @classmethod
     def move_list_to_position(cls, move_list: list[str]) -> int:
@@ -52,13 +52,13 @@ class CalkinWilf:
         return bfs_index
     
     @classmethod
-    def move_list_to_fraction_tuple(cls, move_list):
+    def move_list_to_fraction_tuple(cls, move_list: list[str]) -> tuple[int, int]:
         bfs_index = cls.move_list_to_bfs_index(move_list)
         fraction_tuple = cls.bfs_index_to_fraction_tuple(bfs_index)
         return fraction_tuple
     
     @classmethod
-    def fraction_tuple_to_move_list(cls, fraction_tuple):
+    def fraction_tuple_to_move_list(cls, fraction_tuple: tuple[int, int]) -> list[str]:
         def fraction_tuple_to_move_list_recurse(cls, fraction_tuple, move_list):
             if fraction_tuple == cls.ROOT_FRACTION_TUPLE:
                 return move_list
@@ -74,7 +74,7 @@ class CalkinWilf:
         return fraction_tuple_to_move_list_recurse(cls, fraction_tuple, [])
     
     @classmethod
-    def fraction_tuple_to_bfs_index(cls, fraction_tuple):
+    def fraction_tuple_to_bfs_index(cls, fraction_tuple: tuple[int, int]) -> int:
         move_list = cls.fraction_tuple_to_move_list(fraction_tuple)
         bfs_index = cls.move_list_to_bfs_index(move_list)
         return bfs_index
@@ -86,21 +86,21 @@ class CalkinWilf:
         return move_list
     
     @classmethod
-    def move_list_to_node(cls, move_list: list[str]):
+    def move_list_to_node(cls, move_list: list[str]) -> typing.Self:
         return cls(move_list)        
     
     @classmethod
-    def bfs_index_to_node(cls, bfs_index: int):
+    def bfs_index_to_node(cls, bfs_index: int) -> typing.Self:
         move_list = cls.bfs_index_to_move_list(bfs_index)
         return cls(move_list)
 
     @classmethod
-    def fraction_tuple_to_node(cls, fraction_tuple):
+    def fraction_tuple_to_node(cls, fraction_tuple) -> typing.Self:
         move_list = cls.fraction_tuple_to_move_list(fraction_tuple)
         return cls(move_list)
     
     @classmethod
-    def depth_to_bfs_node_list(cls, depth: int):
+    def depth_to_bfs_node_list(cls, depth: int) -> list[typing.Self]:
         cw_tree = []
         N = cls()
         level_node_list = []
@@ -116,7 +116,7 @@ class CalkinWilf:
         cw_bfs_list = ft.reduce(operator.iadd, cw_tree, [])
         return cw_bfs_list
 
-    def __init__(self, move_list=None):
+    def __init__(self, move_list=None) -> None:
         if move_list is None:
             self.move_list = type(self).ROOT_MOVE_LIST
             self.move_string = "".join(self.move_list)
@@ -134,27 +134,30 @@ class CalkinWilf:
             self.fraction_tuple = type(self).move_list_to_fraction_tuple(self.move_list)
             self.cf = cflib.fraction_tuple_to_cf(self.fraction_tuple)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{type(self).__name__}({self.move_list})"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Fraction:\t{self.fraction_tuple}\nCF:\t\t{self.cf}\nCW Moves:\t{self.move_string}\nCW BFS index:\t{self.bfs_index}"
 
-    def __eq__(self, other):
+    def __eq__(self, other: typing.Self) -> bool:
         return self.move_list == other.move_list
     
-    def __lt__(self, other):
+    def __lt__(self, other: typing.Self) -> bool:
         return len(self.move_list) < len(other.move_list) and other.move_list[0:len(self.move_list)] == self.move_list
     
-    def L(self):
+    def __len__(self) -> int:
+        return len(self.move_list)
+    
+    def L(self) -> typing.Self:
         new_move_list = self.move_list + ["L"]
         return type(self)(new_move_list)
     
-    def R(self):
+    def R(self) -> typing.Self:
         new_move_list = self.move_list + ["R"]
         return type(self)(new_move_list)
     
-    def P(self):
+    def P(self) -> typing.Self:
         move_list = self.move_list
         if not move_list:
             return None
@@ -162,7 +165,7 @@ class CalkinWilf:
             new_move_list = move_list[0:-1]
             return type(self)(new_move_list)
     
-    def run_tuple_list(self):
+    def run_tuple_list(self) -> list[tuple[str, int]]:
         return [(k, len(list(g))) for k, g in it.groupby(self.move_list)]
 
 
