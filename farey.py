@@ -3,8 +3,15 @@ from fractions import Fraction
 import decimal
 from decimal import Decimal
 import bisect
+import itertools as it
 import math
 from pprint import pprint
+
+
+def reduced_fraction_mediant(x: Fraction, y: Fraction) -> Fraction:
+    numerator = x.numerator + y.numerator
+    denominator = x.denominator + y.denominator
+    return Fraction(numerator, denominator)
 
 
 def totient(n: int) -> int:
@@ -69,17 +76,25 @@ def farey_abs_diff_sum_float(n: int) -> float:
 
 
 if __name__ == "__main__":
+    # decimal.getcontext().prec = 30
+    # f = farey_abs_diff_sum_fraction(1001)
+    # print(float(f))
+    # print(Decimal(f.numerator) / Decimal(f.denominator))
+    # print(farey_abs_diff_sum_decimal(1011))
+    # print(farey_abs_diff_sum_float(1011))
+
+
     n = 4
     k = 2
 
-    given_fraction = Fraction(2, 17)
+    farey_list_order_n = farey_list(n)
+    l = farey_list_order_n
+    a_iter, b_iter = it.tee(farey_list_order_n)
+    next(b_iter, None)
+    farey_list_order_n_plus_one = sum([([a, reduced_fraction_mediant(a, b)] if reduced_fraction_mediant(a, b).denominator <= n + 1 else [a]) for a, b in zip(a_iter, b_iter)], start=[]) + [farey_list_order_n[-1]]
+    print(farey_list_order_n_plus_one)
 
-    decimal.getcontext().prec = 30
-    f = farey_abs_diff_sum_fraction(1001)
-    print(float(f))
-    print(Decimal(f.numerator) / Decimal(f.denominator))
-    print(farey_abs_diff_sum_decimal(1011))
-    print(farey_abs_diff_sum_float(1011))
+    print(farey_list(n + 1))
 
     assert len(farey_list(n + 1)) == len(farey_list(n)) + totient(n + 1)
 
@@ -90,9 +105,10 @@ if __name__ == "__main__":
     target_fraction = farey_list_order_n[k]
     assert find_farey_generator_index(n, target_fraction) == find_farey_list_index(n, target_fraction)
 
+    target_fraction = Fraction(2, 17)
     assert find_farey_generator_index(n, target_fraction) is None and find_farey_list_index(n, target_fraction) is None \
         or find_farey_generator_index(n, target_fraction) == find_farey_list_index(n, target_fraction)
 
-    # pprint(farey_list(n))
+
 
 
