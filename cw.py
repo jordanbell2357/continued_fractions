@@ -4,6 +4,7 @@ import operator
 from fractions import Fraction
 import math
 import typing
+from pprint import pprint
 
 import cflib
 
@@ -100,7 +101,7 @@ class CalkinWilf:
         return cls(move_list)
     
     @classmethod
-    def depth_to_bfs_node_list(cls, depth: int) -> list[typing.Self]:
+    def depth_to_cw_tree(cls, depth: int) -> list[list[typing.Self]]:
         cw_tree = []
         N = cls()
         level_node_list = []
@@ -113,8 +114,14 @@ class CalkinWilf:
                 level_node_list.append(N.L())
                 level_node_list.append(N.R())
             cw_tree.append(level_node_list)
+        return cw_tree
+    
+    @classmethod
+    def depth_to_bfs_node_list(cls, depth: int) -> list[typing.Self]:
+        cw_tree = cls.depth_to_cw_tree(depth)
         cw_bfs_list = ft.reduce(operator.iadd, cw_tree, [])
         return cw_bfs_list
+
 
     def __init__(self, move_list=None) -> None:
         if move_list is None:
@@ -172,7 +179,8 @@ class CalkinWilf:
 class CalkinWilfTree:
     def __init__(self, depth: int) -> None:
         self.depth = depth
-        self.cw_tree = CalkinWilf.depth_to_bfs_node_list(self.depth)
+        self.cw_tree = CalkinWilf.depth_to_cw_tree(self.depth)
+        self.bfs_node_list = CalkinWilf.depth_to_bfs_node_list(self.depth)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(depth={self.depth})"
@@ -230,6 +238,5 @@ if __name__ == "__main__":
     N = CalkinWilf.bfs_index_to_node(bfs_index)
     assert CalkinWilf.move_list_to_fraction_tuple(N.move_list) == N.fraction_tuple
 
-    cw_tree = CalkinWilfTree(1)
-    for item in cw_tree:
-        print(item)
+    cw_tree = CalkinWilfTree(3)
+    pprint(cw_tree.bfs_node_list)
