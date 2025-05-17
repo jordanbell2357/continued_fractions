@@ -92,8 +92,8 @@ if __name__ == "__main__":
     # Example 3: sqrt(n)
     d = 7
     num_terms = 20
-    decimal.getcontext().prec = 50
-
+    precision = 20
+    decimal.getcontext().prec = precision
     sqrtd = decimal.Decimal(d).sqrt()
     cf_sqrtd = decimal_to_cf(sqrtd, num_terms=num_terms)
     print(f"Partial quotients for sqrt({d})")
@@ -104,7 +104,8 @@ if __name__ == "__main__":
     # Example 4: Convergents
     d = 7
     num_terms = 20
-    decimal.getcontext().prec = 50
+    precision = 20
+    decimal.getcontext().prec = precision
     sqrtd = decimal.Decimal(d).sqrt()
     cf_sqrtd = decimal_to_cf(sqrtd, num_terms=num_terms)
     print(f"Convergents for sqrt({d})")
@@ -113,7 +114,8 @@ if __name__ == "__main__":
 
     # Example 5: Cotes continued fraction for e
     num_terms = 40
-    decimal.getcontext().prec = 50
+    precision = 20
+    decimal.getcontext().prec = precision
     e = decimal.Decimal(1).exp()
     cf_e = decimal_to_cf(e, num_terms=num_terms)
     print("Partial quotients of e")
