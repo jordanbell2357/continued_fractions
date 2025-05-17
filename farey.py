@@ -8,6 +8,24 @@ import functools as ft
 import operator
 import math
 import time
+import typing
+
+
+def find_ordered_list_index(ordered_list: list[typing.Any], target_item: typing.Any) -> int:
+    left_index = bisect.bisect_left(ordered_list, target_item)
+    right_index = bisect.bisect_right(ordered_list, target_item)
+    if left_index == right_index:
+        return None
+    else:
+        return left_index
+
+def check_ordered_list_membership(ordered_list: list[typing.Any], target_item: typing.Any) -> int:
+    left_index = bisect.bisect_left(ordered_list, target_item)
+    right_index = bisect.bisect_right(ordered_list, target_item)
+    if left_index == right_index:
+        return False
+    else:
+        return True
 
 
 def reduced_fraction_mediant(x: Fraction, y: Fraction) -> Fraction:
@@ -54,21 +72,12 @@ def next_farey_generator(farey_generator_order_n: Generator[Fraction]) -> Genera
     return farey_generator_order_n_plus_one
 
 
-def find_farey_generator_index(n: int, target_fraction: Fraction) -> int:
+def find_farey_index(n: int, target_fraction: Fraction) -> int:
     farey_generator_order_n = farey_generator(n)
     for k, farey_fraction in enumerate(farey_generator_order_n):
         if target_fraction == farey_fraction:
             return k
     return None
-
-def find_farey_list_index(n: int, target_fraction: Fraction) -> int:
-    farey_list_order_n = farey_list(n)
-    left_index = bisect.bisect_left(farey_list_order_n, target_fraction)
-    right_index = bisect.bisect_right(farey_list_order_n, target_fraction)
-    if left_index == right_index:
-        return None
-    else:
-        return left_index
 
 
 def farey_diff(n: int, k: int) -> Fraction:
@@ -96,8 +105,30 @@ def farey_abs_diff_sum_decimal(n: int, precision: int = 10) -> Decimal:
 def farey_abs_diff_sum_float(n: int) -> float:
     farey_list_order_n = farey_list(n)
     l = len(farey_list_order_n)
-    return sum(abs(f - k / l) for k, f in enumerate(farey_list_order_n))
+    return math.fsum(abs(f - k / l) for k, f in enumerate(farey_list_order_n))
 
+
+class Farey:
+    def __init__(self, n: int) -> None:
+        self.n = n
+        self.farey_list = farey_list(self.n)
+        self.num_terms = len(self.farey_list)
+    
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(n={self.n})"
+    
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.n == other.n
+    
+    def __lt__(self, other: typing.Self) -> bool:
+        return self.n < other.n
+    
+    # __iter__ implements __contains__ but we choose to implement __contains__ independently
+    def __contains__(self, item: Fraction) -> bool:
+        return check_ordered_list_membership(self.farey_list, item)
+    
+    def __iter__(self):
+        return iter(self.farey_list)
 
 
 if __name__ == "__main__":
@@ -107,20 +138,20 @@ if __name__ == "__main__":
     target_fraction = Fraction(2, 17)
     decimal.getcontext().prec = precision
 
-    start_time = time.perf_counter()
-    fraction_sum = float(farey_abs_diff_sum_fraction(n))
-    end_time = time.perf_counter()
-    print("Exact value", fraction_sum, "Time", end_time - start_time)
+    # start_time = time.perf_counter()
+    # fraction_sum = float(farey_abs_diff_sum_fraction(n))
+    # end_time = time.perf_counter()
+    # print("Exact value", fraction_sum, "Time", end_time - start_time)
 
-    start_time = time.perf_counter()
-    decimal_sum = float(farey_abs_diff_sum_decimal(n, precision))
-    end_time = time.perf_counter()
-    print("Decimal approximation", decimal_sum, "Time", end_time - start_time, "Approximation error", decimal_sum - fraction_sum)
+    # start_time = time.perf_counter()
+    # decimal_sum = float(farey_abs_diff_sum_decimal(n, precision))
+    # end_time = time.perf_counter()
+    # print("Decimal approximation", decimal_sum, "Time", end_time - start_time, "Approximation error", decimal_sum - fraction_sum)
 
-    start_time = time.perf_counter()
-    float_sum = farey_abs_diff_sum_float(n)
-    end_time = time.perf_counter()
-    print("Float approximation", float_sum, "Time", end_time - start_time, "Approximation error", float_sum - fraction_sum)
+    # start_time = time.perf_counter()
+    # float_sum = farey_abs_diff_sum_float(n)
+    # end_time = time.perf_counter()
+    # print("Float approximation", float_sum, "Time", end_time - start_time, "Approximation error", float_sum - fraction_sum)
 
     farey_generator_order_n = farey_generator(n)
     farey_generator_order_n_plus_one = next_farey_generator(farey_generator_order_n)
@@ -133,15 +164,27 @@ if __name__ == "__main__":
     assert len(farey_list(n + 1)) == len(farey_list(n)) + totient(n + 1)
 
     farey_list_order_n = farey_list(n)
-    assert k >= n or find_farey_list_index(n, farey_list_order_n[k]) == k
+    target_fraction = farey_list_order_n[k]
+    assert find_ordered_list_index(farey_list_order_n, target_fraction) == find_farey_index(n, target_fraction)
 
     farey_list_order_n = farey_list(n)
-    farey_fraction = farey_list_order_n[k]
-    assert find_farey_generator_index(n, farey_fraction) == find_farey_list_index(n, farey_fraction)
+    assert k >= n or find_farey_index(n, farey_list_order_n[k]) == k
 
-    assert find_farey_generator_index(n, target_fraction) is None and find_farey_list_index(n, target_fraction) is None \
-        or find_farey_generator_index(n, target_fraction) == find_farey_list_index(n, target_fraction)
+    assert find_farey_index(n, target_fraction) is None and find_farey_index(n, target_fraction) is None \
+        or find_farey_index(n, target_fraction) == find_farey_index(n, target_fraction)
+    
+    f = Farey(n)
+    assert f.n == n
 
+    f = Farey(n)
+    assert f.farey_list == farey_list(n)
+
+    f = Farey(n)
+    assert find_farey_index(n, target_fraction) is None and target_fraction not in f \
+        or find_farey_index(n, target_fraction) is not None and target_fraction in f
+
+    f = Farey(n)
+    assert f.farey_list == [farey_fraction for farey_fraction in f]
 
 
 

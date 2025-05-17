@@ -167,6 +167,24 @@ class CalkinWilf:
     
     def run_tuple_list(self) -> list[tuple[str, int]]:
         return [(k, len(list(g))) for k, g in it.groupby(self.move_list)]
+    
+
+class CalkinWilfTree:
+    def __init__(self, depth: int) -> None:
+        self.depth = depth
+        self.cw_tree = CalkinWilf.depth_to_bfs_node_list(self.depth)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(depth={self.depth})"
+    
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.depth == other.depth
+    
+    def __lt__(self, other: typing.Self) -> bool:
+        return self.depth < other.depth
+    
+    def __iter__(self):
+        return iter(self.cw_tree)
 
 
 if __name__ == "__main__":
@@ -212,7 +230,6 @@ if __name__ == "__main__":
     N = CalkinWilf.bfs_index_to_node(bfs_index)
     assert CalkinWilf.move_list_to_fraction_tuple(N.move_list) == N.fraction_tuple
 
-    fraction_tuple = (21, 13)
-
-    N = CalkinWilf.fraction_tuple_to_node(fraction_tuple)
-    print(N)
+    cw_tree = CalkinWilfTree(1)
+    for item in cw_tree:
+        print(item)
