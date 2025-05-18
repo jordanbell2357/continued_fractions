@@ -191,6 +191,9 @@ class CalkinWilfTree:
     def __lt__(self, other: typing.Self) -> bool:
         return self.depth < other.depth
     
+    def __len__(self) -> int:
+        return len(self.bfs_node_list)
+    
     def __iter__(self):
         return iter(self.cw_tree)
 
@@ -240,3 +243,4 @@ if __name__ == "__main__":
 
     cw_tree = CalkinWilfTree(3)
     pprint(cw_tree.bfs_node_list)
+    print(len(cw_tree))

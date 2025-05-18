@@ -2,6 +2,8 @@ import itertools as it
 from fractions import Fraction
 import typing
 import random
+import functools as ft
+import operator
 
 import cflib
 
@@ -14,7 +16,6 @@ class SternBrocot:
     ALPHABET = ["L", "R"]
     ROOT_LEFT_TUPLE, ROOT_MEDIANT_TUPLE, ROOT_RIGHT_TUPLE = (0, 1), (1, 1), (1, 0)
     ROOT_MOVE_LIST = []
-    MOVE_BIT_DICT = {"L": "0", "R": "1"}
 
     @staticmethod
     def sb_left_child_parent_mediant(x: tuple[int, int], m: tuple[int, int]) -> tuple[int, int]:
@@ -23,6 +24,11 @@ class SternBrocot:
     @staticmethod
     def sb_right_child_parent_mediant(y: tuple[int, int], m: tuple[int, int]) -> tuple[int, int]:
         return (m[0] - y[0], m[1] - y[1])
+    
+    @staticmethod
+    def move_string_to_move_list(move_string: str) -> list[str]:
+        move_list = [move for move in move_string]
+        return move_list
 
     @classmethod
     def fraction_tuple_to_node(cls, fraction_tuple: tuple[int, int]) -> typing.Self:
@@ -63,6 +69,28 @@ class SternBrocot:
         fraction_tuple = cls.move_list_to_fraction_tuple(move_list)
         cf = cflib.fraction_tuple_to_cf(fraction_tuple)
         return cf
+    
+    @classmethod
+    def level_to_nodes(cls, level: int) -> list[list[typing.Self]]:
+        move_string_list = ["".join(moves) for moves in it.product(cls.ALPHABET, repeat=level)]
+        move_list_list = [cls.move_string_to_move_list(move_string) for move_string in move_string_list]
+        node_list = [cls.move_list_to_node(move_list) for move_list in move_list_list]
+        return node_list
+    
+    @classmethod
+    def depth_to_sb_tree(cls, depth: int) -> list[list[typing.Self]]:
+        sb_tree = []
+        for level in range(depth + 1):
+            node_list = cls.level_to_nodes(level)
+            sb_tree.append(node_list)
+        return sb_tree
+
+    @classmethod
+    def depth_to_bfs_node_list(cls, depth: int) -> list[typing.Self]:
+        sb_tree = cls.depth_to_sb_tree(depth)
+        bfs_node_list = ft.reduce(operator.iadd, sb_tree, [])
+        return bfs_node_list
+
 
     def __init__(self, move_list=None, left_tuple=None, mediant_tuple=None, right_tuple=None) -> None:
         if move_list is None:
@@ -75,10 +103,9 @@ class SternBrocot:
             self.left_tuple = left_tuple
             self.mediant_tuple = mediant_tuple
             self.right_tuple = right_tuple
+        self.level = len(self.move_list)
         self.cf = cflib.fraction_tuple_to_cf(self.mediant_tuple)
         self.move_string = "".join(self.move_list)
-        L_bit, R_bit = type(self).MOVE_BIT_DICT["L"], type(self).MOVE_BIT_DICT["R"]
-        self.binary_move_string = self.move_string.replace("L", L_bit).replace("R", R_bit)
 
     def L(self) -> typing.Self:
         new_move_list = self.move_list + ['L']
@@ -121,13 +148,36 @@ class SternBrocot:
     
     def __str__(self) -> str:
         return f"{self.move_list}, {self.mediant_tuple}"
+    
+
+class SternBrocotTree:
+    def __init__(self, depth: int) -> None:
+        self.depth = depth
+        self.sb_tree = SternBrocot.depth_to_sb_tree(self.depth)
+        self.bfs_node_list = SternBrocot.depth_to_bfs_node_list(self.depth)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(depth={self.depth})"
+    
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.depth == other.depth
+
+    def __lt__(self, other: typing.Self) -> bool:
+        return self.depth < other.depth
+    
+    def __len__(self) -> int:
+        return len(self.bfs_node_list)
+    
+    def __iter__(self):
+        return iter(self.bfs_node_list)
+
 
 
 if __name__ == "__main__":
-    move_list_length = 5
+    n = 5
 
     random.seed(444)
-    move_list = random.choices(SternBrocot.ALPHABET, k=move_list_length)
+    move_list = random.choices(SternBrocot.ALPHABET, k=5)
 
     N = SternBrocot.move_list_to_node(move_list)
     assert SternBrocot.move_list_to_cf(move_list) == N.cf
@@ -143,11 +193,14 @@ if __name__ == "__main__":
     assert N.mediant_tuple == fraction_tuple
 
     N = SternBrocot.fraction_tuple_to_node(fraction_tuple)
-    assert N.cf == cflib.fraction_tuple_to_cf(fraction_tuple)
+    assert N.cf == cflib.fraction_tuple_to_cf(fraction_tuple)    
 
-    print(N.mediant_tuple, N.cf, len(N), N.binary_move_string)
-    
+    assert SternBrocot.move_string_to_move_list("") == []
 
+    sb_tree = SternBrocotTree(n)
+    assert sb_tree.bfs_node_list == SternBrocot.depth_to_bfs_node_list(n)
 
+    sb_tree = SternBrocotTree(n)
+    assert len(sb_tree) == len(sb_tree.bfs_node_list)
 
 
