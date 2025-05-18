@@ -11,6 +11,8 @@ from decimal import Decimal
 import farey
 
 
+
+
 def isprime(n: int) -> bool:
     n = abs(n)
     if n % 2 == 0:
@@ -25,7 +27,7 @@ def isprime(n: int) -> bool:
         return True
 
 
-def primes():
+def generate_primes():
     yield 2
     for k in it.count(start=3, step=2):
         if isprime(k):
@@ -33,18 +35,13 @@ def primes():
 
 
 def make_prime_list(n: int) -> list[int]:
-    prime_gen = primes()
-    prime_list = []
-    for p in prime_gen:
-        if len(prime_list) >= n:
-            break
-        else:
-            prime_list.append(p)
+    prime_gen = generate_primes()
+    prime_list = [p for p, _ in zip(prime_gen, range(n))]
     return prime_list
 
 
 def prime_counting_function(x: float) -> int:
-    prime_gen = primes()
+    prime_gen = generate_primes()
     prime_count = 0
     for p in prime_gen:
         if p > x:
@@ -53,13 +50,15 @@ def prime_counting_function(x: float) -> int:
             prime_count += 1
     return prime_count
 
+
 def adjusted_prime_counting_function(x: float) -> float:
     prime_count = prime_counting_function(x)
     if x == int(x) and isprime(int(x)):
         return prime_count - 1 / 2
     else:
         return prime_count
-    
+
+
 def prime_power_counting_function(x: float, precision: int = 20) -> Decimal:
     decimal_context = decimal.getcontext()
     decimal_context.prec = precision
@@ -68,7 +67,7 @@ def prime_power_counting_function(x: float, precision: int = 20) -> Decimal:
 
 
 def make_prime_factor_counter(n: int) -> Counter:
-    prime_gen = primes()
+    prime_gen = generate_primes()
     prime_factor_counter = Counter()
     for p in prime_gen:
         if n in [0, 1]:
@@ -93,7 +92,8 @@ def von_mangoldt(n: int, precision: int = 20) -> Decimal:
 def chebyshev_theta(x: float, precision: int = 20) -> Decimal:
     decimal.getcontext().prec = precision
     log_prime_sum = Decimal(0)
-    for p in primes():
+    prime_gen = generate_primes()
+    for p in prime_gen:
         if p <= x:
             log_prime_sum += Decimal(p).ln()
         else:
@@ -103,7 +103,7 @@ def chebyshev_theta(x: float, precision: int = 20) -> Decimal:
 
 def chebyshev_psi(x: float, precision: int = 20) -> Decimal:
     decimal.getcontext().prec = precision
-    von_mangoldt_sum = math.fsum([von_mangoldt(n, precision) for n in range(math.floor(x) + 1)])
+    von_mangoldt_sum = sum([von_mangoldt(n, precision) for n in range(math.floor(x) + 1)])
     return von_mangoldt_sum
 
 
@@ -162,7 +162,8 @@ def sum_of_divisors(n: int) -> int:
 
 
 if __name__ == "__main__":
-    n = 13
+    n = 14
+
     f = farey.Farey(n)
     complex_farey_sum = -1 + sum(cmath.exp(complex(0, 2 * math.pi * a)) for a in f.farey_list)
     farey_sum = round(complex_farey_sum.real)
@@ -173,20 +174,45 @@ if __name__ == "__main__":
 
     assert len(make_factor_list(n)) == number_of_divisors(n)
 
+    assert sum(make_factor_list(n)) == sum_of_divisors(n)
+
     assert mobius(n) == mobius_prime(n)
 
     assert prime_big_omega(n) == prime_little_omega(n) or mobius(n) == 0
 
     assert liouville(n) == (-1) ** prime_big_omega(n)
 
+    assert mobius(n) == liouville(n) if prime_big_omega(n) == prime_little_omega(n) else 0
+
+    assert len(make_prime_list(n)) == n
+
     x = 180.45
     precision = 40
-    decimal_context = decimal.getcontext()
-    decimal_context.prec = precision
+    display_precision = 20
 
-    assert chebyshev_psi(x, precision) == \
-        math.fsum(chebyshev_theta(x ** Fraction(1, n), precision) for n in range(1, math.floor(math.log2(x)) + 1))
+    assert decimal.Context(prec=display_precision).create_decimal(chebyshev_psi(x, precision)) == \
+        decimal.Context(prec=display_precision).create_decimal(sum(chebyshev_theta(x ** Fraction(1, n), precision) for n in range(1, math.floor(math.log2(x)) + 1)))
 
-    print(prime_power_counting_function(x, precision))
+    assert decimal.Context(prec=display_precision).create_decimal(prime_power_counting_function(x, precision)) == \
+        decimal.Context(prec=display_precision).create_decimal(sum(von_mangoldt(n, precision) / Decimal(n).ln() for n in range(2, math.floor(x) + 1)))
 
-    print(sum(von_mangoldt(n, precision) / Decimal(n).ln() for n in range(2, math.floor(x) + 1)))
+
+def sieve_eratosthenes(n: int) -> list[int]:
+    """Return all primes <= n using the Sieve of Eratosthenes."""
+    if n < 2:
+        return []
+
+    # one byte per number: 1 = prime candidate, 0 = composite
+    flags = bytearray(b"\x01") * (n + 1)
+    flags[0:2] = b"\x00\x00"                     # 0 and 1 are not prime
+
+    for p in range(2, math.isqrt(n) + 1):        # stop at ⌊√n⌋
+        if flags[p]:                             # p is still marked prime
+            flags[p*p :: p] = b"\x00" * ((n - p*p)//p + 1)
+            # slice-assignment wipes out multiples without an inner loop
+
+    # itertools.compress keeps numbers whose flag byte is still 1
+    return list(it.compress(range(n + 1), flags))
+
+
+print(sieve_eratosthenes(10))
