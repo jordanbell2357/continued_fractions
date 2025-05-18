@@ -7,6 +7,7 @@ import itertools as it
 import functools as ft
 import operator
 import math
+import cmath
 import time
 import typing
 
@@ -108,11 +109,19 @@ def farey_abs_diff_sum_float(n: int) -> float:
     return math.fsum(abs(f - k / l) for k, f in enumerate(farey_list_order_n))
 
 
+def mertens_function(n: int) -> int:
+    farey_list_order_n = farey_list(n)
+    exponential_sum = -1 + sum(cmath.exp(complex(0, 2 * math.pi * a)) for a in farey_list_order_n)
+    return round(exponential_sum.real)    
+
+
 class Farey:
     def __init__(self, n: int) -> None:
         self.n = n
         self.farey_list = farey_list(self.n)
         self.num_terms = len(self.farey_list)
+        exponential_sum = -1 + sum(cmath.exp(complex(0, 2 * math.pi * a)) for a in self.farey_list)
+        self.mertens_function = round(exponential_sum.real)
     
     def __repr__(self) -> str:
         return f"{type(self).__name__}(n={self.n})"
@@ -138,20 +147,20 @@ if __name__ == "__main__":
     target_fraction = Fraction(2, 17)
     decimal.getcontext().prec = precision
 
-    # start_time = time.perf_counter()
-    # fraction_sum = float(farey_abs_diff_sum_fraction(n))
-    # end_time = time.perf_counter()
-    # print("Exact value", fraction_sum, "Time", end_time - start_time)
+    start_time = time.perf_counter()
+    fraction_sum = float(farey_abs_diff_sum_fraction(n))
+    end_time = time.perf_counter()
+    print("Exact value", fraction_sum, "Time", end_time - start_time)
 
-    # start_time = time.perf_counter()
-    # decimal_sum = float(farey_abs_diff_sum_decimal(n, precision))
-    # end_time = time.perf_counter()
-    # print("Decimal approximation", decimal_sum, "Time", end_time - start_time, "Approximation error", decimal_sum - fraction_sum)
+    start_time = time.perf_counter()
+    decimal_sum = float(farey_abs_diff_sum_decimal(n, precision))
+    end_time = time.perf_counter()
+    print("Decimal approximation", decimal_sum, "Time", end_time - start_time, "Approximation error", decimal_sum - fraction_sum)
 
-    # start_time = time.perf_counter()
-    # float_sum = farey_abs_diff_sum_float(n)
-    # end_time = time.perf_counter()
-    # print("Float approximation", float_sum, "Time", end_time - start_time, "Approximation error", float_sum - fraction_sum)
+    start_time = time.perf_counter()
+    float_sum = farey_abs_diff_sum_float(n)
+    end_time = time.perf_counter()
+    print("Float approximation", float_sum, "Time", end_time - start_time, "Approximation error", float_sum - fraction_sum)
 
     farey_generator_order_n = farey_generator(n)
     farey_generator_order_n_plus_one = next_farey_generator(farey_generator_order_n)
@@ -185,6 +194,9 @@ if __name__ == "__main__":
 
     f = Farey(n)
     assert f.farey_list == [farey_fraction for farey_fraction in f]
+
+    f = Farey(n)
+    assert f.mertens_function == mertens_function(n)
 
 
 

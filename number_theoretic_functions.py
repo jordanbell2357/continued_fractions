@@ -11,6 +11,23 @@ from decimal import Decimal
 import farey
 
 
+def sieve_eratosthenes(x: float) -> list[int]:
+    n = int(x)
+
+    if n < 2:
+        return []
+
+    # one byte per number: 1 = prime candidate, 0 = composite
+    flags = bytearray(b"\x01") * (n + 1)
+    flags[0:2] = b"\x00\x00"                     # 0 and 1 are not prime
+
+    for p in range(2, math.isqrt(n) + 1):        # stop at ⌊√n⌋
+        if flags[p]:                             # p is still marked prime
+            flags[p * p::p] = b"\x00" * ((n - p*p)//p + 1)
+            # slice-assignment wipes out multiples
+
+    # itertools.compress keeps numbers whose flag byte is still 1
+    return list(it.compress(range(n + 1), flags))
 
 
 def isprime(n: int) -> bool:
@@ -51,14 +68,6 @@ def prime_counting_function(x: float) -> int:
     return prime_count
 
 
-def adjusted_prime_counting_function(x: float) -> float:
-    prime_count = prime_counting_function(x)
-    if x == int(x) and isprime(int(x)):
-        return prime_count - 1 / 2
-    else:
-        return prime_count
-
-
 def prime_power_counting_function(x: float, precision: int = 20) -> Decimal:
     decimal_context = decimal.getcontext()
     decimal_context.prec = precision
@@ -76,6 +85,14 @@ def make_prime_factor_counter(n: int) -> Counter:
             prime_factor_counter.update([p])
             n = n // p
     return prime_factor_counter
+
+
+def valuation(p: int, n: int) -> int:
+    v = 0
+    while n % p == 0:
+        v += 1
+        n = n // p
+    return v
 
 
 def von_mangoldt(n: int, precision: int = 20) -> Decimal:
@@ -163,11 +180,18 @@ def sum_of_divisors(n: int) -> int:
 
 if __name__ == "__main__":
     n = 14
+    x = 180.45
+    precision = 40
+    display_precision = 20
 
-    f = farey.Farey(n)
-    complex_farey_sum = -1 + sum(cmath.exp(complex(0, 2 * math.pi * a)) for a in f.farey_list)
-    farey_sum = round(complex_farey_sum.real)
-    assert farey_sum == mertens(n)
+    assert all(isprime(p) for p in sieve_eratosthenes(n))
+
+    assert len(sieve_eratosthenes(x)) == prime_counting_function(x)
+
+    assert len(make_prime_list(n)) == n
+
+    prime_factor_counter = make_prime_factor_counter(n)
+    assert all(valuation(p, n) == v for p, v in prime_factor_counter.items())
 
     prime_factor_counter = make_prime_factor_counter(n)
     assert math.prod(p ** a for p, a in prime_factor_counter.items()) == n
@@ -184,35 +208,14 @@ if __name__ == "__main__":
 
     assert mobius(n) == liouville(n) if prime_big_omega(n) == prime_little_omega(n) else 0
 
-    assert len(make_prime_list(n)) == n
-
-    x = 180.45
-    precision = 40
-    display_precision = 20
-
     assert decimal.Context(prec=display_precision).create_decimal(chebyshev_psi(x, precision)) == \
         decimal.Context(prec=display_precision).create_decimal(sum(chebyshev_theta(x ** Fraction(1, n), precision) for n in range(1, math.floor(math.log2(x)) + 1)))
 
     assert decimal.Context(prec=display_precision).create_decimal(prime_power_counting_function(x, precision)) == \
         decimal.Context(prec=display_precision).create_decimal(sum(von_mangoldt(n, precision) / Decimal(n).ln() for n in range(2, math.floor(x) + 1)))
 
+    f = farey.Farey(n)
+    assert f.mertens_function == mertens(n)
 
-def sieve_eratosthenes(n: int) -> list[int]:
-    """Return all primes <= n using the Sieve of Eratosthenes."""
-    if n < 2:
-        return []
+    assert farey.mertens_function(n) == mertens(n)
 
-    # one byte per number: 1 = prime candidate, 0 = composite
-    flags = bytearray(b"\x01") * (n + 1)
-    flags[0:2] = b"\x00\x00"                     # 0 and 1 are not prime
-
-    for p in range(2, math.isqrt(n) + 1):        # stop at ⌊√n⌋
-        if flags[p]:                             # p is still marked prime
-            flags[p*p :: p] = b"\x00" * ((n - p*p)//p + 1)
-            # slice-assignment wipes out multiples without an inner loop
-
-    # itertools.compress keeps numbers whose flag byte is still 1
-    return list(it.compress(range(n + 1), flags))
-
-
-print(sieve_eratosthenes(10))
