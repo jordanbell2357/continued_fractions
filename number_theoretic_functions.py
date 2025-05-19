@@ -198,8 +198,10 @@ if __name__ == "__main__":
     m = 3
     q = 14
 
-    cq = ft.partial(ramanujan_sum_c, q=q)
-    assert cq(n=1) == mobius(q)
+    assert ramanujan_sum_c(q, 1) == mobius(q)
+
+    factor_list = make_factor_list(math.gcd(n, q))
+    assert ramanujan_sum_c(q, n) == sum(mobius(q // d) * d for d in factor_list)
 
     assert faulhaber(m, n) == sum(k**m for k in range(n + 1))
 
