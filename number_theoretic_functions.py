@@ -4,9 +4,11 @@ from fractions import Fraction
 import itertools as it
 import functools as ft
 import operator
-from collections import Counter
 import decimal
 from decimal import Decimal
+from collections import Counter
+from collections import abc
+import typing
 
 
 def sieve_eratosthenes(n: int) -> list[int]:
@@ -166,12 +168,17 @@ def liouville(n: int) -> int:
     return (-1) ** prime_big_omega(n)
 
 
-def make_factor_list(n: int) -> int:
+def make_factor_list(n: int) -> list[int]:
     prime_factor_counter = make_prime_factor_counter(n)
     exponent_range_list = [range(prime_factor_counter[p] + 1) for p in prime_factor_counter]
     factor_list = [ft.reduce(operator.mul, [p ** e for p, e in zip(prime_factor_counter.keys(), exponent_list)], 1)
                    for exponent_list in it.product(*exponent_range_list)]
     return sorted(factor_list)
+
+
+def make_prime_factor_list(n: int) -> list[int]:
+    prime_factor_counter = make_prime_factor_counter(n)
+    return prime_factor_counter.keys()
 
 
 def number_of_divisors(n: int) -> int:
@@ -198,13 +205,37 @@ def ramanujan_sum_c(q: int, n: int) -> int:
     return round(sum(cmath.exp(complex(0, 2 * math.pi * Fraction(a, q) * n)) for a in range(1, q + 1) if math.gcd(q, a) == 1).real)
 
 
+def dedekind_psi(n: int) -> int:
+    prime_factor_list = make_prime_factor_list(n)
+    return n * math.prod(Fraction(1, 1) + Fraction(1, p) for p in prime_factor_list)
+
+
+def dirichlet_convolution(f: abc.Callable, g: abc.Callable, n: int) -> complex:
+    factor_list = make_factor_list(n)
+    return sum(f(d) * g(n // d) for d in factor_list)
+
+
+def dirichlet_convolution_identity(n: int) -> int:
+    return 1 if n == 1 else 0
+
+
 if __name__ == "__main__":
-    n = 10
+    n = 4
     x = 180.45
     precision = 40
     display_precision = 20
     m = 3
     q = 14
+
+    assert all(dirichlet_convolution(lambda _: 1, mobius, k) == dirichlet_convolution_identity(k) for k in range(1, n + 1))
+
+    assert all(dirichlet_convolution(number_of_divisors, mobius, k) == 1 for k in range(1, n + 1))
+
+    assert all(dirichlet_convolution(sum_of_divisors, mobius, k) == k for k in range(1, n + 1))
+
+    assert all(dirichlet_convolution(lambda _: 1, lambda _: 1, k) == number_of_divisors(k) for k in range(1, n + 1))
+
+    assert all(dirichlet_convolution(lambda x: x, lambda _: 1, k) == sum_of_divisors(k) for k in range(1, n + 1))
 
     assert sieve_eratosthenes_list(n) == sieve_eratosthenes(n)
 
@@ -239,6 +270,8 @@ if __name__ == "__main__":
 
     assert prime_big_omega(n) == prime_little_omega(n) and mobius(n) == liouville(n) or \
         prime_big_omega(n) > prime_little_omega(n) and mobius(n) == 0
+    
+    assert dirichlet_convolution(von_mangoldt, lambda _: 1, Decimal(n)) == Decimal(n).ln()
 
     assert decimal.Context(prec=display_precision).create_decimal(chebyshev_psi(x, precision)) == \
         decimal.Context(prec=display_precision).create_decimal(sum(chebyshev_theta(x ** Fraction(1, n), precision)
