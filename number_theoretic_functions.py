@@ -23,7 +23,7 @@ def sieve_eratosthenes(x: float) -> list[int]:
 
     for p in range(2, math.isqrt(n) + 1):        # stop at ⌊√n⌋
         if flags[p]:                             # p is still marked prime
-            flags[p * p::p] = b"\x00" * ((n - p*p)//p + 1)
+            flags[p * p::p] = b"\x00" * ((n - p * p) // p + 1)
             # slice-assignment wipes out multiples
 
     # itertools.compress keeps numbers whose flag byte is still 1
@@ -178,11 +178,30 @@ def sum_of_divisors(n: int) -> int:
     return int(divisor_sum)
 
 
+def bernoulli(n: int) -> Fraction:
+    return sum(Fraction(1, k + 1) * sum(math.comb(k, j) * (-1)**j * j**n for j in range(k + 1)) for k in range(n + 1))
+
+
+def faulhaber(m: int, n: int) -> int:
+    return Fraction(1, m + 1) * sum((-1)**k * math.comb(m + 1, k) * bernoulli(k) * Fraction(pow(n, m + 1), pow(n, k)) for k in range(m + 1))
+
+
+def ramanujan_sum_c(q: int, n: int) -> int:
+    return round(sum(cmath.exp(complex(0, 2 * math.pi * Fraction(a, q) * n)) for a in range(1, q + 1) if math.gcd(q, a) == 1).real)
+
+
 if __name__ == "__main__":
-    n = 14
+    n = 10
     x = 180.45
     precision = 40
     display_precision = 20
+    m = 3
+    q = 14
+
+    cq = ft.partial(ramanujan_sum_c, q=q)
+    assert cq(n=1) == mobius(q)
+
+    assert faulhaber(m, n) == sum(k**m for k in range(n + 1))
 
     assert all(isprime(p) for p in sieve_eratosthenes(n))
 
@@ -206,13 +225,16 @@ if __name__ == "__main__":
 
     assert liouville(n) == (-1) ** prime_big_omega(n)
 
-    assert mobius(n) == liouville(n) if prime_big_omega(n) == prime_little_omega(n) else 0
+    assert prime_big_omega(n) == prime_little_omega(n) and mobius(n) == liouville(n) or \
+        prime_big_omega(n) > prime_little_omega(n) and mobius(n) == 0
 
     assert decimal.Context(prec=display_precision).create_decimal(chebyshev_psi(x, precision)) == \
-        decimal.Context(prec=display_precision).create_decimal(sum(chebyshev_theta(x ** Fraction(1, n), precision) for n in range(1, math.floor(math.log2(x)) + 1)))
+        decimal.Context(prec=display_precision).create_decimal(sum(chebyshev_theta(x ** Fraction(1, n), precision)
+                                                                   for n in range(1, math.floor(math.log2(x)) + 1)))
 
     assert decimal.Context(prec=display_precision).create_decimal(prime_power_counting_function(x, precision)) == \
-        decimal.Context(prec=display_precision).create_decimal(sum(von_mangoldt(n, precision) / Decimal(n).ln() for n in range(2, math.floor(x) + 1)))
+        decimal.Context(prec=display_precision).create_decimal(sum(von_mangoldt(n, precision) / Decimal(n).ln()
+                                                                   for n in range(2, math.floor(x) + 1)))
 
     f = farey.Farey(n)
     assert f.mertens_function == mertens(n)
