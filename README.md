@@ -1,5 +1,11 @@
 # continued_fractions README
 
+cflib uses standard library only
+
+other modules use standard library and cflib. if they do something that can be compared to cflib, the assertions are in the module
+
+all assertions connecting the non-cflib modules are in integration_testing 
+
 Done:
 
 - Stern–Brocot tree
