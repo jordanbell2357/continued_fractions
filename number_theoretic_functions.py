@@ -15,17 +15,19 @@ def sieve_eratosthenes(n: int) -> list[int]:
     if n < 2:
         return []
 
-    # one byte per number: 1 = prime candidate, 0 = composite
-    flags = bytearray(b"\x01") * (n + 1)
-    flags[0:2] = b"\x00\x00"                     # 0 and 1 are not prime
+    # Indices 0 to n
+    # Bytes initially set to 1 and bytes are set to 0 to indicate not prime
+    # Those indices with flags equal to 1 at termination, are the primes <= n
+    sieve_bytearray = bytearray(b"\x01" * (n + 1))
+    sieve_bytearray[0:2] = b"\x00\x00" # flag 
 
-    for p in range(2, math.isqrt(n) + 1):        # stop at ⌊√n⌋
-        if flags[p]:                             # p is still marked prime
-            flags[p * p::p] = b"\x00" * ((n - p * p) // p + 1)
-            # slice-assignment wipes out multiples
+    for p in range(2, math.isqrt(n) + 1):
+        if sieve_bytearray[p]:
+            sieve_bytearray[p * p::p] = b"\x00" * ((n - p * p) // p + 1)
+            # flag multiples as not prime
 
-    # itertools.compress keeps numbers whose flag byte is still 1
-    return list(it.compress(range(n + 1), flags))
+    # itertools.compress keeps indices whose flag is 1
+    return list(it.compress(range(n + 1), sieve_bytearray))
 
 
 def isprime(n: int) -> bool:
