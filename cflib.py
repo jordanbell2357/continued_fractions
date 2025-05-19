@@ -1,10 +1,11 @@
 import functools as ft
 from fractions import Fraction
 import decimal
+from decimal import Decimal
 import math
 
 
-def decimal_to_cf(x: decimal.Decimal, num_terms: int = 20) -> list[int]:
+def decimal_to_cf(x: Decimal, num_terms: int = 20) -> list[int]:
     cf = []
     for _ in range(num_terms):
         a = int(x)
@@ -14,6 +15,20 @@ def decimal_to_cf(x: decimal.Decimal, num_terms: int = 20) -> list[int]:
             break
         x = 1 / frac_part
     return cf
+
+
+def gauss_transformation(x: Decimal) -> Decimal:
+    return (1 / x) % 1
+
+
+def decimal_to_cf_unit_interval(x: Decimal, num_terms: int = 20) -> list[int]:
+    x_list = []
+    for _ in range(num_terms - 1):
+        x_list.append(x)
+        x = gauss_transformation(x)
+    a_list = [0] + [int(1 / x) for x in x_list]
+    return a_list
+
 
 def fraction_tuple_to_cf(fraction_tuple: tuple[int, int]) -> list[int]:
     x = Fraction(*fraction_tuple)
@@ -43,6 +58,11 @@ def cf_to_convergent_list(cf: list[int]) -> list[tuple[int, int]]:
         q_prev2, q_prev1 = q_prev1, q_k
     return convergent_list
 
+def fraction_tuple_to_convergent_list(fraction_tuple: tuple[int, int]) -> list[tuple[int, int]]:
+    cf = fraction_tuple_to_cf(fraction_tuple)
+    convergent_list = cf_to_convergent_list(cf)
+    return convergent_list
+
 def cf_to_fraction_tuple(cf: list[int]) -> tuple[int, int]:
     convergent_list = cf_to_convergent_list(cf)
     fraction_tuple = convergent_list[-1]
@@ -63,9 +83,47 @@ def stern_diatomic(n: int) -> int:
                 return stern_diatomic_recurse(m) + stern_diatomic_recurse(m + 1)
     return stern_diatomic_recurse(n)
 
+
 # Example usage:
 if __name__ == "__main__":
-    # Example 1: gcd
+    # Example: Gauss transformation
+    x = Decimal(0.34534267)
+    num_terms = 5
+    precision = 20
+    decimal.getcontext().prec = precision
+
+    cf = decimal_to_cf(x, num_terms)
+    a_list = decimal_to_cf_unit_interval(x, num_terms)
+    assert x < 0 or x >= 1 or a_list == cf
+
+    print()
+
+
+    # Example: Decimal Convergents
+    d = 7
+    num_terms = 20
+    precision = 20
+    decimal.getcontext().prec = precision
+    sqrtd = Decimal(d).sqrt()
+    cf_sqrtd = decimal_to_cf(sqrtd, num_terms=num_terms)
+    print(f"Convergents for sqrt({d})")
+    convergents = cf_to_convergent_list(cf_sqrtd)
+    print(convergents)
+
+    print()
+
+    # Example: Decimal Cotes continued fraction for e
+    num_terms = 40
+    precision = 20
+    decimal.getcontext().prec = precision
+    e = Decimal(1).exp()
+    cf_e = decimal_to_cf(e, num_terms=num_terms)
+    print("Partial quotients of e")
+    print(cf_e)
+
+    print()
+
+    # Example: gcd
     p = 18
     q = 4
 
@@ -76,7 +134,7 @@ if __name__ == "__main__":
 
     print()
 
-    # Example 2: Bezout coefficients
+    # Example: Bezout coefficients
     partial_quotients = fraction_tuple_to_cf((p, q))
     convergents = cf_to_convergent_list(partial_quotients)
     n = len(convergents) - 1
@@ -89,34 +147,12 @@ if __name__ == "__main__":
     
     print()
 
-    # Example 3: sqrt(n)
+    # Example: sqrt(n)
     d = 7
     num_terms = 20
     precision = 20
     decimal.getcontext().prec = precision
-    sqrtd = decimal.Decimal(d).sqrt()
+    sqrtd = Decimal(d).sqrt()
     cf_sqrtd = decimal_to_cf(sqrtd, num_terms=num_terms)
     print(f"Partial quotients for sqrt({d})")
     print(f"[a_0, ..., a_{num_terms -1}]", '=', cf_sqrtd)
-
-    print()
-
-    # Example 4: Convergents
-    d = 7
-    num_terms = 20
-    precision = 20
-    decimal.getcontext().prec = precision
-    sqrtd = decimal.Decimal(d).sqrt()
-    cf_sqrtd = decimal_to_cf(sqrtd, num_terms=num_terms)
-    print(f"Convergents for sqrt({d})")
-    convergents = cf_to_convergent_list(cf_sqrtd)
-    print(convergents)
-
-    # Example 5: Cotes continued fraction for e
-    num_terms = 40
-    precision = 20
-    decimal.getcontext().prec = precision
-    e = decimal.Decimal(1).exp()
-    cf_e = decimal_to_cf(e, num_terms=num_terms)
-    print("Partial quotients of e")
-    print(cf_e)

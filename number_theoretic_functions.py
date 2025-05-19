@@ -8,26 +8,34 @@ from collections import Counter
 import decimal
 from decimal import Decimal
 
-import farey
-
 
 def sieve_eratosthenes(n: int) -> list[int]:
+    """Indices of bytearray are 0 to n. We set the bytes at each index initially to 1. For each index
+    whose byte is still set to 1, we set the bytes at all multiples of the index to 0.
+    The indices whose bytes are still equal to 1 at termination, are the prime numbers between
+    0 and n.
+    """
+
     if n < 2:
         return []
-
-    # Indices 0 to n
-    # Bytes initially set to 1 and bytes are set to 0 to indicate not prime
-    # Those indices with flags equal to 1 at termination, are the primes <= n
     sieve_bytearray = bytearray(b"\x01" * (n + 1))
-    sieve_bytearray[0:2] = b"\x00\x00" # flag 
+    sieve_bytearray[0:2] = b"\x00\x00" # 0 and 1 are not prime
+    for q in range(2, math.isqrt(n) + 1):
+        if sieve_bytearray[q] == 1:
+            sieve_bytearray[q * q::q] = b"\x00" * ((n - q * q) // q + 1) # set bytes at multiples of index to 0
+    return list(it.compress(range(n + 1), sieve_bytearray)) # return those indices whose byte is 1
 
-    for p in range(2, math.isqrt(n) + 1):
-        if sieve_bytearray[p]:
-            sieve_bytearray[p * p::p] = b"\x00" * ((n - p * p) // p + 1)
-            # flag multiples as not prime
 
-    # itertools.compress keeps indices whose flag is 1
-    return list(it.compress(range(n + 1), sieve_bytearray))
+def sieve_eratosthenes_list(n: int) -> list[int]:
+    if n < 2:
+        return []
+    sieve_list = [True] * (n + 1)
+    sieve_list[0] = False
+    sieve_list[1] = False
+    for q in range(2, math.isqrt(n) + 1):
+        if sieve_list[q] == 1:
+            sieve_list[q * q::q] = [False] * ((n - q * q) // q + 1)
+    return [k for k in range(n + 1) if sieve_list[k] == True]
 
 
 def isprime(n: int) -> bool:
@@ -198,16 +206,18 @@ if __name__ == "__main__":
     m = 3
     q = 14
 
+    assert sieve_eratosthenes_list(n) == sieve_eratosthenes(n)
+
+    assert all(isprime(p) for p in sieve_eratosthenes(n))
+
+    assert len(sieve_eratosthenes(int(x))) == prime_counting_function(x)
+
     assert ramanujan_sum_c(q, 1) == mobius(q)
 
     factor_list = make_factor_list(math.gcd(n, q))
     assert ramanujan_sum_c(q, n) == sum(mobius(q // d) * d for d in factor_list)
 
     assert faulhaber(m, n) == sum(k**m for k in range(n + 1))
-
-    assert all(isprime(p) for p in sieve_eratosthenes(n))
-
-    assert len(sieve_eratosthenes(int(x))) == prime_counting_function(x)
 
     assert len(make_prime_list(n)) == n
 
@@ -237,8 +247,5 @@ if __name__ == "__main__":
     assert decimal.Context(prec=display_precision).create_decimal(prime_power_counting_function(x, precision)) == \
         decimal.Context(prec=display_precision).create_decimal(sum(von_mangoldt(n, precision) / Decimal(n).ln()
                                                                    for n in range(2, math.floor(x) + 1)))
+    
 
-    f = farey.Farey(n)
-    assert f.mertens_function == mertens(n)
-
-    assert farey.mertens_function(n) == mertens(n)

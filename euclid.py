@@ -2,6 +2,8 @@ from fractions import Fraction
 import typing
 import math
 
+import cflib
+
 def euclid(x: int, y: int) -> tuple[list[int], list[int], list[int], list[int]]:
     r0 = 1 * x - 0 * y
     r  = 0 * x - (-1) * y
@@ -47,7 +49,8 @@ class EEA:
         self.gcd = self.r_list[-2]
         self.bezout_x = self.a_list[-2]
         self.bezout_y = self.b_list[-2]
-        self.convergent_list = list(zip(self.x_list, self.y_list))
+        self.cf = self.q_list
+        self.convergent_list = list(zip(self.x_list, self.y_list))[2:]
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}(x={self.x}, y={self.y})"
@@ -78,3 +81,9 @@ if __name__ == '__main__':
 
     eea = EEA(x, y)
     assert eea.convergent_list[-1] == Fraction(x, y).as_integer_ratio()
+
+    eea = EEA(x, y)
+    assert eea.cf == cflib.fraction_tuple_to_cf((x, y))
+
+    eea = EEA(x, y)
+    assert eea.convergent_list == cflib.fraction_tuple_to_convergent_list((x, y))
