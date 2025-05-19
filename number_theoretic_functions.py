@@ -11,9 +11,7 @@ from decimal import Decimal
 import farey
 
 
-def sieve_eratosthenes(x: float) -> list[int]:
-    n = int(x)
-
+def sieve_eratosthenes(n: int) -> list[int]:
     if n < 2:
         return []
 
@@ -207,7 +205,7 @@ if __name__ == "__main__":
 
     assert all(isprime(p) for p in sieve_eratosthenes(n))
 
-    assert len(sieve_eratosthenes(x)) == prime_counting_function(x)
+    assert len(sieve_eratosthenes(int(x))) == prime_counting_function(x)
 
     assert len(make_prime_list(n)) == n
 
@@ -242,4 +240,3 @@ if __name__ == "__main__":
     assert f.mertens_function == mertens(n)
 
     assert farey.mertens_function(n) == mertens(n)
-
