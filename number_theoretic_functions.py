@@ -209,6 +209,9 @@ def dedekind_psi(n: int) -> int:
     prime_factor_list = make_prime_factor_list(n)
     return n * math.prod(Fraction(1, 1) + Fraction(1, p) for p in prime_factor_list)
 
+def euler_totient(n: int) -> int:
+    prime_factor_list = make_prime_factor_list(n)
+    return n * math.prod(Fraction(1, 1) - Fraction(1, p) for p in prime_factor_list)
 
 def dirichlet_convolution(f: abc.Callable, g: abc.Callable, n: int) -> complex:
     factor_list = make_factor_list(n)
@@ -219,6 +222,9 @@ def dirichlet_convolution_identity(n: int) -> int:
     return 1 if n == 1 else 0
 
 
+
+
+
 if __name__ == "__main__":
     n = 4
     x = 180.45
@@ -226,6 +232,8 @@ if __name__ == "__main__":
     display_precision = 20
     m = 3
     q = 14
+
+    assert all(dirichlet_convolution(euler_totient, lambda _: 1, k) == k for k in range(1, n + 1))
 
     assert all(dirichlet_convolution(lambda _: 1, mobius, k) == dirichlet_convolution_identity(k) for k in range(1, n + 1))
 
