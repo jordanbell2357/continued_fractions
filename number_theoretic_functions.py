@@ -12,10 +12,10 @@ import typing
 
 
 def sieve_eratosthenes(n: int) -> list[int]:
-    """Indices of bytearray are 0 to n. We set the bytes at each index initially to 1. For each index
-    whose byte is still set to 1, we set the bytes at all multiples of the index to 0.
-    The indices whose bytes are still equal to 1 at termination, are the prime numbers between
-    0 and n.
+    """Indices of bytearray are 0 to n. We set the bytes at each index initially to 1.
+    For each index whose byte is still set to 1 when "encountered", we set the bytes at all
+    multiples of the index to 0. Termination happens when there are no more indices to "encounter".
+    At termination, the indices whose bytes are still equal to 1, are the prime numbers between 0 and n.
     """
 
     if n < 2:
@@ -192,6 +192,11 @@ def sum_of_divisors(n: int) -> int:
     divisor_sum = math.prod(Fraction(p ** (a + 1) - 1, p - 1) for p, a in prime_factor_counter.items())
     return int(divisor_sum)
 
+def divisor_summatory_function(x: float) -> int:
+    return sum(number_of_divisors(n) for n in range(1, int(x) + 1))
+
+def divisor_summatory_function_hyperbola(x: float) -> int:
+    return sum(math.floor(x / n) for n in range(1, int(x) + 1))
 
 def bernoulli(n: int) -> Fraction:
     return sum(Fraction(1, k + 1) * sum(math.comb(k, j) * (-1)**j * j**n for j in range(k + 1)) for k in range(n + 1))
@@ -226,12 +231,14 @@ def dirichlet_convolution_identity(n: int) -> int:
 
 
 if __name__ == "__main__":
-    n = 4
+    n = 14
     x = 180.45
     precision = 40
     display_precision = 20
     m = 3
     q = 14
+
+    assert divisor_summatory_function_hyperbola(x) == divisor_summatory_function(x)
 
     assert all(dirichlet_convolution(euler_totient, lambda _: 1, k) == k for k in range(1, n + 1))
 
