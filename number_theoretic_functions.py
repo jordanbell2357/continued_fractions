@@ -238,6 +238,12 @@ if __name__ == "__main__":
     m = 3
     q = 14
 
+    # this can either be +infinity, 0, or 1 depending on definition of divisor counting function
+    # +infinity if "sum of all positive divisors"
+    # 0 if "sum of all positive divisors less than or equal to number"
+    # 1 using product definition of divisor counting function and empty product equals 1
+    assert number_of_divisors(0) == 1
+
     assert divisor_summatory_function_hyperbola(x) == divisor_summatory_function(x)
 
     assert all(dirichlet_convolution(euler_totient, lambda _: 1, k) == k for k in range(1, n + 1))
