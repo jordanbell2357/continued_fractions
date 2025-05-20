@@ -5,6 +5,22 @@ from decimal import Decimal
 import math
 
 
+def stern_diatomic(n: int) -> int:
+    @ft.lru_cache
+    def stern_diatomic_recurse(n: int) -> int:
+        if n == 0:
+            return 0
+        elif n == 1:
+            return 1
+        else:
+            if n % 2 == 0:
+                return stern_diatomic_recurse(n // 2)
+            else:
+                m = (n - 1) // 2
+                return stern_diatomic_recurse(m) + stern_diatomic_recurse(m + 1)
+    return stern_diatomic_recurse(n)
+
+
 def decimal_to_cf(x: Decimal, num_terms: int = 20) -> list[int]:
     cf = []
     for _ in range(num_terms):
@@ -18,7 +34,21 @@ def decimal_to_cf(x: Decimal, num_terms: int = 20) -> list[int]:
 
 
 def gauss_transformation(x: Decimal) -> Decimal:
-    return (1 / x) % 1
+    return (1 / x) % 1 if x != 0 else 0
+
+
+def distance_to_nearest_integer(x: Decimal) -> Decimal:
+    floor = math.floor(x)
+    ceil = math.ceil(x)
+    return min(x - floor, ceil - x)
+
+
+def distance_to_nearest_integer_sum(x: Decimal, n: int) -> Decimal:
+    return sum(distance_to_nearest_integer(k * x) for k in range(1, n + 1))
+
+
+def distance_to_nearest_integer_reciprocal_sum(x: Decimal, n: int) -> Decimal:
+    return sum(1 / distance_to_nearest_integer(k * x) for k in range(1, n + 1))
 
 
 def decimal_to_cf_unit_interval(x: Decimal, num_terms: int = 20) -> list[int]:
@@ -68,20 +98,7 @@ def cf_to_fraction_tuple(cf: list[int]) -> tuple[int, int]:
     fraction_tuple = convergent_list[-1]
     return fraction_tuple
 
-def stern_diatomic(n: int) -> int:
-    @ft.lru_cache
-    def stern_diatomic_recurse(n: int) -> int:
-        if n == 0:
-            return 0
-        elif n == 1:
-            return 1
-        else:
-            if n % 2 == 0:
-                return stern_diatomic_recurse(n // 2)
-            else:
-                m = (n - 1) // 2
-                return stern_diatomic_recurse(m) + stern_diatomic_recurse(m + 1)
-    return stern_diatomic_recurse(n)
+
 
 
 # Example usage:
@@ -89,6 +106,7 @@ if __name__ == "__main__":
     # Example: Gauss transformation
     x = Decimal(0.34534267)
     num_terms = 5
+    n = 20
     precision = 20
     decimal.getcontext().prec = precision
 
@@ -96,8 +114,12 @@ if __name__ == "__main__":
     a_list = decimal_to_cf_unit_interval(x, num_terms)
     assert x < 0 or x >= 1 or a_list == cf
 
-    print()
+    # Example: distance_to_nearest_integer_sum
+    assert distance_to_nearest_integer_sum(x, n) >= n / 4 - math.log(n) ** 2
+    assert distance_to_nearest_integer_sum(x, n) <= n / 4 + math.log(n) ** 2
 
+    # Example: distance_to_nearest_integer_reciprocal_sum
+    assert distance_to_nearest_integer_reciprocal_sum(x, n) / (Decimal(n) * Decimal(n).ln()) <= 3
 
     # Example: Decimal Convergents
     d = 7
