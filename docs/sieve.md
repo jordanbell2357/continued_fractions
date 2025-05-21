@@ -15,5 +15,6 @@ p. 92, Boethius
 
 Theon of Smyrna
 
-Isidore of Seville
+Liber Abaci
 
+al-Uqlīdisī
