@@ -37,7 +37,9 @@ def sieve_eratosthenes_list(n: int) -> list[int]:
     for q in range(2, math.isqrt(n) + 1):
         if sieve_list[q] == 1:
             sieve_list[q * q::q] = [False] * ((n - q * q) // q + 1)
-    return [k for k in range(n + 1) if sieve_list[k] == True]
+    return list(it.compress(range(n + 1), sieve_list))
+    # # same as
+    # return [k for k in range(n + 1) if sieve_list[k] == True]
 
 
 def isprime(n: int) -> bool:
@@ -182,12 +184,16 @@ def make_prime_factor_list(n: int) -> list[int]:
 
 
 def number_of_divisors(n: int) -> int:
+    if n == 0:
+        return 0
     prime_factor_counter = make_prime_factor_counter(n)
     divisor_count = math.prod(a + 1 for _, a in prime_factor_counter.items())
     return divisor_count
 
 
 def sum_of_divisors(n: int) -> int:
+    if n == 0:
+        return 0
     prime_factor_counter = make_prime_factor_counter(n)
     divisor_sum = math.prod(Fraction(p ** (a + 1) - 1, p - 1) for p, a in prime_factor_counter.items())
     return int(divisor_sum)
@@ -201,14 +207,11 @@ def divisor_summatory_function_hyperbola(x: float) -> int:
 def bernoulli(n: int) -> Fraction:
     return sum(Fraction(1, k + 1) * sum(math.comb(k, j) * (-1)**j * j**n for j in range(k + 1)) for k in range(n + 1))
 
-
 def faulhaber(m: int, n: int) -> int:
     return Fraction(1, m + 1) * sum((-1)**k * math.comb(m + 1, k) * bernoulli(k) * Fraction(pow(n, m + 1), pow(n, k)) for k in range(m + 1))
 
-
 def ramanujan_sum_c(q: int, n: int) -> int:
     return round(sum(cmath.exp(complex(0, 2 * math.pi * Fraction(a, q) * n)) for a in range(1, q + 1) if math.gcd(q, a) == 1).real)
-
 
 def dedekind_psi(n: int) -> int:
     prime_factor_list = make_prime_factor_list(n)
@@ -222,33 +225,56 @@ def dirichlet_convolution(f: abc.Callable, g: abc.Callable, n: int) -> complex:
     factor_list = make_factor_list(n)
     return sum(f(d) * g(n // d) for d in factor_list)
 
-
-def dirichlet_convolution_identity(n: int) -> int:
+def one_indicator_function(n: int) -> int:
     return 1 if n == 1 else 0
 
+def harmonic_sum_fraction(n: int) -> Fraction:
+    return sum(Fraction(1, k) for k in range(1, n + 1))
+
+def harmonic_sum_decimal(n: int, precision: int) -> Decimal:
+    decimal.getcontext().prec = precision
+    return sum(Decimal(1) / Decimal(k) for k in range(1, n + 1))
+
+def euler_constant(n: int, m: int, precision: int) -> Decimal:
+    """Uses Euler-Maclaurin summation formula."""
+    decimal.getcontext().prec = precision
+    harmonic_sum_fraction_n = harmonic_sum_fraction(n)
+    harmonic_sum_decimal_n = Decimal(harmonic_sum_fraction_n.numerator) / Decimal(harmonic_sum_fraction_n.denominator)
+    euler_maclaurin_sum_fraction_m = sum(bernoulli(2 * k) / (2 * k * n**(2 * k)) for k in range(1, m + 1))
+    euler_maclaurin_sum_decimal_m = Decimal(euler_maclaurin_sum_fraction_m.numerator) / Decimal(euler_maclaurin_sum_fraction_m.denominator)
+    return harmonic_sum_decimal_n - Decimal(n).ln() - 1 / Decimal(2 * n) + euler_maclaurin_sum_decimal_m
 
 
+def legendre_symbol(a: int, p: int) -> int:
+    if a % p == 0:
+        return 0
+    else:
+        for k in range(p):
+            if pow(k, 2, p) == a:
+                return 1
+    return -1
 
 
 if __name__ == "__main__":
-    n = 14
+    n = 70
     x = 180.45
-    precision = 40
+    precision = 60
     display_precision = 20
-    m = 3
+    m = 12
     q = 14
+    p = 13
 
-    # this can either be +infinity, 0, or 1 depending on definition of divisor counting function
-    # +infinity if "sum of all positive divisors"
-    # 0 if "sum of all positive divisors less than or equal to number"
-    # 1 using product definition of divisor counting function and empty product equals 1
-    assert number_of_divisors(0) == 1
+    # print(euler_constant(n, m, precision))
+
+    assert legendre_symbol(2, p) == (-1) ** ((p**2 - 1) // 8)
+
+    assert number_of_divisors(0) == 0
 
     assert divisor_summatory_function_hyperbola(x) == divisor_summatory_function(x)
 
     assert all(dirichlet_convolution(euler_totient, lambda _: 1, k) == k for k in range(1, n + 1))
 
-    assert all(dirichlet_convolution(lambda _: 1, mobius, k) == dirichlet_convolution_identity(k) for k in range(1, n + 1))
+    assert all(dirichlet_convolution(lambda _: 1, mobius, k) == one_indicator_function(k) for k in range(1, n + 1))
 
     assert all(dirichlet_convolution(number_of_divisors, mobius, k) == 1 for k in range(1, n + 1))
 

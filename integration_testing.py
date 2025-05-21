@@ -1,7 +1,8 @@
 from pprint import pprint
 
-import farey
+import cflib
 import number_theoretic_functions as ntf
+import farey
 import cw
 import sb
 
