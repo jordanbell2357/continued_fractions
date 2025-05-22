@@ -11,6 +11,20 @@ from collections import abc
 import typing
 
 
+def sieve_eratosthenes_list(n: int) -> list[int]:
+    if n < 2:
+        return []
+    sieve_list = [True] * (n + 1)
+    sieve_list[0] = False
+    sieve_list[1] = False
+    for q in range(2, math.isqrt(n) + 1):
+        if sieve_list[q] == 1:
+            sieve_list[q * q::q] = [False] * ((n - q * q) // q + 1)
+    return list(it.compress(range(n + 1), sieve_list))
+    # # same as
+    # return [k for k in range(n + 1) if sieve_list[k] == True]
+
+
 def sieve_eratosthenes(n: int) -> list[int]:
     """Indices of bytearray are 0 to n. We set the bytes at each index initially to 1.
     For each index whose byte is still set to 1 when "encountered", we set the bytes at all
@@ -26,20 +40,6 @@ def sieve_eratosthenes(n: int) -> list[int]:
         if sieve_bytearray[q] == 1:
             sieve_bytearray[q * q::q] = b"\x00" * ((n - q * q) // q + 1) # set bytes at multiples of index to 0
     return list(it.compress(range(n + 1), sieve_bytearray)) # return those indices whose byte is 1
-
-
-def sieve_eratosthenes_list(n: int) -> list[int]:
-    if n < 2:
-        return []
-    sieve_list = [True] * (n + 1)
-    sieve_list[0] = False
-    sieve_list[1] = False
-    for q in range(2, math.isqrt(n) + 1):
-        if sieve_list[q] == 1:
-            sieve_list[q * q::q] = [False] * ((n - q * q) // q + 1)
-    return list(it.compress(range(n + 1), sieve_list))
-    # # same as
-    # return [k for k in range(n + 1) if sieve_list[k] == True]
 
 
 def isprime(n: int) -> bool:
@@ -225,7 +225,7 @@ def dirichlet_convolution(f: abc.Callable, g: abc.Callable, n: int) -> complex:
     factor_list = make_factor_list(n)
     return sum(f(d) * g(n // d) for d in factor_list)
 
-def one_indicator_function(n: int) -> int:
+def indicator_function_one(n: int) -> int:
     return 1 if n == 1 else 0
 
 def harmonic_sum_fraction(n: int) -> Fraction:
@@ -244,6 +244,19 @@ def euler_constant(n: int, m: int, precision: int) -> Decimal:
     euler_maclaurin_sum_decimal_m = Decimal(euler_maclaurin_sum_fraction_m.numerator) / Decimal(euler_maclaurin_sum_fraction_m.denominator)
     return harmonic_sum_decimal_n - Decimal(n).ln() - 1 / Decimal(2 * n) + euler_maclaurin_sum_decimal_m
 
+def gauss_sum_complex(a: int, n: int) -> complex:
+    z = cmath.exp(complex(0, 2 * math.pi / n))
+    return sum(z ** (a * x ** 2) for x in range(n))
+
+def gauss_sum_complex_exact_value(n: int) -> complex:
+    if n % 4 == 1:
+        return cmath.sqrt(n)
+    elif n % 4 == 2:
+        return 0 + 0j
+    elif n % 4 == 3:
+        return 1j * math.sqrt(n)
+    elif n % 4 == 0:
+        return (1 + 1j) * math.sqrt(n)
 
 def legendre_symbol(a: int, p: int) -> int:
     if a % p == 0:
@@ -255,6 +268,7 @@ def legendre_symbol(a: int, p: int) -> int:
     return -1
 
 
+
 if __name__ == "__main__":
     n = 70
     x = 180.45
@@ -264,7 +278,11 @@ if __name__ == "__main__":
     q = 14
     p = 13
 
+    decimal.getcontext().prec = display_precision
+
     # print(euler_constant(n, m, precision))
+
+    assert cmath.isclose(gauss_sum_complex(1, p), gauss_sum_complex_exact_value(p))
 
     assert legendre_symbol(2, p) == (-1) ** ((p**2 - 1) // 8)
 
@@ -274,7 +292,7 @@ if __name__ == "__main__":
 
     assert all(dirichlet_convolution(euler_totient, lambda _: 1, k) == k for k in range(1, n + 1))
 
-    assert all(dirichlet_convolution(lambda _: 1, mobius, k) == one_indicator_function(k) for k in range(1, n + 1))
+    assert all(dirichlet_convolution(lambda _: 1, mobius, k) == indicator_function_one(k) for k in range(1, n + 1))
 
     assert all(dirichlet_convolution(number_of_divisors, mobius, k) == 1 for k in range(1, n + 1))
 
