@@ -52,36 +52,6 @@ def euclid(x: int, y: int) -> tuple[list[int], list[int], list[int], list[int]]:
     
     return q_list, r_list, a_list, b_list
 
-class EEA:
-    def __init__(self: typing.Self, x: int, y: int) -> None:
-        self.x = x
-        self.y = y
-        q_list, r_list, a_list, b_list = euclid(self.x, self.y)
-        self.q_list = q_list
-        self.r_list = r_list
-        self.a_list = a_list
-        self.b_list = b_list
-        self.x_list = [(-1) ** (k + 1) * t for k, t in enumerate(self.b_list)]
-        self.y_list = [(-1) ** k * s for k, s in enumerate(self.a_list)]
-        self.gcd = self.r_list[-2]
-        self.bezout_x = self.a_list[-2]
-        self.bezout_y = self.b_list[-2]
-        self.cf = self.q_list
-        self.convergent_list = list(zip(self.x_list, self.y_list))[2:]
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}(x={self.x}, y={self.y})"
-    
-    def __len__(self):
-        return len(self.q_list)
-
-def modular_inverse(n: int, x: int) -> int:
-    if math.gcd(n, x) > 1:
-        return None
-    else:
-        eea = EEA(n, x)
-        return eea.bezout_y % n
-
 
 def decimal_to_cf(x: Decimal, num_terms: int = 20) -> list[int]:
     cf = []
@@ -135,6 +105,7 @@ def fraction_tuple_to_cf(fraction_tuple: tuple[int, int]) -> list[int]:
         x = 1 / frac_part # 1 / (x - floor(x))
     return cf
 
+
 def cf_to_convergent_list(cf: list[int]) -> list[tuple[int, int]]:
     N = len(cf)
     if N == 0:
@@ -150,15 +121,50 @@ def cf_to_convergent_list(cf: list[int]) -> list[tuple[int, int]]:
         q_prev2, q_prev1 = q_prev1, q_k
     return convergent_list
 
+
 def fraction_tuple_to_convergent_list(fraction_tuple: tuple[int, int]) -> list[tuple[int, int]]:
     cf = fraction_tuple_to_cf(fraction_tuple)
     convergent_list = cf_to_convergent_list(cf)
     return convergent_list
 
+
 def cf_to_fraction_tuple(cf: list[int]) -> tuple[int, int]:
     convergent_list = cf_to_convergent_list(cf)
     fraction_tuple = convergent_list[-1]
     return fraction_tuple
+
+
+def modular_inverse(n: int, x: int) -> int:
+    if math.gcd(n, x) > 1:
+        return None
+    else:
+        _, _, _, b_list = euclid(n, x)
+        bezout_coefficient = b_list[-2]
+        return bezout_coefficient % n
+
+
+class EEA:
+    def __init__(self: typing.Self, x: int, y: int) -> None:
+        self.x = x
+        self.y = y
+        q_list, r_list, a_list, b_list = euclid(self.x, self.y)
+        self.q_list = q_list
+        self.r_list = r_list
+        self.a_list = a_list
+        self.b_list = b_list
+        self.x_list = [(-1) ** (k + 1) * t for k, t in enumerate(self.b_list)]
+        self.y_list = [(-1) ** k * s for k, s in enumerate(self.a_list)]
+        self.gcd = self.r_list[-2]
+        self.bezout_x = self.a_list[-2]
+        self.bezout_y = self.b_list[-2]
+        self.cf = self.q_list
+        self.convergent_list = list(zip(self.x_list, self.y_list))[2:]
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(x={self.x}, y={self.y})"
+    
+    def __len__(self):
+        return len(self.q_list)
 
 
 # Example usage:

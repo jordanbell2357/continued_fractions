@@ -8,7 +8,12 @@ import decimal
 from decimal import Decimal
 from collections import Counter
 from collections import abc
-import typing
+
+import cflib
+
+
+EULER_CONSTANT_30_DIGITS = Decimal("0.577215664901532860606512090082")
+EULER_CONSTANT_FLOAT = float(EULER_CONSTANT_30_DIGITS)
 
 
 def sieve_eratosthenes_list(n: int) -> list[int]:
@@ -56,7 +61,7 @@ def isprime(n: int) -> bool:
         return True
 
 
-def generate_primes():
+def generate_primes() -> abc.Generator[int]:
     yield 2
     for k in it.count(start=3, step=2):
         if isprime(k):
@@ -198,42 +203,54 @@ def sum_of_divisors(n: int) -> int:
     divisor_sum = math.prod(Fraction(p ** (a + 1) - 1, p - 1) for p, a in prime_factor_counter.items())
     return int(divisor_sum)
 
+
 def divisor_summatory_function(x: float) -> int:
     return sum(number_of_divisors(n) for n in range(1, int(x) + 1))
+
 
 def divisor_summatory_function_hyperbola(x: float) -> int:
     return sum(math.floor(x / n) for n in range(1, int(x) + 1))
 
+
 def bernoulli(n: int) -> Fraction:
     return sum(Fraction(1, k + 1) * sum(math.comb(k, j) * (-1)**j * j**n for j in range(k + 1)) for k in range(n + 1))
+
 
 def faulhaber(m: int, n: int) -> int:
     return Fraction(1, m + 1) * sum((-1)**k * math.comb(m + 1, k) * bernoulli(k) * Fraction(pow(n, m + 1), pow(n, k)) for k in range(m + 1))
 
+
 def ramanujan_sum_c(q: int, n: int) -> int:
     return round(sum(cmath.exp(complex(0, 2 * math.pi * Fraction(a, q) * n)) for a in range(1, q + 1) if math.gcd(q, a) == 1).real)
+
 
 def dedekind_psi(n: int) -> int:
     prime_factor_list = make_prime_factor_list(n)
     return n * math.prod(Fraction(1, 1) + Fraction(1, p) for p in prime_factor_list)
 
+
 def euler_totient(n: int) -> int:
     prime_factor_list = make_prime_factor_list(n)
     return n * math.prod(Fraction(1, 1) - Fraction(1, p) for p in prime_factor_list)
+
 
 def dirichlet_convolution(f: abc.Callable, g: abc.Callable, n: int) -> complex:
     factor_list = make_factor_list(n)
     return sum(f(d) * g(n // d) for d in factor_list)
 
+
 def indicator_function_one(n: int) -> int:
     return 1 if n == 1 else 0
+
 
 def harmonic_sum_fraction(n: int) -> Fraction:
     return sum(Fraction(1, k) for k in range(1, n + 1))
 
+
 def harmonic_sum_decimal(n: int, precision: int) -> Decimal:
     decimal.getcontext().prec = precision
     return sum(Decimal(1) / Decimal(k) for k in range(1, n + 1))
+
 
 def euler_constant(n: int, m: int, precision: int) -> Decimal:
     """Uses Euler-Maclaurin summation formula."""
@@ -244,9 +261,11 @@ def euler_constant(n: int, m: int, precision: int) -> Decimal:
     euler_maclaurin_sum_decimal_m = Decimal(euler_maclaurin_sum_fraction_m.numerator) / Decimal(euler_maclaurin_sum_fraction_m.denominator)
     return harmonic_sum_decimal_n - Decimal(n).ln() - 1 / Decimal(2 * n) + euler_maclaurin_sum_decimal_m
 
+
 def gauss_sum_complex(a: int, n: int) -> complex:
     z = cmath.exp(complex(0, 2 * math.pi / n))
     return sum(z ** (a * x ** 2) for x in range(n))
+
 
 def gauss_sum_complex_exact_value(n: int) -> complex:
     if n % 4 == 1:
@@ -258,6 +277,7 @@ def gauss_sum_complex_exact_value(n: int) -> complex:
     elif n % 4 == 0:
         return (1 + 1j) * math.sqrt(n)
 
+
 def legendre_symbol(a: int, p: int) -> int:
     if a % p == 0:
         return 0
@@ -267,6 +287,10 @@ def legendre_symbol(a: int, p: int) -> int:
                 return 1
     return -1
 
+
+def jacobi_symbol(a: int, n: int) -> int:
+    prime_factor_counter = make_prime_factor_counter(n)
+    return math.prod((legendre_symbol(a, p)) ** v for p, v in prime_factor_counter.items())
 
 
 if __name__ == "__main__":
@@ -280,12 +304,20 @@ if __name__ == "__main__":
 
     decimal.getcontext().prec = display_precision
 
-    # print(euler_constant(n, m, precision))
+    assert math.isclose(float(euler_constant(n, m, precision)), EULER_CONSTANT_FLOAT)
 
     assert cmath.isclose(gauss_sum_complex(1, p), gauss_sum_complex_exact_value(p))
 
-    assert legendre_symbol(2, p) == (-1) ** ((p**2 - 1) // 8)
+    print(jacobi_symbol(3, 15))
 
+    # Legendre's formula for v_p(n!)
+    assert valuation(p, math.factorial(n)) == sum(int(n / p ** i) for i in range(1, int(math.log(n, p) + 1)))
+
+    # case of law of quadratic reciprocity
+    assert legendre_symbol(2, p) == (-1) ** ((p**2 - 1) // 8)
+    assert legendre_symbol(2, p) == (-1) ** ((p + 1) // 4)
+
+    # Empty sum (list of divisors d of n satisfying 1 <= d <= 0 is empty)
     assert number_of_divisors(0) == 0
 
     assert divisor_summatory_function_hyperbola(x) == divisor_summatory_function(x)
