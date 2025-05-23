@@ -13,6 +13,8 @@ clear that the process consists in discarding multiples.
 
 p. 92, Boethius
 
+Iamblichus, In Nichomachi Arithmeticam Introductionem, I.13, 2-4
+
 Theon of Smyrna
 
 Liber Abaci
