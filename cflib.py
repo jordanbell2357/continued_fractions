@@ -76,14 +76,17 @@ def iterated_gauss_transformation_list(x: Decimal, n: int) -> Decimal:
 
 def decimal_to_cf_gauss_transformation(x: Decimal, n: int) -> list[int]:
     x_list = iterated_gauss_transformation_list(x, n)
+    if 0 in x_list:
+        zero_index = x_list.index(0)
+        x_list = x_list[:zero_index]
     a_list = [0] + [int(1 / x) for x in x_list]
     return a_list
 
 
 def distance_to_nearest_integer(x: Decimal) -> Decimal:
-    floor = math.floor(x)
-    ceil = math.ceil(x)
-    return min(x - floor, ceil - x)
+    floor_x = math.floor(x)
+    ceil_x = math.ceil(x)
+    return min(x - floor_x, ceil_x - x)
 
 
 def distance_to_nearest_integer_sum(x: Decimal, n: int) -> Decimal:
@@ -179,7 +182,7 @@ if __name__ == "__main__":
     assert eea.convergent_list == fraction_tuple_to_convergent_list((x, y))
 
     # Example: Gauss transformation
-    x = Decimal("0.34534267")
+    x = Decimal("0.34")
     num_terms = 5
     n = 20
     precision = 20
@@ -187,17 +190,17 @@ if __name__ == "__main__":
 
     cf = decimal_to_cf(x, n)
     a_list = decimal_to_cf_gauss_transformation(x, n)
-    print(iterated_gauss_transformation_list(x, n))
-    print(a_list, cf)
-    print(len(a_list), len(cf))
     assert x < 0 or x >= 1 or a_list == cf
+
 
     # Example: distance_to_nearest_integer_sum
     assert distance_to_nearest_integer_sum(x, n) >= n / 4 - math.log(n) ** 2
     assert distance_to_nearest_integer_sum(x, n) <= n / 4 + math.log(n) ** 2
 
+
     # Example: distance_to_nearest_integer_reciprocal_sum
     assert distance_to_nearest_integer_reciprocal_sum(x, n) / (Decimal(n) * Decimal(n).ln()) <= 3
+
 
     # Example: Decimal Convergents
     d = 7
@@ -212,6 +215,7 @@ if __name__ == "__main__":
 
     print()
 
+
     # Example: Decimal Cotes continued fraction for e
     num_terms = 40
     precision = 20
@@ -223,6 +227,7 @@ if __name__ == "__main__":
 
     print()
 
+
     # Example: gcd
     p = 18
     q = 4
@@ -233,6 +238,7 @@ if __name__ == "__main__":
     print(f"gcd({p}, {q}) =", partial_quotients[-1])
 
     print()
+
 
     # Example: Bezout coefficients
     partial_quotients = fraction_tuple_to_cf((p, q))
@@ -246,6 +252,7 @@ if __name__ == "__main__":
     print(f"gcd({p}, {q}) = {s * p + t * q}")
     
     print()
+
 
     # Example: sqrt(n)
     d = 7
