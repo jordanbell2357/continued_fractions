@@ -2,19 +2,19 @@ from array import array
 from collections import abc
 
 
-def partition_list_generator(n: int, max_part: int) -> abc.Generator[list[int]]:
+def make_partition_list_generator(n: int, max_part: int) -> abc.Generator[list[int]]:
     if n == 0:
         yield []
     else:
         # condition on all cases of max_part
         for k in range(min(n, max_part), 0, -1):
             # find number of partitions of n - k with max_part == k
-            for tail in partition_list_generator(n - k, k):
+            for tail in make_partition_list_generator(n - k, k):
                 yield [k] + tail
 
 
 def list_partitions(n: int) -> list[list[int]]:
-    return list(partition_list_generator(n=n, max_part=n))
+    return list(make_partition_list_generator(n=n, max_part=n))
 
 
 def partition_function_array(n: int) -> int:
@@ -36,9 +36,11 @@ def partition_function(n: int) -> int:
 
 
 if __name__ == "__main__":
-    for n in range(1, 16):
-        print(n, partition_function(n))
+    n = 6
 
-    n = 20
+    partition_list_generator = make_partition_list_generator(n, n)
+
+    for partition_list in partition_list_generator:
+        print(partition_list)
 
     assert len(list_partitions(n)) == partition_function(n)

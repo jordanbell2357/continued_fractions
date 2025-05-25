@@ -8,6 +8,24 @@ from pprint import pprint
 
 import cflib
 
+
+def stern_diatomic(n: int) -> int:
+    @ft.lru_cache
+    def stern_diatomic_recurse(n: int) -> int:
+        if n == 0:
+            return 0
+        elif n == 1:
+            return 1
+        else:
+            if n % 2 == 0:
+                return stern_diatomic_recurse(n // 2)
+            else:
+                m = (n - 1) // 2
+                return stern_diatomic_recurse(m) + stern_diatomic_recurse(m + 1)
+    return stern_diatomic_recurse(n)
+
+
+
 class CalkinWilf:
     ROOT_FRACTION_TUPLE = (1, 1)
     ROOT_MOVE_LIST = []
@@ -204,7 +222,7 @@ if __name__ == "__main__":
     assert CalkinWilf.bfs_index_to_fraction_tuple_recursive(bfs_index) == \
         CalkinWilf.bfs_index_to_fraction_tuple(bfs_index)
 
-    assert (cflib.stern_diatomic(bfs_index), cflib.stern_diatomic(bfs_index + 1)) == \
+    assert (stern_diatomic(bfs_index), stern_diatomic(bfs_index + 1)) == \
         CalkinWilf.bfs_index_to_fraction_tuple_recursive(bfs_index)
     
     fraction_tuple = CalkinWilf.bfs_index_to_fraction_tuple(bfs_index)
