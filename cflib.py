@@ -2,6 +2,7 @@ from fractions import Fraction
 import decimal
 from decimal import Decimal
 import math
+from collections import abc
 import typing
 
 
@@ -125,7 +126,7 @@ def cf_to_fraction_tuple(cf: list[int]) -> tuple[int, int]:
     return fraction_tuple
 
 
-class EEA:
+class EEA(abc.Sequence):
     def __init__(self, x: int, y: int) -> None:
         self.x = x
         self.y = y
@@ -145,8 +146,17 @@ class EEA:
     def __repr__(self) -> str:
         return f"{type(self).__name__}(x={self.x}, y={self.y})"
     
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.x == other.x and self.y == other.y
+    
+    def __getitem__(self, index: int) -> int:
+        return self.cf[index]
+    
+    def __iter__(self) -> abc.Iterator[int]:
+        return iter(self.cf)
+    
     def __len__(self):
-        return len(self.q_list)
+        return len(self.cf)
     
 
 
@@ -162,6 +172,8 @@ if __name__ == "__main__":
     assert eea.r_list == r_list
     assert eea.a_list == a_list
     assert eea.b_list == b_list
+
+    assert eval(repr(eea)) == eea
 
     eea = EEA(x, y)
     assert len(eea) == len(eea.q_list)

@@ -119,6 +119,9 @@ class SternBrocot(abc.Sequence):
     def __lt__(self, other: typing.Self) -> bool:
         return len(self.move_list) < len(other.move_list) and other.move_list[0:len(self.move_list)] == self.move_list
     
+    def __gt__(self, other: typing.Self) -> bool:
+        return len(other.move_list) < len(self.move_list) and self.move_list[0:len(other.move_list)] == other.move_list
+    
     def __abs__(self) -> Fraction:
         return Fraction(*self.mediant_tuple)
     
@@ -199,6 +202,9 @@ if __name__ == "__main__":
     move_list = random.choices(SternBrocot.ALPHABET, k=5)
 
     N = SternBrocot.move_list_to_node(move_list)
+    assert eval(repr(N)) == N
+
+    N = SternBrocot.move_list_to_node(move_list)
     assert SternBrocot.move_list_to_cf(move_list) == N.cf
 
     N = SternBrocot.move_list_to_node(move_list)
@@ -218,12 +224,15 @@ if __name__ == "__main__":
 
 
     # Example: Stern-Brocot tree
-    n = 10
+    depth = 10
 
-    sb_tree = SternBrocotTree(n)
-    assert sb_tree.bfs_node_list == SternBrocot.depth_to_bfs_node_list(n)
+    sb_tree = SternBrocotTree(depth)
+    assert eval(repr(sb_tree)) == sb_tree
 
-    sb_tree = SternBrocotTree(n)
+    sb_tree = SternBrocotTree(depth)
+    assert sb_tree.bfs_node_list == SternBrocot.depth_to_bfs_node_list(depth)
+
+    sb_tree = SternBrocotTree(depth)
     assert len(sb_tree) == len(sb_tree.bfs_node_list)
 
 

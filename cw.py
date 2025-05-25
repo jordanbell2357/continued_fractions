@@ -258,6 +258,9 @@ if __name__ == "__main__":
     assert N.bfs_index == bfs_index
 
     N = CalkinWilf.bfs_index_to_node(bfs_index)
+    assert eval(repr(N)) == N
+
+    N = CalkinWilf.bfs_index_to_node(bfs_index)
     assert abs(N) == N.fraction_value
 
     N1 = CalkinWilf.bfs_index_to_node(bfs_index)
@@ -277,6 +280,8 @@ if __name__ == "__main__":
     N = CalkinWilf.bfs_index_to_node(bfs_index)
     assert CalkinWilf.move_list_to_fraction_tuple(N.move_list) == N.fraction_tuple
 
-    cw_tree = CalkinWilfTree(3)
+    depth = 3
+    cw_tree = CalkinWilfTree(depth)
     print(cw_tree)
     print(cw_tree[1])
+    assert eval(repr(cw_tree)) == cw_tree
