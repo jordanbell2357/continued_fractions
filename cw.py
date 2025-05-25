@@ -4,7 +4,8 @@ import operator
 from fractions import Fraction
 import math
 import typing
-from pprint import pprint
+import textwrap
+from collections import abc
 
 import cflib
 
@@ -26,7 +27,7 @@ def stern_diatomic(n: int) -> int:
 
 
 
-class CalkinWilf:
+class CalkinWilf(abc.Sequence):
     ROOT_FRACTION_TUPLE = (1, 1)
     ROOT_MOVE_LIST = []
     ROOT_POSITION = 0
@@ -144,26 +145,20 @@ class CalkinWilf:
     def __init__(self, move_list=None) -> None:
         if move_list is None:
             self.move_list = type(self).ROOT_MOVE_LIST
-            self.move_string = "".join(self.move_list)
-            self.level = len(self.move_list)
             self.position = type(self).ROOT_POSITION
-            self.bfs_index = 2 ** self.level + self.position
             self.fraction_tuple = type(self).ROOT_FRACTION_TUPLE
-            self.cf = cflib.fraction_tuple_to_cf(self.fraction_tuple)
         else:
             self.move_list = move_list
-            self.move_string = "".join(self.move_list)
-            self.level = len(self.move_list)
             self.position = type(self).move_list_to_position(self.move_list)
-            self.bfs_index = 2 ** self.level + self.position
             self.fraction_tuple = type(self).move_list_to_fraction_tuple(self.move_list)
-            self.cf = cflib.fraction_tuple_to_cf(self.fraction_tuple)
+        self.move_string = "".join(self.move_list)
+        self.fraction_value = Fraction(*self.fraction_tuple)
+        self.level = len(self.move_list)
+        self.bfs_index = 2 ** self.level + self.position
+        self.cf = cflib.fraction_tuple_to_cf(self.fraction_tuple)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.move_list})"
-
-    def __str__(self) -> str:
-        return f"Fraction:\t{self.fraction_tuple}\nCF:\t\t{self.cf}\nCW Moves:\t{self.move_string}\nCW BFS index:\t{self.bfs_index}"
 
     def __eq__(self, other: typing.Self) -> bool:
         return self.move_list == other.move_list
@@ -171,8 +166,20 @@ class CalkinWilf:
     def __lt__(self, other: typing.Self) -> bool:
         return len(self.move_list) < len(other.move_list) and other.move_list[0:len(self.move_list)] == self.move_list
     
+    def __abs__(self) -> float:
+        return self.fraction_value
+
+    def __getitem__(self, index: int) -> str:
+        return self.move_list[index]
+    
+    def __iter__(self) -> abc.Iterator[str]:
+        return iter(self.move_list)
+        
     def __len__(self) -> int:
         return len(self.move_list)
+    
+    def __str__(self) -> str:
+        return f"Fraction:\t{self.fraction_tuple}\nCF:\t\t{self.cf}\nCW Moves:\t{self.move_string}\nCW BFS index:\t{self.bfs_index}"
     
     def L(self) -> typing.Self:
         new_move_list = self.move_list + ["L"]
@@ -194,7 +201,7 @@ class CalkinWilf:
         return [(k, len(list(g))) for k, g in it.groupby(self.move_list)]
     
 
-class CalkinWilfTree:
+class CalkinWilfTree(abc.Sequence):
     def __init__(self, depth: int) -> None:
         self.depth = depth
         self.cw_tree = CalkinWilf.depth_to_cw_tree(self.depth)
@@ -209,11 +216,19 @@ class CalkinWilfTree:
     def __lt__(self, other: typing.Self) -> bool:
         return self.depth < other.depth
     
+    def __getitem__(self, index: int) -> CalkinWilf:
+        return self.bfs_node_list[index]
+    
     def __len__(self) -> int:
         return len(self.bfs_node_list)
     
     def __iter__(self):
-        return iter(self.cw_tree)
+        return iter(self.bfs_node_list)
+    
+    def __str__(self):
+        tree_string = "\n\n".join(["\n".join(textwrap.wrap("\t".join([str(node.fraction_value) for node in level]))) for level in self.cw_tree])
+        return tree_string
+
 
 
 if __name__ == "__main__":
@@ -242,6 +257,9 @@ if __name__ == "__main__":
     N = CalkinWilf.bfs_index_to_node(bfs_index)
     assert N.bfs_index == bfs_index
 
+    N = CalkinWilf.bfs_index_to_node(bfs_index)
+    assert abs(N) == N.fraction_value
+
     N1 = CalkinWilf.bfs_index_to_node(bfs_index)
     N2 = CalkinWilf(N1.move_list)
     assert N1 == N2
@@ -260,5 +278,5 @@ if __name__ == "__main__":
     assert CalkinWilf.move_list_to_fraction_tuple(N.move_list) == N.fraction_tuple
 
     cw_tree = CalkinWilfTree(3)
-    pprint(cw_tree.bfs_node_list)
-    print(len(cw_tree))
+    print(cw_tree)
+    print(cw_tree[1])

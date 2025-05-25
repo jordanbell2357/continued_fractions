@@ -24,8 +24,6 @@ def sieve_eratosthenes_list(n: int) -> list[int]:
         if sieve_list[q] == 1:
             sieve_list[q * q::q] = [False] * ((n - q * q) // q + 1)
     return list(it.compress(range(n + 1), sieve_list))
-    # # same as
-    # return [k for k in range(n + 1) if sieve_list[k] == True]
 
 
 def sieve_eratosthenes(n: int) -> list[int]:
@@ -167,14 +165,6 @@ def sum_of_divisors(n: int) -> int:
     return int(divisor_sum)
 
 
-def divisor_summatory_function(x: float) -> int:
-    return sum(number_of_divisors(n) for n in range(1, int(x) + 1))
-
-
-def divisor_summatory_function_hyperbola(x: float) -> int:
-    return sum(math.floor(x / n) for n in range(1, int(x) + 1))
-
-
 def bernoulli(n: int) -> Fraction:
     return sum(Fraction(1, k + 1) * sum(math.comb(k, j) * (-1)**j * j**n for j in range(k + 1)) for k in range(n + 1))
 
@@ -237,6 +227,7 @@ if __name__ == "__main__":
 
     assert sum(make_factor_list(n)) == sum_of_divisors(n)
 
+
     # sum of empty list is 0 (list of integers d satisfying 0 < d <= 0)
     assert number_of_divisors(0) == 0
 
@@ -245,7 +236,6 @@ if __name__ == "__main__":
     n = 150
     p = 3
     assert valuation(p, math.factorial(n)) == sum(int(n / p ** i) for i in range(1, int(math.log(n, p) + 1)))
-
 
 
     # Example: arithmetic functions
@@ -287,13 +277,13 @@ if __name__ == "__main__":
     assert math.isclose(round(1 / math.log(N) * math.prod(p / (p - 1) for p in sieve_eratosthenes(N)), 3), round(math.exp(EULER_CONSTANT_FLOAT), 3))
 
 
-    # Example: divisor summatory function
+    # Example: numer of divisors
     n = 150
     C = 2
 
-    assert divisor_summatory_function_hyperbola(n) == divisor_summatory_function(n)
+    assert sum(number_of_divisors(k) for k in range(1, n + 1)) == sum(n // k for k in range(1, n + 1))
 
-    assert divisor_summatory_function(n) <= n * math.log(n) + n * (2 * EULER_CONSTANT_FLOAT - 1) + C * math.isqrt(n)
+    assert sum(number_of_divisors(k) for k in range(1, n + 1)) <= n * math.log(n) + n * (2 * EULER_CONSTANT_FLOAT - 1) + C * math.isqrt(n)
 
 
     # Example: Dirichlet convolution

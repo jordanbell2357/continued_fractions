@@ -109,7 +109,31 @@ class SternBrocot(abc.Sequence):
         self.cf = cflib.fraction_tuple_to_cf(self.mediant_tuple)
         self.move_string = "".join(self.move_list)
         self.mediant_string = str(self.mediant_tuple[0]) + "/" + str(self.mediant_tuple[1])
+    
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.move_list}, {self.left_tuple}, {self.mediant_tuple}, {self.right_tuple})"
 
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.move_list == other.move_list
+    
+    def __lt__(self, other: typing.Self) -> bool:
+        return len(self.move_list) < len(other.move_list) and other.move_list[0:len(self.move_list)] == self.move_list
+    
+    def __abs__(self) -> Fraction:
+        return Fraction(*self.mediant_tuple)
+    
+    def __iter__(self) -> abc.Iterator[str]:
+        return iter(self.move_list)
+    
+    def __getitem__(self, index: int) -> str:
+        return self.move_list[index]
+
+    def __len__(self) -> int:
+        return len(self.move_list)
+
+    def __str__(self) -> str:
+        return f"{self.move_list}, {self.mediant_tuple}"
+    
     def L(self) -> typing.Self:
         new_move_list = self.move_list + ['L']
         new_mediant_tuple = mediant(self.left_tuple, self.mediant_tuple)
@@ -137,27 +161,6 @@ class SternBrocot(abc.Sequence):
             new_right_tuple = right_tuple
         return type(self)(new_move_list, new_left_tuple, new_mediant_tuple, new_right_tuple)
     
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.move_list}, {self.left_tuple}, {self.mediant_tuple}, {self.right_tuple})"
-
-    def __eq__(self, other: typing.Self) -> bool:
-        return self.move_list == other.move_list
-    
-    def __lt__(self, other: typing.Self) -> bool:
-        return len(self.move_list) < len(other.move_list) and other.move_list[0:len(self.move_list)] == self.move_list
-    
-    def __iter__(self) -> abc.Iterator[str]:
-        return iter(self.move_list)
-    
-    def __getitem__(self, index: int) -> str:
-        return self.move_list[index]
-
-    def __len__(self) -> int:
-        return len(self.move_list)
-
-    def __str__(self) -> str:
-        return f"{self.move_list}, {self.mediant_tuple}"
-    
 
 class SternBrocotTree(abc.Sequence):
     def __init__(self, depth: int) -> None:
@@ -174,23 +177,23 @@ class SternBrocotTree(abc.Sequence):
     def __lt__(self, other: typing.Self) -> bool:
         return self.depth < other.depth
     
+    def __getitem__(self, index: int) -> SternBrocot:
+        return self.bfs_node_list[index]
+    
     def __len__(self) -> int:
         return len(self.bfs_node_list)
     
     def __iter__(self) -> abc.Iterator:
         return iter(self.bfs_node_list)
     
-    def __getitem__(self, index: int) -> SternBrocot:
-        return self.bfs_node_list[index]
-    
     def __str__(self) -> str:
         tree_string = "\n\n".join(["\n".join(textwrap.wrap("\t".join([node.mediant_string for node in level]))) for level in self.sb_tree])
         return tree_string
 
 
-
 if __name__ == "__main__":
-    n = 5
+    # Example: random move list
+    k = 5
 
     random.seed(444)
     move_list = random.choices(SternBrocot.ALPHABET, k=5)
@@ -201,9 +204,9 @@ if __name__ == "__main__":
     N = SternBrocot.move_list_to_node(move_list)
     assert SternBrocot.move_list_to_fraction_tuple(move_list) == N.mediant_tuple
 
-    numerator = 3
-    denominator = 14
-    fraction_tuple = Fraction(numerator, denominator).as_integer_ratio()
+
+    # Example: fraction tuple to node
+    fraction_tuple = (3, 14)
 
     N = SternBrocot.fraction_tuple_to_node(fraction_tuple)
     assert N.mediant_tuple == fraction_tuple
@@ -213,12 +216,14 @@ if __name__ == "__main__":
 
     assert SternBrocot.move_string_to_move_list("") == []
 
+
+    # Example: Stern-Brocot tree
+    n = 10
+
     sb_tree = SternBrocotTree(n)
     assert sb_tree.bfs_node_list == SternBrocot.depth_to_bfs_node_list(n)
 
     sb_tree = SternBrocotTree(n)
     assert len(sb_tree) == len(sb_tree.bfs_node_list)
-
-    print(sb_tree)
 
 
