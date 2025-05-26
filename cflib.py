@@ -114,6 +114,21 @@ def cf_to_convergent_list(cf: list[int]) -> list[tuple[int, int]]:
     return convergent_list
 
 
+def cf_to_extended_convergent_list(cf: list[int]) -> list[tuple[int, int]]:
+    p_prev2, p_prev1 = 0, 1
+    q_prev2, q_prev1 = 1, 0
+    convergent_list = []
+    convergent_list.append((p_prev2, q_prev2))
+    convergent_list.append((p_prev1, q_prev1))
+    for ak in cf:
+        p_k = ak * p_prev1 + p_prev2
+        q_k = ak * q_prev1 + q_prev2
+        convergent_list.append((p_k, q_k))
+        p_prev2, p_prev1 = p_prev1, p_k
+        q_prev2, q_prev1 = q_prev1, q_k
+    return convergent_list
+
+
 def fraction_tuple_to_convergent_list(fraction_tuple: tuple[int, int]) -> list[tuple[int, int]]:
     cf = fraction_tuple_to_cf(fraction_tuple)
     convergent_list = cf_to_convergent_list(cf)
@@ -192,6 +207,7 @@ if __name__ == "__main__":
 
     eea = EEA(x, y)
     assert eea.convergent_list == fraction_tuple_to_convergent_list((x, y))
+
 
     # Example: Gauss transformation
     x = Decimal("0.34")

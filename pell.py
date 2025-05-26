@@ -1,7 +1,9 @@
 import math
 from fractions import Fraction
 import decimal
+from decimal import Decimal
 import itertools as it
+from collections import abc
 
 import cflib
 
@@ -11,97 +13,109 @@ def sqrt_periodic_continued_fraction(d: int) -> tuple[list[int], list[int]]:
     if a0 ** 2 == d:
         # d is a square, so sqrt(d) is an integer and the continued fraction has length 1
         return ([a0], [])
-
     # Initialize (M, D, a)
     M = 0
     D = 1
     a = a0
-
     expansion = [a0]
-    
     # Keep track of triples (M, D, a) to detect repetition
     triples_dict = {}
     # Map: (M, D, a) -> index in the expansion
-
     i = 0
     while True:
         M = D * a - M
         D = (d - M**2) // D
         a = (a0 + M) // D
-        
         i += 1
-
         # If we see a triple (M, D, a) twice, we've found the start of the period
         if (M, D, a) in triples_dict:
             # The terms from index triples_dict[(M,D,a)] to index i-1 are the repeating cycle
             start_period = triples_dict[(M, D, a)]
-            non_periodic_part = expansion[:start_period]
+            initial_part = expansion[:start_period]
             periodic_part = expansion[start_period:]
-            return non_periodic_part, periodic_part
+            return initial_part, periodic_part
         else:
             triples_dict[(M, D, a)] = i
             expansion.append(a)
 
 
-def pell_decimal_approximation(d, non_periodic_part, periodic_part, num_terms, num_decimals):
-    decimal.getcontext().prec = num_decimals
-    l = num_terms - len(non_periodic_part)
-    partial_quotients = non_periodic_part + math.ceil(l / len(periodic_part)) * periodic_part
-    convergents = cflib.cf_to_convergent_list(partial_quotients)
-    convergent = Fraction(*convergents[num_terms])
-    convergent_decimal = decimal.Decimal(convergent.numerator) / decimal.Decimal(convergent.denominator)
-    sqrt_d_decimal = decimal.Decimal(d).sqrt()
-    print(f"sqrt({d}) \t\t=", sqrt_d_decimal)
-    print(f"p_{num_terms} / q_{num_terms} \t\t=", convergent_decimal)
-    print(f"sqrt({d}) - p_{num_terms} / q_{num_terms} \t=", convergent_decimal - sqrt_d_decimal)
+def sqrt_periodic_continued_fraction_generator(d: int) -> abc.Generator[int]:
+    initial_part, periodic_part = sqrt_periodic_continued_fraction(d)
+    cf = it.chain(initial_part, it.cycle(periodic_part))
+    yield from cf
 
 
-def pell_equation(d, non_periodic_part, periodic_part):
+def solve_pell_equation(d: int) -> tuple[int, int]:
+    initial_part, periodic_part = sqrt_periodic_continued_fraction(d)
     r = len(periodic_part)
     if r % 2 == 0:
-        partial_quotients = non_periodic_part + periodic_part
+        partial_quotients = initial_part + periodic_part
         fraction_list = cflib.cf_to_convergent_list(partial_quotients)
         x, y = fraction_list[r - 1]
     else:
-        partial_quotients = non_periodic_part + 2 * periodic_part
+        partial_quotients = initial_part + 2 * periodic_part
         fraction_list = cflib.cf_to_convergent_list(partial_quotients)
         x, y = fraction_list[2 * r - 1]
-
-    assert x**2 - d * y**2 == 1
-
-    print(f"{d=}")
-    print(f"Fundamental solution {x=}, {y=}")
-    print(f"x^2 - {d} * y^2 = {x**2} - {d} * {y**2} =  {x**2 - d * y**2}")
+    return x, y
 
 
-def main(d: int, num_terms: int, num_decimals) -> None:
-    non_periodic_part, periodic_part = sqrt_periodic_continued_fraction(d)
+def periodic_cf_to_quadratic_coefficients(initial_part: list[int],
+                                          periodic_part: list[int]) -> tuple[int, int, int]:
+    """Implements construction in proof of Theorem 176 of Hardy and Wright, Chapter X, pp. 184-185, sixth edition:
+    Theorem 176. A periodic continued fraction is a quadratic surd,
+    i.e. an irrational root of a quadratic equation with integral coefficients."""
+    initial_convergent_list = cflib.cf_to_extended_convergent_list(initial_part)
+    initial_p1, initial_q1 = initial_convergent_list[-2]
+    initial_p2, initial_q2 = initial_convergent_list[-1]
 
-    print(f"Periodic continued fraction for sqrt({d})")
-    print(f"non-periodic part \t= {non_periodic_part}")
-    print(f"periodic part \t\t= {periodic_part}")
+    periodic_convergent_list = cflib.cf_to_extended_convergent_list(periodic_part)
+    periodic_p1, periodic_q1 = periodic_convergent_list[-2]
+    periodic_p2, periodic_q2 = periodic_convergent_list[-1]
 
-    print()
-
-    print(f"Decimal approximation of sqrt({d}) using first {num_terms} partial quotients.")
-    pell_decimal_approximation(d, non_periodic_part, periodic_part, num_terms, num_decimals)
-
-    print()
-    
-    print(f"Pell equation x^2 - {d} * y^2 = 1")
-    pell_equation(d, non_periodic_part, periodic_part)
-
-    print()
-
-    print(f"Partial quotients a_0,...,a_{num_terms-1} of sqrt({d})")
-    cf = it.chain(non_periodic_part, it.cycle(periodic_part))
-    print([a for a, _ in zip(cf, range(num_terms))])
+    a = periodic_q2 * initial_q1 ** 2 - (periodic_q1 - periodic_p2) * initial_q1 * initial_q2 - periodic_p1 * initial_q2 ** 2
+    b = -2 * periodic_q2 * initial_q1 * initial_p1 + (periodic_q1 - periodic_p2) * (initial_p1 * initial_q2 + initial_q1 * initial_p2) + \
+        2 * periodic_p1 * initial_p2 * initial_q2
+    c = periodic_q2 * initial_p1 ** 2 - (periodic_q1 - periodic_p2) * initial_p1 * initial_p2 - periodic_p1 * initial_p2 ** 2
+    return a, b, c
 
 
 # Example usage:
 if __name__ == "__main__":
-    d = 3
+    d = 5
     num_terms = 30
-    num_decimals = 30
+    precision = 30
 
-    main(d, num_terms, num_decimals)
+    decimal.getcontext().prec = precision
+
+    initial_part, periodic_part = sqrt_periodic_continued_fraction(d)
+    print(f"Continued fraction for sqrt({d})")
+    print(f"Initial part:\t{initial_part}")
+    print(f"Periodic part:\t{periodic_part}")
+
+    print()
+    
+    print(f"Pell equation x² - {d}y² = 1 has following fundamental solution:")
+    print("(x, y)=", solve_pell_equation(d), sep="")
+
+    print()
+
+    print(f"Using {num_terms=} of continued fraction for sqrt({d}), the decimal expansion with {precision=} is:")
+    cf_generator = sqrt_periodic_continued_fraction_generator(d)
+    cf = [a for a, k in zip(cf_generator, range(num_terms))]
+    convergent_list = cflib.cf_to_convergent_list(cf)
+    fraction_tuple = convergent_list[-1]
+    print(Decimal(fraction_tuple[0]) / Decimal(fraction_tuple[1]))
+
+    print()
+
+    initial_part, periodic_part = sqrt_periodic_continued_fraction(d)
+    a, b, c = periodic_cf_to_quadratic_coefficients(initial_part, periodic_part)
+    print(f"""sqrt({d}) is a root of the following quadratic polynomial:\n{a}x² \t{b:+}x \t{c:+}""")
+
+    print()
+
+    initial_part, periodic_part = [], [1]
+    a, b, c = periodic_cf_to_quadratic_coefficients(initial_part, periodic_part)
+    print(f"The value of the continued fraction is a root of the following quadratic polynomial:\n{a}x² \t{b:+}x \t{c:+}")
+
+    print()
