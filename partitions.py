@@ -14,7 +14,7 @@ def make_partition_list_generator(n: int, max_part: int) -> abc.Generator[list[i
 
 
 def list_partitions(n: int) -> list[list[int]]:
-    return list(make_partition_list_generator(n=n, max_part=n))
+    return list(make_partition_list_generator(n, n))
 
 
 def partition_function_array(n: int) -> int:
