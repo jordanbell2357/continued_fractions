@@ -1,15 +1,21 @@
 import math
-from fractions import Fraction
 import decimal
 from decimal import Decimal
 import itertools as it
 import functools as ft
 from collections import abc
+from dataclasses import dataclass
 
 import cflib
 
 
-def sqrt_periodic_cf(d: int) -> tuple[list[int], list[int]]:
+@dataclass
+class PeriodicCF:
+    initial_part: list[int]
+    periodic_part: list[int]
+
+
+def sqrt_periodic_cf(d: int) -> PeriodicCF:
     a0 = math.isqrt(d)  # floor(sqrt(d))
     if a0 ** 2 == d:
         # d is a square, so sqrt(d) is an integer and the continued fraction has length 1
@@ -31,11 +37,11 @@ def sqrt_periodic_cf(d: int) -> tuple[list[int], list[int]]:
         i += 1
         # If we see a triple (M, D, a) twice, we've found the start of the period
         if (M, D, a) in triple_dict:
-            # The terms from index triple_dict[(M,D,a)] to index i-1 are the repeating cycle
+            # The terms from index triple_dict[(M, D, a)] to index i - 1 are the repeating cycle
             start_period = triple_dict[(M, D, a)]
             initial_part = expansion[:start_period]
             periodic_part = expansion[start_period:]
-            return initial_part, periodic_part
+            return PeriodicCF(initial_part, periodic_part)
         else:
             triple_dict[(M, D, a)] = i
             expansion.append(a)
@@ -45,88 +51,85 @@ def integral_quadratic_polynomial_to_periodic_cf(
         a: int,
         b: int,
         c: int,
-        epsilon: int = 1) -> tuple[list[int], list[int]]:
+        epsilon: int = 1) -> PeriodicCF:
     """
-    Return (initial_part, periodic_part) for the quadratic irrational
+    Return PeriodicCF(initial_part, periodic_part) for the quadratic irrational
 
             (-b ± √D) / (2a),   where  D = b² - 4ac  ≥ 0  and  a ≠ 0.
 
     epsilon:
-        1  →  use  (-b + √D)/(2a)   (like sqrt_periodic_cf)
-       -1  →  use  (-b - √D)/(2a)
+        +1 → use  (-b + √D)/(2a)
+        -1 → use  (-b - √D)/(2a)
 
-    The algorithm is the same three-term recurrence coded for sqrt_periodic_cf:
-    only the *starting triple* (P, Q, a₀) differs.
+    Implements construction in Theorem 177 of Hardy and Wright, Chapter X, pp. 185-187, sixth edition:
+    'The continued fraction which represents a quadratic surd is periodic.'
 
-    If D is a perfect square the root is rational so the continued fraction
-    terminates after its first term, we return  ([q0], []) just like the
-    sqrt(d) routine.
-
-    Implements construction in proof of Theorem 177, Hardy and Wright, Chapter X, pp. 185-187, sixth edition:
-    The continued fraction which represents a quadratic surd is periodic.
+    Chakravala method used by Bhāskara II. Proved by Lagrange that the method terminates.
+    cf. the class number of the ring of integers of a real quadratic field / binary quadratic forms.
     """
     if a == 0:
         raise ValueError("Not a quadratic polynomial: a must be non-zero")
 
-    D = b * b - 4 * a * c
-    if D < 0:
+    D0 = b * b - 4 * a * c
+    if D0 < 0:
         raise ValueError("Discriminant is negative: roots are complex")
 
-    isqrt_D = math.isqrt(D)
-    if isqrt_D * isqrt_D == D: # Rational root implies finite continued fraction
-        numerator = -b + epsilon * isqrt_D
+    # rational case
+    isqrt_D0 = math.isqrt(D0)
+    if isqrt_D0 * isqrt_D0 == D0:
+        numerator   = -b + epsilon * isqrt_D0
         denominator = 2 * a
-        if denominator == 0:
-            raise ZeroDivisionError("Denominator 2a vanished (a=0)")
-        if denominator < 0: # Make denominator positive
+        if denominator < 0:
             numerator, denominator = -numerator, -denominator
-        q0, r = divmod(numerator, denominator)
-        if r != 0: # safety check; should never occur
-            q0 = math.floor(numerator / denominator)
-        return ([q0], [])
+        q0 = numerator // denominator
+        return PeriodicCF([q0], [])
 
-    # We want the reduced form (P + √D) / Q with Q > 0 and Q | D - P²
-    P = -b
-    Q = 2 * a
-    P = epsilon * P
-    if Q < 0:
-        P, Q = -P, -Q
+    # --- reduction so that Q | (D - P^2) remains true ---
+    P0 = epsilon * (-b)
+    Q0 = 2 * a
+    if Q0 < 0:
+        P0, Q0 = -P0, -Q0
 
-    gcd = math.gcd(math.gcd(abs(P), Q), D)
-    P //= gcd
-    Q //= gcd
-    D //= gcd
+    g = math.gcd(abs(P0), Q0)
+    P = P0 // g
+    Q = Q0 // g
+    D = D0 // (g * g)
     isqrt_D = math.isqrt(D)
+    # --- end reduction ---
 
-    a0 = (P + isqrt_D) // Q
-    expansion = []
-    expansion.append(a0)
-
-    #  We only need to record (P, Q) to recognise when the state repeats
-    state_dict = {(P, Q): 0}
+    i = 0 # first partial quotient
+    partial_quotient = (P + isqrt_D) // Q
+    expansion = [partial_quotient]
+    state_dict = {}
+    state_dict[(P, Q, partial_quotient)] = 0
 
     while True:
-        P = a0 * Q - P
-        Q = (D - P * P) // Q
-        a0 = (P + isqrt_D) // Q
+        # recurrence step
+        P   = partial_quotient * Q - P
+        Q   = (D - P * P) // Q
+        partial_quotient  = (P + isqrt_D) // Q
+        i  += 1
 
-        state = (P, Q)
-        if state in state_dict: # cycle found
+        state = (P, Q, partial_quotient)
+        if state in state_dict:
             start = state_dict[state]
-            return expansion[:start], expansion[start:]
+            initial_part = expansion[:start]
+            periodic_part = expansion[start:i]
+            return PeriodicCF(initial_part, periodic_part)
 
-        state_dict[state] = len(expansion)
-        expansion.append(a0) 
+        state_dict[state] = i
+        expansion.append(partial_quotient)
 
 
-def periodic_cf_generator(d: int) -> abc.Generator[int]:
-    initial_part, periodic_part = sqrt_periodic_cf(d)
+def periodic_cf_generator(periodic_cf: PeriodicCF) -> abc.Generator[int]:
+    initial_part, periodic_part = periodic_cf.initial_part, periodic_cf.periodic_part
     cf = it.chain(initial_part, it.cycle(periodic_part))
     yield from cf
 
 
 def solve_pell_equation(d: int) -> tuple[int, int]:
-    initial_part, periodic_part = sqrt_periodic_cf(d)
+    periodic_cf = sqrt_periodic_cf(d)
+    initial_part, periodic_part = periodic_cf.initial_part, periodic_cf.periodic_part
     r = len(periodic_part)
     if r % 2 == 0:
         partial_quotients = initial_part + periodic_part
@@ -139,12 +142,14 @@ def solve_pell_equation(d: int) -> tuple[int, int]:
     return x, y
 
 
-def periodic_cf_to_integral_quadratic_polynomial(
-        initial_part: list[int],
-        periodic_part: list[int]) -> tuple[int, int, int]:
-    """Implements construction in proof of Theorem 176 of Hardy and Wright, Chapter X, pp. 184-185, sixth edition:
-    Theorem 176. A periodic continued fraction is a quadratic surd,
-    i.e. an irrational root of a quadratic equation with integral coefficients."""
+def periodic_cf_to_integral_quadratic_polynomial(periodic_cf: PeriodicCF) -> tuple[int, int, int]:
+    """
+    Implements construction in proof of Theorem 176 of Hardy and Wright, Chapter X, pp. 184-185, sixth edition:
+    'A periodic continued fraction is a quadratic surd, i.e. an irrational root of a quadratic equation with integral coefficients.'
+    Theorem of Euler.
+    """
+
+    initial_part, periodic_part = periodic_cf.initial_part, periodic_cf.periodic_part
     initial_convergent_list = cflib.cf_to_extended_convergent_list(initial_part)
     initial_p1, initial_q1 = initial_convergent_list[-2]
     initial_p2, initial_q2 = initial_convergent_list[-1]
@@ -162,13 +167,16 @@ def periodic_cf_to_integral_quadratic_polynomial(
     return a // gcd, b // gcd, c // gcd
 
 
-def is_reduced_surd(a, b, c):
-    D = b ** 2 - 4 * a * c
-    P = -b
-    Q = 2 * a
+def is_real_reduced_surd(P: int, Q: int, D: int) -> bool:
+    """
+    A quadratic surd (P+√D)/Q is called "reduced" when it is greater than 1,
+    and its conjugate (P-√D)/Q is strictly between -1 and 0. Galois' theorem
+    for quadratic surds: a quadratic surd is reduced if and only if its
+    continued fraction is purely periodic.
+    """
     r = (P + math.sqrt(D)) / Q
     r_conjugate = (P - math.sqrt(D)) / Q
-    if r > 1 and -1 < r_conjugate < 1:
+    if D > 0 and r > 1 and -1 < r_conjugate < 0:
         return True
     return False
 
@@ -176,48 +184,59 @@ def is_reduced_surd(a, b, c):
 # Example usage:
 if __name__ == "__main__":
     d = 5
-    num_terms = 30
+    num_terms = 15
     precision = 30
-
-    print(integral_quadratic_polynomial_to_periodic_cf(1, -1, -1))
-
     decimal.getcontext().prec = precision
 
-    initial_part, periodic_part = sqrt_periodic_cf(d)
-    print(f"Continued fraction for sqrt({d})")
+    # Example
+    periodic_cf = sqrt_periodic_cf(d)
+    initial_part, periodic_part = periodic_cf.initial_part, periodic_cf.periodic_part
+    print(f"Continued fraction for √{d}:")
     print(f"Initial part:\t{initial_part}")
     print(f"Periodic part:\t{periodic_part}")
-
-    print()
-    
-    print(f"Pell equation x² - {d}y² = 1 has following fundamental solution:")
-    print("(x, y)=", solve_pell_equation(d), sep="")
-
     print()
 
-    print(f"Using {num_terms=} of continued fraction for sqrt({d}), the decimal expansion with {precision=} is:")
-    cf_generator = periodic_cf_generator(d)
+    # Example
+    print(f"Using {num_terms=} of the continued fraction for √{d}, the decimal expansion with {precision=} is:")
+    cf_generator = periodic_cf_generator(sqrt_periodic_cf(d))
     cf = [a for a, _ in zip(cf_generator, range(num_terms))]
     convergent_list = cflib.cf_to_convergent_list(cf)
     fraction_tuple = convergent_list[-1]
     print(Decimal(fraction_tuple[0]) / Decimal(fraction_tuple[1]))
-
+    print()
+    
+    # Example
+    print(f"Pell equation x² - {d}y² = 1 has the following fundamental solution:")
+    print("(x, y) = ", solve_pell_equation(d), sep="")
     print()
 
-    initial_part, periodic_part = sqrt_periodic_cf(d)
-    a, b, c = periodic_cf_to_integral_quadratic_polynomial(initial_part, periodic_part)
-    print(f"""sqrt({d}) is a root of the following quadratic polynomial:\n{a}x² \t{b:+}x \t{c:+}""")
-
+    # Example
+    periodic_cf = sqrt_periodic_cf(d)
+    a, b, c = periodic_cf_to_integral_quadratic_polynomial(periodic_cf)
+    print(f"√{d} is a root of the following quadratic polynomial:\n{a}x² \t{b:+}x \t{c:+}")
     print()
 
-    initial_part, periodic_part = [], [1]
-    a, b, c = periodic_cf_to_integral_quadratic_polynomial(initial_part, periodic_part)
-    print(f"The value of the continued fraction is a root of the following quadratic polynomial:\n{a}x² \t{b:+}x \t{c:+}")
-
+    # Example
+    initial_part, periodic_part = [], [1, 2]
+    periodic_cf = PeriodicCF(initial_part, periodic_part)
+    a, b, c = periodic_cf_to_integral_quadratic_polynomial(periodic_cf)
+    D = b ** 2 - 4 * a * c
+    P = -b
+    Q = 2 * a
+    print(f"The value of {periodic_cf} is the quadratic surd ({P}+√{D})/{Q} which has minimal polynomial:\n{a}x² \t{b:+}x \t{c:+}")
     print()
 
-    # Galois' theorem on quadratic surds: a quadratic surd is reduced if and only if it has a purely periodic cf
-    # A reduced surd (P + sqrt(D)) / Q is one that is greater than 1 and whose conjugate (P - sqrt(D)) / Q is
-    # strictly between -1 and 0.
-    print(is_reduced_surd(1, -1, -1))
+    # Example
+    coefficients = (7, -8, -3)
+    assert periodic_cf_to_integral_quadratic_polynomial(integral_quadratic_polynomial_to_periodic_cf(*coefficients)) == \
+        coefficients
 
+    # Example
+    coefficients = (7, -8, -4)
+
+    a, b, c = coefficients
+    D = b ** 2 - 4 * a * c
+    P = -b
+    Q = 2 * a
+    assert is_real_reduced_surd(P, Q, D) == True
+    assert periodic_cf_to_integral_quadratic_polynomial(integral_quadratic_polynomial_to_periodic_cf(*coefficients)) == coefficients
