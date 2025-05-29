@@ -58,11 +58,19 @@ class SL2Z(GL2Z):
         super().__init__(alpha, beta, gamma, delta)
 
 
-class IndefiniteBinaryQuadraticForm:
-    """Follows Henri Cohen, A Course in Computation Algebraic Number Theory, Chapter 5.
+class IndefiniteBQF:
+    """Henri Cohen, A Course in Computation Algebraic Number Theory, Chapter 5:
     Definition 5.2.3, p. 225, for binary quadratic forms.
-    Definition 5.6.2, p. p. 262, for reduced indefinite binary quadratic forms.
+    Definition 5.6.2, p. 262, for reduced indefinite binary quadratic forms.
+    Definition 5.6.4, p. 263 for reduction operator.
+    Algorithm 5.6.5, p. 263 for reduction algorithm for indefinite quadratic forms.
     """
+
+    @classmethod
+    def reduced(cls, bqf: typing.Self) -> typing.Self:
+        while not bqf.is_reduced:
+            bqf = bqf.reduce()
+        return bqf
 
     def __init__(self, a: int, b: int, c: int) -> None:
         discriminant = b ** 2 - 4 * a * c
@@ -75,6 +83,7 @@ class IndefiniteBinaryQuadraticForm:
         self.c = c
         self.D = discriminant
         self.gcd = math.gcd(self.a, self.b, self.c)
+        self.is_primitive = self.gcd == 1
         self.is_reduced = self.D > 0 and abs(math.sqrt(self.D) - 2 * abs(self.a)) < self.b < math.sqrt(self.D)
 
     def __repr__(self) -> str:
@@ -94,10 +103,39 @@ class IndefiniteBinaryQuadraticForm:
     
     def __str__(self) -> str:
         return f"{self.a}x² {self.b:+}xy {self.c:+}y². Discriminant: {self.D}"
+    
+    def reduce(self: typing.Self) -> typing.Self:
+        def r(D: int, b: int, a: int) -> int:
+            if abs(a) > math.sqrt(D):
+                for k in range(-abs(a), abs(a) + 1):
+                    if (k - b) % (2 * a) == 0:
+                        return k
+            elif abs(a) < math.sqrt(D):
+                for k in range(math.isqrt(D) - 2 * abs(a), math.isqrt(D) + 1):
+                    if (k - b) % (2 * a) == 0:
+                        return k
+        a = self.c
+        b = r(self.D, -self.b, self.c)
+        c = (b ** 2 - self.D) // (4 * self.c)
+        return type(self)(a, b, c)
 
 
-bqf1 = IndefiniteBinaryQuadraticForm(1, 0, -3)
-m1 = SL2Z(-1, -1, 0, -1)
-bqf2 = m1 * bqf1
-print(bqf1, bqf1.is_reduced, float(bqf1))
-print(bqf2, bqf2.is_reduced, float(bqf2))
+    def evaluate(self, x: int, y: int) -> int:
+        return self.a * x ** 2 + self.b * x * y + self.c * y **2
+
+
+
+bqf1 = IndefiniteBQF(2, 0, -6)
+print(bqf1, bqf1.is_reduced, bqf1.is_primitive, float(bqf1))
+bqf2 = bqf1.reduce()
+print(bqf2, bqf2.is_reduced, bqf2.is_primitive, float(bqf2))
+bqf3 = bqf2.reduce()
+print(bqf3, bqf3.is_reduced, bqf3.is_primitive, float(bqf3))
+m = SL2Z(-1, -1, 0, -1)
+bqfm = m * bqf1
+print(bqfm, bqfm.is_reduced, bqfm.is_primitive, float(bqfm))
+
+bqf_reduced = IndefiniteBQF.reduced(bqf1)
+
+print(bqf_reduced, bqf_reduced.is_reduced, bqf_reduced.is_primitive, float(bqf_reduced))
+
