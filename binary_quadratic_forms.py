@@ -38,7 +38,7 @@ class GL2Z(M2Z):
     def __init__(self, alpha: int, beta: int, gamma: int, delta: int):
         det = detM2(alpha, beta, gamma, delta)
         if det == 0:
-            raise ValueError("determinant 0")
+            raise ValueError("determinant must not be 0")
         super().__init__(alpha, beta, gamma, delta)
 
     def inv(self) -> typing.Self:
@@ -54,7 +54,7 @@ class SL2Z(GL2Z):
     def __init__(self, alpha, beta, gamma, delta):
         det = detM2(alpha, beta, gamma, delta)
         if det != 1:
-            raise ValueError("determinant != 1")
+            raise ValueError("determinant must be 1")
         super().__init__(alpha, beta, gamma, delta)
 
 
@@ -118,7 +118,6 @@ class IndefiniteBQF:
         b = r(self.D, -self.b, self.c)
         c = (b ** 2 - self.D) // (4 * self.c)
         return type(self)(a, b, c)
-
 
     def evaluate(self, x: int, y: int) -> int:
         return self.a * x ** 2 + self.b * x * y + self.c * y **2
