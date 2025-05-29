@@ -163,7 +163,7 @@ def periodic_cf_to_integral_quadratic_polynomial(periodic_cf: PeriodicCF) -> tup
         2 * periodic_p1 * initial_p2 * initial_q2
     c = periodic_q2 * initial_p1 ** 2 - (periodic_q1 - periodic_p2) * initial_p1 * initial_p2 - periodic_p1 * initial_p2 ** 2
 
-    gcd = ft.reduce(math.gcd, [b, c], a)
+    gcd = math.gcd(a, b, c)
     return a // gcd, b // gcd, c // gcd
 
 
