@@ -2,16 +2,15 @@ import math
 from fractions import Fraction
 import typing
 
-import prime_numbers
-
+import prime_numbers          
 
 
 class RealQuadraticNumber:
     def __init__(self, d: int, x: Fraction, y: Fraction) -> None:
         if not isinstance(d, int):
-            return TypeError("d must be integer")
+            raise TypeError("d must be integer")
         if not d > 0:
-            return ValueError("d must be > 0")
+            raise ValueError("d must be > 0")
         prime_factor_counter_d = prime_numbers.make_prime_factor_counter(d)
         squarefull_part_d = 1
         squarefree_part_d = 1 # will be new d
@@ -28,6 +27,36 @@ class RealQuadraticNumber:
     
     def __eq__(self, other: typing.Self) -> bool:
         return self.d == other.d and self.x == other.x and self.y == other.y
+    
+    def __neg__(self) -> typing.Self:
+        return type(self)(self.d, -self.x, -self.y)
+    
+    def __add__(self, other: typing.Self) -> typing.Self:
+        if self.d != other.d:
+            raise ValueError("algebraic numbers must be members of same field")
+        return type(self)(self.d, self.x + other.x, self.y + other.y)
+    
+    def __sub__(self, other: typing.Self) -> typing.Self:
+        if self.d != other.d:
+            raise ValueError("algebraic numbers must be members of same field")
+        return type(self)(self.d, self.x - other.x, self.y - other.y)
+    
+    def __mul__(self, other: typing.Self) -> typing.Self:
+        if self.d != other.d:
+            raise ValueError("algebraic numbers must be members of same field")
+        return type(self)(self.d,
+                          self.x * other.x + self.y * other.y * self.d,
+                          self.x * other.y + self.y * other.x)
+    
+    def __pow__(self, other: int) -> typing.Self:
+        if not isinstance(other, int):
+            raise TypeError("exponent must be integer")
+        if not other > 0:
+            raise ValueError("exponent must be positive")
+        product_number = type(self)(self.d, Fraction(1, 1), Fraction(0, 1))
+        for k in range(other):
+            product_number = product_number * self
+        return product_number
 
     def __float__(self) -> float:
         return self.x + self.y * math.sqrt(self.d)
@@ -53,6 +82,30 @@ class RealQuadraticNumber:
     def is_integral(self) -> bool:
         return self.norm == int(self.norm) and self.trace == int(self.trace)
 
+
+class RealQuadraticField:
+    def __init__(self, d: int) -> None:
+        if not isinstance(d, int):
+            return TypeError("d must be integer")
+        if not d > 0:
+            return ValueError("d must be > 0")
+        self.d = d
+
+    def integral_basis(self) -> tuple[RealQuadraticNumber, RealQuadraticNumber]:
+        if self.d % 4 == 1:
+            return RealQuadraticNumber(self.d, Fraction(1, 1), Fraction(0, 1)), RealQuadraticNumber(self.d, Fraction(1, 2), Fraction(1, 2))
+        elif self.d % 4 in [2, 3]:
+            return RealQuadraticNumber(self.d, Fraction(1, 1), Fraction(0, 1)), RealQuadraticNumber(self.d, 1, 1)
+        
+    @property
+    def discriminant(self) -> int:
+        b1, b2 = self.integral_basis()
+        a = b1
+        b = b2
+        c = b1.conjugate()
+        d = b2.conjugate()
+        determinant = a * d - b * c
+        return int(float(determinant * determinant))
 
 
 def detM2(alpha: int, beta: int, gamma: int, delta: int) -> int:
@@ -177,15 +230,37 @@ class IndefiniteBQF:
         return self.a * x ** 2 + self.b * x * y + self.c * y **2
 
 
-
-
 if __name__ == "__main__":
+
+    print(RealQuadraticNumber(17, 1, 1) * RealQuadraticNumber(17, 1, 1))
+    print(RealQuadraticNumber(17, 1, 1) ** 3)
+    
+    print(RealQuadraticField(7).discriminant)
+
     m = 13
 
-    assert RealQuadraticNumber(4 * m + 1, Fraction(1, 2), Fraction(1, 2)).is_integral == True
+    d = 4 * m + 1
+    assert RealQuadraticField(d).discriminant == d
 
-    assert RealQuadraticNumber(4 * m + 3, Fraction(1, 2), Fraction(1, 2)).is_integral == False
+    d = 4 * m + 2
+    assert RealQuadraticField(d).discriminant == 4 * d
 
+    d = 4 * m + 3
+    assert RealQuadraticField(d).discriminant == 4 * d
+
+    d = 4 * m + 1
+    assert RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == True
+
+    d = 4 * m + 2
+    assert RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == False
+
+    d = 4 * m + 3
+    assert RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == False
+
+    bqf = IndefiniteBQF(2, 0, -6)
+
+    assert bqf.is_reduced and (0 < float(bqf.real_quadratic_number()) < 1 and -float(bqf.real_quadratic_number().conjugate()) > 1) or \
+        not bqf.is_reduced and not (0 < float(bqf.real_quadratic_number()) < 1 and -float(bqf.real_quadratic_number().conjugate()) > 1)
 
 
     bqf1 = IndefiniteBQF(2, 0, -6)
@@ -204,9 +279,4 @@ if __name__ == "__main__":
 
     print(bqf_reduced, bqf_reduced.is_reduced)
     print(float(bqf_reduced.real_quadratic_number()))
-
-
     
-    bqf = IndefiniteBQF(2, 0, -6)
-    assert bqf.is_reduced and (0 < float(bqf.real_quadratic_number()) < 1 and -float(bqf.real_quadratic_number().conjugate()) > 1) or \
-        not bqf.is_reduced and not (0 < float(bqf.real_quadratic_number()) < 1 and -float(bqf.real_quadratic_number().conjugate()) > 1)
