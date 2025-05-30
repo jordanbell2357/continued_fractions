@@ -110,6 +110,9 @@ class RealQuadraticField:
     def fundamental_unit(self) -> RealQuadraticNumber:
         x, y = pell.solve_pell_equation(self.d)
         return RealQuadraticNumber(d, x, y)
+    
+    def regulator(self) -> float:
+        return math.log(float(self.fundamental_unit()))
 
 
 def detM2(alpha: int, beta: int, gamma: int, delta: int) -> int:
@@ -237,6 +240,8 @@ class IndefiniteBQF:
 
 if __name__ == "__main__":
     d = 17
+
+    print(RealQuadraticField(d).regulator())
 
     assert RealQuadraticField(d).fundamental_unit().norm == 1
 
