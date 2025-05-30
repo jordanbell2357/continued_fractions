@@ -2,7 +2,8 @@ import math
 from fractions import Fraction
 import typing
 
-import prime_numbers        
+import prime_numbers
+import pell
 
 
 class RealQuadraticNumber:
@@ -105,6 +106,10 @@ class RealQuadraticField:
         d = b2.conjugate()
         determinant = a * d - b * c
         return int(float(determinant * determinant))
+    
+    def fundamental_unit(self) -> RealQuadraticNumber:
+        x, y = pell.solve_pell_equation(self.d)
+        return RealQuadraticNumber(d, x, y)
 
 
 def detM2(alpha: int, beta: int, gamma: int, delta: int) -> int:
@@ -164,7 +169,8 @@ class SL2Z(GL2Z):
 
 
 class IndefiniteBQF:
-    """Henri Cohen, A Course in Computation Algebraic Number Theory, Chapter 5, Algorithms for Quadratic Fields:
+    """
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Chapter 5, Algorithms for Quadratic Fields:
     Definition 5.2.3, p. 225, for binary quadratic forms.
     Definition 5.6.2, p. 262, for reduced indefinite binary quadratic forms.
     p. 263, for (a, b, c) being reduced if and only if 0 < (-b+√D)/(2|a|) < 1 and (b+√D)/(2|a|) > 1.
@@ -230,11 +236,11 @@ class IndefiniteBQF:
 
 
 if __name__ == "__main__":
+    d = 17
 
-    print(RealQuadraticNumber(17, 1, 1) * RealQuadraticNumber(17, 1, 1))
-    print(RealQuadraticNumber(17, 1, 1) ** 3)
-    
-    print(RealQuadraticField(7).discriminant)
+    assert RealQuadraticField(d).fundamental_unit().norm == 1
+
+    assert float(RealQuadraticField(d).fundamental_unit()) > 1
 
     m = 13
 

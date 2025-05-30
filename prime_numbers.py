@@ -27,7 +27,8 @@ def sieve_eratosthenes_list(n: int) -> list[int]:
 
 
 def sieve_eratosthenes(n: int) -> list[int]:
-    """Indices of bytearray are 0 to n. We set the bytes at each index initially to 1.
+    """
+    Indices of bytearray are 0 to n. We set the bytes at each index initially to 1.
     For each index whose byte is still set to 1 when "encountered", we set the bytes at all
     multiples of the index to 0. Termination happens when there are no more indices to "encounter".
     At termination, the indices whose bytes are still equal to 1, are the prime numbers between 0 and n.
