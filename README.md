@@ -20,10 +20,10 @@ Done:
 - Solving congruences
 - Adding related functions and sequences
 - Chinese remainder theorem
+- Infinite periodic continued fractions for arbitrary real quadratic irrationals
 
 Todo:
-
-- Infinite periodic continued fractions for arbitrary real quadratic irrationals
+- Class number
 - Visualizing CW and SB trees, Farey sequences (Farey graph), and displaying continued fractions
 - Connecting pieces with testing
 
