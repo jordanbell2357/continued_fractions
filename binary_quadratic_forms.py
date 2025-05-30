@@ -2,7 +2,7 @@ import math
 from fractions import Fraction
 import typing
 
-import prime_numbers          
+import prime_numbers        
 
 
 class RealQuadraticNumber:
@@ -13,11 +13,10 @@ class RealQuadraticNumber:
             raise ValueError("d must be > 0")
         prime_factor_counter_d = prime_numbers.make_prime_factor_counter(d)
         squarefull_part_d = 1
-        squarefree_part_d = 1 # will be new d
+        squarefree_part_d = 1
         for p, k in prime_factor_counter_d.items():
-            q, r = divmod(k, 2)
-            squarefull_part_d *= p ** (q * 2)
-            squarefree_part_d *= p ** r
+            squarefull_part_d *= p ** (k // 2 * 2)
+            squarefree_part_d *= p ** (k % 2)
         self.d = squarefree_part_d
         self.x = x
         self.y = y * math.isqrt(squarefull_part_d)
