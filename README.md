@@ -23,6 +23,7 @@ Done:
 - Infinite periodic continued fractions for arbitrary real quadratic irrationals
 
 Todo:
+- Find matrix transformations to take BQF to reduced BQF
 - Class number
 - Visualizing CW and SB trees, Farey sequences (Farey graph), and displaying continued fractions
 - Connecting pieces with testing
