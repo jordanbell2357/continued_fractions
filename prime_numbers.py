@@ -206,6 +206,51 @@ def euler_constant(n: int, m: int, precision: int, method: str = "decimal") -> D
     return harmonic_sum_decimal_n - Decimal(n).ln() - 1 / Decimal(2 * n) + euler_maclaurin_sum_decimal_m
 
 
+def squarefull_and_squarefree_parts(d: int) -> tuple[int, int]:
+        prime_factor_counter_d = make_prime_factor_counter(d)
+        squarefull_part_d = 1
+        squarefree_part_d = 1
+        for p, k in prime_factor_counter_d.items():
+            squarefull_part_d *= p ** (k // 2 * 2)
+            squarefree_part_d *= p ** (k % 2)
+        return squarefull_part_d, squarefree_part_d
+
+
+def legendre_symbol(a: int, p: int) -> int:
+    if not isprime(p):
+        raise ValueError(f"p must be prime: {p=}")
+    if p == 2:
+        r = a % 8
+        if r in [0, 2, 4, 6]:
+            return 0
+        elif r in [1, 7]:
+            return 1
+        elif r in [3, 5]:
+            return -1
+    if a % p == 0:
+        return 0
+    if any((a - x ** 2) % p == 0 for x in range(1, p)):
+        return 1
+    else:
+        return -1
+
+
+def kronecker_symbol(a: int, n: int) -> int:
+    if n == 0:
+        return 1 if a in [-1, 1] else 0
+    elif n == -1:
+        return -1 if a < 0 else 1
+    elif n == 1:
+        return 1
+
+    u = n // abs(n)
+    n = n // u
+    prime_factor_counter_n  = make_prime_factor_counter(n)
+    legendre_symbol_product_n = math.prod(legendre_symbol(a, p) ** v for p, v in prime_factor_counter_n.items())
+    return kronecker_symbol(a, u) * legendre_symbol_product_n
+
+
+
 if __name__ == "__main__":
     # Example: prime numbers
     n = 200

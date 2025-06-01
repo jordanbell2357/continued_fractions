@@ -185,7 +185,7 @@ def is_real_reduced_surd(P: int, Q: int, D: int) -> bool:
 
 # Example usage:
 if __name__ == "__main__":
-    d = 5
+    d = 19
     num_terms = 15
     precision = 30
     decimal.getcontext().prec = precision
