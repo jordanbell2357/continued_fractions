@@ -2,6 +2,7 @@ import math
 from fractions import Fraction
 import itertools as it
 from collections import abc
+from numbers import Rational
 import typing
 
 import sl2z
@@ -10,7 +11,7 @@ import pell
 
 
 class RealQuadraticNumber:
-    def __init__(self: typing.Self, d: int, x: Fraction, y: Fraction) -> None:
+    def __init__(self: typing.Self, d: int, x: Rational, y: Rational) -> None:
         if not isinstance(d, int):
             raise TypeError("d must be integer")
         if not d > 0:
@@ -30,35 +31,35 @@ class RealQuadraticNumber:
         return type(self)(self.d, -self.x, -self.y)
     
     def __add__(self: typing.Self, other: typing.Self) -> typing.Self:
-        if isinstance(other, int) or isinstance(other, Fraction):
+        if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
             raise ValueError("algebraic numbers must be members of same field")
         return type(self)(self.d, self.x + other.x, self.y + other.y)
     
     def __radd__(self: typing.Self, other: typing.Self) -> typing.Self:
-        if isinstance(other, int) or isinstance(other, Fraction):
+        if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
             raise ValueError("algebraic numbers must be members of same field")
         return type(self)(self.d, other.x + self.x, other.y + self.y)
     
     def __sub__(self: typing.Self, other: typing.Self) -> typing.Self:
-        if isinstance(other, int) or isinstance(other, Fraction):
+        if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
             raise ValueError("algebraic numbers must be members of same field")
         return type(self)(self.d, self.x - other.x, self.y - other.y)
     
     def __rsub__(self: typing.Self, other: typing.Self) -> typing.Self:
-        if isinstance(other, int) or isinstance(other, Fraction):
+        if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
             raise ValueError("algebraic numbers must be members of same field")
         return type(self)(self.d, other.x - self.x, other.y - self.y)
     
     def __mul__(self: typing.Self, other: typing.Self) -> typing.Self:
-        if isinstance(other, int) or isinstance(other, Fraction):
+        if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
             raise ValueError("algebraic numbers must be members of same field")
@@ -67,7 +68,7 @@ class RealQuadraticNumber:
                           self.x * other.y + self.y * other.x)
     
     def __rmul__(self: typing.Self, other: typing.Self) -> typing.Self:
-        if isinstance(other, int) or isinstance(other, Fraction):
+        if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
             raise ValueError("algebraic numbers must be members of same field")
@@ -78,7 +79,7 @@ class RealQuadraticNumber:
     def __truediv__(self: typing.Self, other: typing.Self) -> typing.Self:
         dividend = self
         divisor = other
-        if isinstance(divisor, int) or isinstance(divisor, Fraction):
+        if isinstance(divisor, Rational):
             divisor = type(dividend)(dividend.d, divisor, 0)
         if dividend.d != divisor.d:
             raise ValueError("dividend and divisor must be members of same field")
@@ -92,7 +93,7 @@ class RealQuadraticNumber:
     def __rtruediv__(self: typing.Self, other: typing.Self) -> typing.Self:
         dividend = other
         divisor = self
-        if isinstance(dividend, int) or isinstance(divisor, Fraction):
+        if isinstance(dividend, Rational):
             dividend = type(divisor)(divisor.d, dividend, 0)
         if dividend.d != divisor.d:
             raise ValueError("dividend and divisor must be members of same field")
@@ -143,6 +144,12 @@ class RealQuadraticNumber:
 
 
 class RealQuadraticField:
+    """
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+    Proposition 4.4.1, p. 165, for definition of discriminant using integral basis.
+    Proposition 5.1.1, p. 223, for integral basis and discriminant formula for real quadratic fields.
+    """
+
     def __init__(self: typing.Self, d: int) -> None:
         if not isinstance(d, int):
             raise TypeError("d must be integer")
@@ -153,13 +160,14 @@ class RealQuadraticField:
         # D = discriminant
         self.D = self.d if self.d % 4 == 1 else 4 * self.d
     
+    @property
     def fundamental_unit(self: typing.Self) -> RealQuadraticNumber:
         x, y = pell.solve_pell_equation(self.d)
         return RealQuadraticNumber(self.d, x, y)
 
     @property
     def regulator(self: typing.Self) -> float:
-        return math.log(float(self.fundamental_unit()))
+        return math.log(float(self.fundamental_unit))
     
     @property
     def primitive_real_dirichlet_character(self: typing.Self) -> abc.Callable:
@@ -168,27 +176,28 @@ class RealQuadraticField:
 
 class IndefiniteBQF:
     """
-    Henri Cohen, A Course in Computation Algebraic Number Theory, Chapter 5, Algorithms for Quadratic Fields:
-    Proposition 5.1.1, p. 223, for integral basis and discriminant of real quadratic fields.
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
     Definition 5.2.3, p. 225, for binary quadratic forms.
     Definition 5.6.2, p. 262, for reduced indefinite binary quadratic forms.
-    p. 263, for (a, b, c) being reduced if and only if 0 < (-b + √D) / (2|a|) < 1 and (b + √D) / (2|a|) > 1.
-    Definition 5.6.4, p. 263 for reduction operator.
+    Section 5.6, p. 263, for (a, b, c) being reduced if and only if 0 < (-b + √D) / (2|a|) < 1 and (b + √D) / (2|a|) > 1.
+    Definition 5.6.4, p. 263 for reduction operator and helper function r.
     Algorithm 5.6.5, p. 263 for reduction algorithm for indefinite quadratic forms.
     """
 
     def __init__(self: typing.Self, a: int, b: int, c: int) -> None:
-        discriminant = b ** 2 - 4 * a * c
         if not all(isinstance(x, int) for x in [a, b, c]):
             raise TypeError("a, b, c must all be integers")
-        if not discriminant > 0:
-            raise ValueError(f"{discriminant=} must be positive")
-        if c == 0:
-            raise ValueError(f"an indefinite binary quadratic form ax²+bx+c must have nonzero c: {c=}")
+        if a==0 or c == 0:
+            raise ValueError(f"For indefinite binary quadratic form ax²+bx+c, a and c must be nonzero: {a=}, {c=}")
+        D = b ** 2 - 4 * a * c
+        if D <= 0:
+            raise ValueError(f"Discriminant {D=} must be positive")
+        if math.sqrt(D) == math.isqrt(D):
+            raise ValueError(f"Discriminant {D=} of must not be a perfect square")
         self.a = a
         self.b = b
         self.c = c
-        self.D = discriminant
+        self.D = D
 
     def __repr__(self: typing.Self) -> str:
         return f"{type(self).__name__}({self.a}, {self.b}, {self.c})"
@@ -219,63 +228,43 @@ class IndefiniteBQF:
     @property
     def is_reduced(self: typing.Self) -> bool:
         """
-        Cohen, Definition 5.6.2, p. 262: an indefinite binary quadratic form (a,b,c)
-        is reduced if and only if
-        0 < (-b + √D) / (2|a|) < 1 and (b + √D) / (2|a|) > 1.
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        Definition 5.6.2, p. 262: an indefinite binary quadratic form (a,b,c) is reduced if
+        |√D - 2|a|| < b < √D.
         """
         sqrtD = math.sqrt(self.D)
-        alpha = (-self.b + sqrtD) / (2 * abs(self.a))
-        beta = (-self.b - sqrtD) / (2 * abs(self.a))
-        return (0 < alpha < 1) and (beta < -1)
+        return abs(sqrtD - 2 * abs(self.a)) < self.b < sqrtD
+
+    def primitive_associate(self: typing.Self) -> typing.Self:
+        gcd = self.gcd
+        return type(self)(self.a // gcd, self.b // gcd, self.c // gcd)
     
 
     def reduce_with_m(self: typing.Self) -> tuple[typing.Self, int]:
         """
-        Cohen, Definition 5.6.4 and Algorithm 5.6.5, p. 263:
-        1) Compute t0 = -b mod 2|c| in [0, 2|c|-1]. (Used in Step 2.)
-        2) If |c| > sqrt(D), choose r so that -|c| < r ≤ |c|.
-           If |c| < sqrt(D), choose r so that sqrt(D) - 2|c| < r < sqrt(D).
-           In each case, r ≡ -b (mod 2c).
-        3) Record m.
-        4) Return BQF (c, r, (r^2 - D) / (4c)) and m.
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        Definition 5.6.4 and Algorithm 5.6.5, p. 263.
         """
 
-        _, b, c, D = self.a, self.b, self.c, self.D # self.a not used
-        sqrtD = math.sqrt(D)
-        abs_c = abs(c)
+        def r(D: int, b: int, a: int) -> int:
+            if a == 0:
+                raise ValueError(f"{a=} must be nonzero")
+            if abs(a) > math.sqrt(D):
+                for r0 in range(-abs(a) + 1, abs(a) + 1):
+                    if (r0 - b) % (2 * abs(a)) == 0:
+                        return r0
+            elif abs(a) < math.sqrt(D):
+                for r0 in range(math.isqrt(D) - 2 * abs(a) + 1, math.isqrt(D) + 1):
+                    if (r0 - b) % (2 * abs(a)) == 0:
+                        return r0
 
-        # Step 1
-        t0 = ((-b) % (2 * abs_c))
+        _, b, c, D = self.a, self.b, self.c, self.D
+        r0 = r(D, -b, c)
+        m = (b + r0) // (2 * c)
 
-        # Step 2
-        if abs_c > sqrtD:
-            # We need -|c| < r ≤ |c|  AND  r ≡ t0 (mod 2|c|)
-            # The interval I = (-abs_c, abs_c] has length 2|c|.
-            # Exactly one integer r in I is ≡ t0 (mod 2|c|).
-            # r = t0 + 2|c|k for some integer k.
-            # We want the unique k such that -abs_c < t0 + 2|c|k ≤ abs_c.
-            # k = floor((abs_c - t0) / (2|c|)).
-            k = (abs_c - t0) // (2 * abs_c)
-            r = t0 + 2 * abs_c * k
-        else:
-            # We need  (sqrtD - 2|c|) < r < sqrtD,  AND  r ≡ t0 (mod 2|c|)
-            # Let lower = sqrtD - 2|c|,  upper = sqrtD.
-            lower = sqrtD - 2 * abs_c
-            upper = sqrtD
-            # We look for integer r = t0 + 2|c|·k lying in (lower, upper).
-            # Since upper - lower = 2|c|, there is exactly one such integer.
-            # Solve k ≥ (lower - t0)/(2|c|).
-            # k = ceil((lower - t0)/(2|c|)).
-            k = math.ceil((lower - t0) / (2 * abs_c))
-            r = t0 + 2 * abs_c * k
-
-        # Step 3
-        m = (b + r) // (2 * c)
-
-        # Step 4
         a1 = c
-        b1 = r
-        c1 = (r * r - D) // (4 * c)
+        b1 = r0
+        c1 = (r0 * r0 - D) // (4 * c)
         return type(self)(a1, b1, c1), m
 
     
@@ -285,12 +274,13 @@ class IndefiniteBQF:
         while not bqf.is_reduced:
             bqf, mi = bqf.reduce_with_m()
             m_list.append(mi)
-        return (bqf, m_list)
+        return bqf, m_list
 
-    def real_quadratic_number(self: typing.Self) -> RealQuadraticNumber:
+    @property
+    def real_quadratic_number_associate(self: typing.Self) -> RealQuadraticNumber:
         return RealQuadraticNumber(self.D, Fraction(-self.b, 2 * abs(self.a)), Fraction(1, 2 * abs(self.a)))
 
-    def evaluate(self: typing.Self, x: int, y: int) -> int:
+    def evaluate(self: typing.Self, x: Rational | RealQuadraticNumber, y: Rational | RealQuadraticNumber) -> int:
         return self.a * x ** 2 + self.b * x * y + self.c * y **2
     
     @staticmethod
@@ -310,89 +300,24 @@ class IndefiniteBQF:
         return [(letter, len(list(g))) for letter, g in it.groupby(word)]
 
 
-def class_number(d: int) -> int:
-    """
-    Return the (narrow) class number of Q(√d) by:
-      1) computing the fundamental discriminant Δ,
-      2) collecting *all* primitive, reduced forms (a,b,c) of disc Δ,
-      3) traversing each Cohen‐reduction cycle exactly once, and
-      4) returning the cycle count.
-
-    This is exactly Algorithm 5.6.5 + Section 5.7 in Cohen’s book.
-    """
-
-    import math
-    from prime_numbers import squarefull_and_squarefree_parts
-    from binary_quadratic_forms import IndefiniteBQF
-
-    # (a) Build fundamental discriminant Δ from d:
-    _, d0 = squarefull_and_squarefree_parts(d)
-    if d0 % 4 == 1:
-        Δ = d0
-    else:
-        Δ = 4 * d0
-
-    # (b) Gather every primitive, reduced form (a,b,c), allowing a<0 or a>0:
-    A_max = int(math.isqrt(Δ))
-    B     = int(math.isqrt(Δ))
-
-    reduced_forms = set()
-    for a in range(-A_max, A_max + 1):
-        if a == 0:
-            continue
-        for b in range(-B, B + 1):
-            num   = b*b - Δ
-            denom = 4 * a
-            if denom == 0 or (num % denom) != 0:
-                continue
-            c = num // denom
-
-            if math.gcd(a, b, c) != 1:
-                continue
-
-            Q = IndefiniteBQF(a, b, c)
-            if Q.is_reduced:
-                reduced_forms.add((a, b, c))
-
-    # (c) Walk each reduction‐with‐m cycle exactly once; each cycle = one class:
-    visited = set()
-    class_count = 0
-
-    for (a0, b0, c0) in reduced_forms:
-        if (a0, b0, c0) in visited:
-            continue
-
-        class_count += 1
-        curr = IndefiniteBQF(a0, b0, c0)
-        start = (curr.a, curr.b, curr.c)
-
-        while True:
-            key = (curr.a, curr.b, curr.c)
-            if key in visited:
-                break
-            visited.add(key)
-
-            next_bqf, _m = curr.reduce_with_m()
-            curr = next_bqf
-
-            if (curr.a, curr.b, curr.c) == start:
-                # we’ve come back around to the same (a0,b0,c0):
-                visited.add(start)
-                break
-
-    return class_count
-
-
 if __name__ == "__main__":
-    print(class_number(170))
+    d = 67
+
+    if d % 4 == 1:
+        b1, b2 = (RealQuadraticNumber(d, 1, 0), RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)))
+    elif d % 4 in [2, 3]:
+        b1, b2 = (RealQuadraticNumber(d, 1, 0), RealQuadraticNumber(d, 0, 1))
+    determinant = b1 * b2.conjugate() - b2 * b1.conjugate()
+    discriminant = (determinant ** 2).x
+    assert discriminant == RealQuadraticField(d).D
 
     d = 48
 
-    assert math.isclose(RealQuadraticField(d).regulator, math.log(float(RealQuadraticField(d).fundamental_unit())))
+    assert math.isclose(RealQuadraticField(d).regulator, math.log(float(RealQuadraticField(d).fundamental_unit)))
 
-    assert RealQuadraticField(d).fundamental_unit().norm == 1
+    assert RealQuadraticField(d).fundamental_unit.norm == 1
 
-    assert float(RealQuadraticField(d).fundamental_unit()) > 1
+    assert float(RealQuadraticField(d).fundamental_unit) > 1
 
     m = 13
 
@@ -422,18 +347,42 @@ if __name__ == "__main__":
 
     bqf = IndefiniteBQF(2, 0, -6)
 
-    assert bqf.is_reduced and (0 < float(bqf.real_quadratic_number()) < 1 and -float(bqf.real_quadratic_number().conjugate()) > 1) or \
-        not bqf.is_reduced and not (0 < float(bqf.real_quadratic_number()) < 1 and -float(bqf.real_quadratic_number().conjugate()) > 1)
+    assert bqf.is_reduced and (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1) or \
+        not bqf.is_reduced and not (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1)
+
+    bqf = IndefiniteBQF(2,  2, -2)
+    assert bqf.primitive_associate().is_primitive
+
+    bqf = IndefiniteBQF(2,  2, -2)
+    assert bqf.D == bqf.gcd ** 2 * bqf.primitive_associate().D
+
+    bqf = IndefiniteBQF(1,  1, -1) # gcd=1 so primitive
+    assert bqf.is_primitive
+    assert bqf.primitive_associate() == bqf
+
+    bqf = IndefiniteBQF(6, 14, -4)
+    primitive_bqf = bqf.primitive_associate()
+    𝜏 = bqf.real_quadratic_number_associate
+    primitive_𝜏 = primitive_bqf.real_quadratic_number_associate
+    assert 𝜏 == primitive_𝜏
+
+    m = 5  # positive integer that is not a perfect square
+    bqf = IndefiniteBQF(1, 0, -m)
+    τ = bqf.real_quadratic_number_associate
+    # The form is equal to 0 when (x,y) = (τ,1).
+    assert bqf.evaluate(τ, 1) == RealQuadraticNumber(bqf.D, 0, 0)
 
     bqf = IndefiniteBQF(3, 11, 2)
-
     reduced_bqf, m_list = bqf.reduced_with_m_list()
+    print(reduced_bqf)
     word_list = IndefiniteBQF.m_list_to_word_list(m_list)
+    print(word_list)
     product_matrix = sl2z.SL2Z.word_list_to_matrix(word_list)
+    print(product_matrix)
     assert bqf.transform(product_matrix) == reduced_bqf
 
-    d = 19
-    ε = RealQuadraticField(d).fundamental_unit()
-    print(f"Powers of fundamental unit {ε=}")
-    for k in range(-10, 10 + 1):
-        print(f"ε^{k}:", ε ** k, sep="\t")
+    # d = 19
+    # ε = RealQuadraticField(d).fundamental_unit
+    # print(f"Powers of fundamental unit {ε=}")
+    # for k in range(-10, 10 + 1):
+    #     print(f"ε^{k}:", ε ** k, sep="\t")
