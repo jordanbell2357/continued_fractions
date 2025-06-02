@@ -240,7 +240,7 @@ class IndefiniteBQF:
         return type(self)(self.a // gcd, self.b // gcd, self.c // gcd)
     
 
-    def reduce_with_m(self: typing.Self) -> tuple[typing.Self, int]:
+    def reduce_with_exponent(self: typing.Self) -> tuple[typing.Self, int]:
         """
         Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
         Definition 5.6.4 and Algorithm 5.6.5, p. 263.
@@ -268,13 +268,13 @@ class IndefiniteBQF:
         return type(self)(a1, b1, c1), m
 
     
-    def reduced_with_m_list(self: typing.Self) -> tuple[typing.Self, list[int]]:
+    def reduced_with_exponent_list(self: typing.Self) -> tuple[typing.Self, list[int]]:
         bqf = self
-        m_list = []
+        exponent_list = []
         while not bqf.is_reduced:
-            bqf, mi = bqf.reduce_with_m()
-            m_list.append(mi)
-        return bqf, m_list
+            bqf, mi = bqf.reduce_with_exponent()
+            exponent_list.append(mi)
+        return bqf, exponent_list
 
     @property
     def real_quadratic_number_associate(self: typing.Self) -> RealQuadraticNumber:
@@ -284,15 +284,11 @@ class IndefiniteBQF:
         return self.a * x ** 2 + self.b * x * y + self.c * y **2
     
     @staticmethod
-    def m_list_to_word_list(m_list: list[int]) -> list[str]:
+    def exponent_list_to_word(exponent_list: list[int]) -> list[str]:
         word_list = []
-        for m in m_list:
+        for m in exponent_list:
             word = "S" + "T" * m
             word_list.append(word)
-        return word_list
-    
-    @staticmethod
-    def word_list_to_word(word_list: list[str]) -> str:
         return "".join(word_list)
     
     @staticmethod
@@ -373,11 +369,11 @@ if __name__ == "__main__":
     assert bqf.evaluate(τ, 1) == RealQuadraticNumber(bqf.D, 0, 0)
 
     bqf = IndefiniteBQF(3, 11, 2)
-    reduced_bqf, m_list = bqf.reduced_with_m_list()
+    reduced_bqf, exponent_list = bqf.reduced_with_exponent_list()
     print(reduced_bqf)
-    word_list = IndefiniteBQF.m_list_to_word_list(m_list)
-    print(word_list)
-    product_matrix = sl2z.SL2Z.word_list_to_matrix(word_list)
+    word = IndefiniteBQF.exponent_list_to_word(exponent_list)
+    print(word)
+    product_matrix = sl2z.SL2Z.word_to_matrix(word)
     print(product_matrix)
     assert bqf.transform(product_matrix) == reduced_bqf
 

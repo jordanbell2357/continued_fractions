@@ -79,10 +79,6 @@ class SL2Z(GL2Z):
         return (self.alpha * z + self.beta) / (self.gamma * z + self.delta)
     
     @classmethod
-    def J(cls) -> typing.Self:
-        return cls(0, -1, 1, 0)
-    
-    @classmethod
     def S(cls) -> typing.Self:
         return cls(0, -1, 1, 0)
     
@@ -128,8 +124,8 @@ class SL2Z(GL2Z):
         m = abs(tau ** 2) # == tau * tau.conjugate()
         while m < 1: # iteration
             tau = -tau.conjugate() / m
-            A = cls.J() * A
-            matrix_list.append(cls.J())
+            A = cls.S() * A
+            matrix_list.append(cls.S())
             n = round(tau.real)
             tau = tau - n
             N = cls(1, -n, 0, 1)
@@ -140,7 +136,7 @@ class SL2Z(GL2Z):
 
 
 if __name__ == "__main__":
-    assert SL2Z.S() * SL2Z.S() == -SL2Z.I()
+    assert SL2Z.S() ** 2 == -SL2Z.I()
 
     assert (SL2Z.S() * SL2Z.T()) ** 3 == -SL2Z.I()
 
@@ -153,8 +149,8 @@ if __name__ == "__main__":
     tau_F = m.upper_half_plane_action(tau)
     assert abs(tau_F) >= 1 and -1 / 2 <= tau_F.real <= 1 / 2
 
-    word = "STTSSTT"
-    print(word)
-    m = SL2Z.word_to_matrix("STTSSTT")
-    print(m)
+    # word = "STTSSTT"
+    # print(word)
+    # m = SL2Z.word_to_matrix("STTSSTT")
+    # print(m)
 
