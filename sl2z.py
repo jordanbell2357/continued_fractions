@@ -16,7 +16,7 @@ class M2Z(abc.Hashable):
 
     def __init__(self: typing.Self, alpha: int, beta: int, gamma: int, delta: int) -> None:
         if not all(isinstance(x, int) for x in [alpha, beta, gamma, delta]):
-            raise TypeError("alpha, beta, gamma, delta must all be integers")
+            raise TypeError("alpha, beta, gamma, delta must all be integers.")
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -107,7 +107,7 @@ class GL2Z(M2Z):
     def __init__(self, alpha: int, beta: int, gamma: int, delta: int):
         det = detM2(alpha, beta, gamma, delta)
         if det not in [-1, 1]:
-            raise ValueError(f"determinant must -1 or 1: {det=}")
+            raise ValueError(f"Determinant must -1 or 1: {det=}.")
         super().__init__(alpha, beta, gamma, delta)
 
     def inv(self) -> typing.Self:
@@ -135,7 +135,7 @@ class SL2Z(GL2Z):
     def __init__(self: typing.Self, alpha: int, beta: int, gamma: int, delta: int) -> None:
         det = detM2(alpha, beta, gamma, delta)
         if det != 1:
-            raise ValueError("determinant must be 1")
+            raise ValueError("Determinant must be 1.")
         super().__init__(alpha, beta, gamma, delta)
 
 
@@ -188,7 +188,7 @@ def minimum_word_from_alphabet_dp(target_matrix: GL2Z, alphabet: list[str]) -> s
 
 def upper_half_plane_action(matrix: SL2Z, tau: complex) -> complex:
     if tau.imag <= 0:
-        raise ValueError(f"{tau=} must belong to upper half plane 𝓗")
+        raise ValueError(f"{tau=} must belong to upper half plane 𝓗.")
     return (matrix.alpha * tau + matrix.beta) / (matrix.gamma * tau + matrix.delta)
 
 
@@ -225,7 +225,7 @@ def transformation_to_fundamental_domain(tau: complex) -> tuple[list[SL2Z], SL2Z
 
 def word_to_matrix_list(word: str) -> list[GL2Z]:
     if not all(letter in ALPHABET_DICT.keys() for letter in word):
-        raise ValueError(f"{word=} must belong to alphabet {ALPHABET_DICT.keys()}")
+        raise ValueError(f"{word=} must belong to alphabet {ALPHABET_DICT.keys()}.")
     matrix_list = []
     for letter in word:
         matrix_list.append(ALPHABET_DICT[letter])
@@ -238,7 +238,7 @@ def word_to_matrix(word: str) -> GL2Z:
 
 def matrix_list_to_word(matrix_list: list[SL2Z]) -> str:
     if not all(matrix in REVERSE_ALPHABET_DICT.keys() for matrix in matrix_list):
-        raise ValueError(f"{matrix_list=} must belong to alphabet {REVERSE_ALPHABET_DICT.keys()}")
+        raise ValueError(f"{matrix_list=} must belong to alphabet {REVERSE_ALPHABET_DICT.keys()}.")
     word = ""
     for matrix in matrix_list:
         word += REVERSE_ALPHABET_DICT[matrix]
