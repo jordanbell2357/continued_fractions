@@ -62,10 +62,9 @@ def integral_quadratic_polynomial_to_periodic_cf(
         -1 → use  (-b - √D)/(2a)
 
     Implements construction in Theorem 177 of Hardy and Wright, Chapter X, pp. 185-187, sixth edition:
-    'The continued fraction which represents a quadratic surd is periodic.'
+    "The continued fraction which represents a quadratic surd is periodic."
 
     Chakravala method used by Bhāskara II. Proved by Lagrange that the method terminates.
-    cf. the class number of the ring of integers of a real quadratic field / binary quadratic forms.
     """
     if a == 0:
         raise ValueError("Not a quadratic polynomial: a must be non-zero")
@@ -145,7 +144,7 @@ def solve_pell_equation(d: int) -> tuple[int, int]:
 def periodic_cf_to_integral_quadratic_polynomial(periodic_cf: PeriodicCF) -> tuple[int, int, int]:
     """
     Implements construction in proof of Theorem 176 of Hardy and Wright, Chapter X, pp. 184-185, sixth edition:
-    'A periodic continued fraction is a quadratic surd, i.e. an irrational root of a quadratic equation with integral coefficients.'
+    "A periodic continued fraction is a quadratic surd, i.e. an irrational root of a quadratic equation with integral coefficients."
     Theorem of Euler.
     """
 
@@ -169,7 +168,7 @@ def periodic_cf_to_integral_quadratic_polynomial(periodic_cf: PeriodicCF) -> tup
 
 def is_real_reduced_surd(P: int, Q: int, D: int) -> bool:
     """
-    Henri Cohen, A Course in Computation Algebraic Number Theory, Chapter 5, Algorithms for Quadratic Fields:
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
     Corollary 5.6.7, p. 266.
     A quadratic surd (P+√D)/Q is called "reduced" when it is greater than 1,
     and its conjugate (P-√D)/Q is strictly between -1 and 0. Galois' theorem

@@ -1,6 +1,5 @@
 import math
 from fractions import Fraction
-import itertools as it
 from collections import abc
 from numbers import Rational
 import typing
@@ -11,6 +10,8 @@ import pell
 
 
 class RealQuadraticNumber:
+    __slots__ = ["d", "x", "y"]
+
     def __init__(self: typing.Self, d: int, x: Rational, y: Rational) -> None:
         if not isinstance(d, int):
             raise TypeError("d must be integer")
@@ -26,6 +27,9 @@ class RealQuadraticNumber:
     
     def __eq__(self: typing.Self, other: typing.Self) -> bool:
         return self.d == other.d and self.x == other.x and self.y == other.y
+    
+    def __hash__(self: typing.Self) -> int:
+        return hash((self.d, self.x, self.y))
     
     def __neg__(self: typing.Self) -> typing.Self:
         return type(self)(self.d, -self.x, -self.y)
@@ -125,7 +129,7 @@ class RealQuadraticNumber:
         return abs(float(self))
     
     def __str__(self: typing.Self) -> str:
-        return f"{self.x}\t{self.y:+} * √{self.d}"
+        return f"{self.x} {self.y:+} * √{self.d}"
 
     def conjugate(self: typing.Self) -> typing.Self:
         return type(self)(self.d, self.x, -self.y)
@@ -141,6 +145,9 @@ class RealQuadraticNumber:
     @property
     def is_integral(self: typing.Self) -> bool:
         return self.norm == int(self.norm) and self.trace == int(self.trace)
+    
+    def GL2Z_action(self: typing.Self, matrix: sl2z.GL2Z) -> typing.Self:
+        return (matrix.alpha * self + matrix.beta) / (matrix.gamma * self + matrix.delta)
 
 
 class RealQuadraticField:
@@ -150,6 +157,8 @@ class RealQuadraticField:
     Proposition 5.1.1, p. 223, for integral basis and discriminant formula for real quadratic fields.
     """
 
+    __slots__ = ["d"]
+
     def __init__(self: typing.Self, d: int) -> None:
         if not isinstance(d, int):
             raise TypeError("d must be integer")
@@ -157,8 +166,20 @@ class RealQuadraticField:
             raise ValueError("d must be > 0")
         _, squarefree_part_d = prime_numbers.squarefull_and_squarefree_parts(d)
         self.d = squarefree_part_d
-        # D = discriminant
-        self.D = self.d if self.d % 4 == 1 else 4 * self.d
+
+    def __repr__(self: typing.Self) -> str:
+        return f"{type(self).__name__}({d})"
+
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.d == other.d
+    
+    def __hash__(self: typing.Self) -> int:
+        return hash(self.d)
+
+    # Discriminant
+    @property
+    def D(self: typing.Self) -> int:
+        return self.d if self.d % 4 == 1 else 4 * self.d
     
     @property
     def fundamental_unit(self: typing.Self) -> RealQuadraticNumber:
@@ -172,6 +193,19 @@ class RealQuadraticField:
     @property
     def primitive_real_dirichlet_character(self: typing.Self) -> abc.Callable:
         return lambda n: prime_numbers.kronecker_symbol(self.D, n)
+    
+    @property
+    def integral_basis(self: typing.Self) -> tuple[RealQuadraticNumber, RealQuadraticNumber]:
+        if self.d % 4 == 1:
+            b1, b2 = (RealQuadraticNumber(d, 1, 0), RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)))
+        elif d % 4 in [2, 3]:
+            b1, b2 = (RealQuadraticNumber(d, 1, 0), RealQuadraticNumber(d, 0, 1))
+        return b1, b2
+    
+    def __str__(self: typing.Self) -> str:
+        b1, b2 = self.integral_basis
+        fundamental_unit = self.fundamental_unit
+        return f"𝐐(√{self.d}), discriminant {self.D}, integral basis {b1=!s}, {b2=!s}."
 
 
 class IndefiniteBQF:
@@ -183,6 +217,8 @@ class IndefiniteBQF:
     Definition 5.6.4, p. 263 for reduction operator and helper function r.
     Algorithm 5.6.5, p. 263 for reduction algorithm for indefinite quadratic forms.
     """
+
+    __slots__ = ["a", "b", "c"]
 
     def __init__(self: typing.Self, a: int, b: int, c: int) -> None:
         if not all(isinstance(x, int) for x in [a, b, c]):
@@ -197,13 +233,23 @@ class IndefiniteBQF:
         self.a = a
         self.b = b
         self.c = c
-        self.D = D
 
     def __repr__(self: typing.Self) -> str:
         return f"{type(self).__name__}({self.a}, {self.b}, {self.c})"
+    
+    # Discriminant
+    @property
+    def D(self: typing.Self) -> int:
+        return self.b ** 2 - 4 * self.a * self.c
 
     def __eq__(self: typing.Self, other: typing.Self) -> bool:
         return self.a == other.a and self.b == other.b and self.c == other.c
+    
+    def __hash__(self: typing.Self) -> int:
+        return hash((self.a, self.b, self.c))
+    
+    def __iter__(self: typing.Self) -> abc.Iterator:
+        return iter([self.a, self.b, self.c])
     
     def __str__(self) -> str:
         return f"{self.a}x²\t{self.b:+}xy\t{self.c:+}y².\tD={self.D}"
@@ -267,7 +313,6 @@ class IndefiniteBQF:
         c1 = (r0 * r0 - D) // (4 * c)
         return type(self)(a1, b1, c1), m
 
-    
     def reduced_with_exponent_list(self: typing.Self) -> tuple[typing.Self, list[int]]:
         bqf = self
         exponent_list = []
@@ -287,14 +332,28 @@ class IndefiniteBQF:
     def exponent_list_to_word(exponent_list: list[int]) -> list[str]:
         word_list = []
         for m in exponent_list:
+            # sl2z.SL2Z.S and sl2z.SL2Z.T
             word = "S" + "T" * m
             word_list.append(word)
         return "".join(word_list)
     
-    @staticmethod
-    def word_to_rle_tuple_list(word: str) -> list[tuple[str, int]]:
-        return [(letter, len(list(g))) for letter, g in it.groupby(word)]
+    def SL2Z_action(self, matrix: sl2z.SL2Z) -> typing.Self:
+        """
+        axx + bxy + cyy
+        == a(alpha x + beta y)(alpha x + beta y) + b(alpha x + beta y)(gamma x + delta y) + c(gamma x + delta y)(gamma x + delta y)
+        == (a*alpha**2 + b*alpha*gamma + c*gamma**2) xx
+           + (2*a*alpha*beta + b*(alpha*delta + beta*gamma) + 2*c*gamma*delta) xy
+           + (a*beta**2 + b*beta*delta + c*delta**2) yy
+        == Axx + Bxy + Cyy
+        """
+        a, b, c = self.a, self.b, self.c
+        alpha, beta, gamma, delta = matrix.alpha, matrix.beta, matrix.gamma, matrix.delta
+        A = a * alpha ** 2 + b * alpha * gamma + c * gamma ** 2
+        B = 2 * a * alpha * beta + b * alpha * delta + b * beta * gamma + 2 * c * gamma * delta
+        C = a * beta ** 2 + b * beta * delta + c * delta ** 2
+        return type(self)(A, B, C)
 
+    
 
 if __name__ == "__main__":
     d = 67
@@ -358,9 +417,9 @@ if __name__ == "__main__":
 
     bqf = IndefiniteBQF(6, 14, -4)
     primitive_bqf = bqf.primitive_associate()
-    𝜏 = bqf.real_quadratic_number_associate
-    primitive_𝜏 = primitive_bqf.real_quadratic_number_associate
-    assert 𝜏 == primitive_𝜏
+    tau = bqf.real_quadratic_number_associate
+    primitive_tau = primitive_bqf.real_quadratic_number_associate
+    assert tau == primitive_tau
 
     m = 5  # positive integer that is not a perfect square
     bqf = IndefiniteBQF(1, 0, -m)
@@ -370,11 +429,8 @@ if __name__ == "__main__":
 
     bqf = IndefiniteBQF(3, 11, 2)
     reduced_bqf, exponent_list = bqf.reduced_with_exponent_list()
-    print(reduced_bqf)
     word = IndefiniteBQF.exponent_list_to_word(exponent_list)
-    print(word)
-    product_matrix = sl2z.SL2Z.word_to_matrix(word)
-    print(product_matrix)
+    product_matrix = sl2z.word_to_matrix(word)
     assert bqf.transform(product_matrix) == reduced_bqf
 
     # d = 19
@@ -382,3 +438,9 @@ if __name__ == "__main__":
     # print(f"Powers of fundamental unit {ε=}")
     # for k in range(-10, 10 + 1):
     #     print(f"ε^{k}:", ε ** k, sep="\t")
+
+    m = sl2z.T
+    bqf = IndefiniteBQF(1, 3, 1)
+    assert bqf.SL2Z_action(m).D == bqf.D
+
+    print(RealQuadraticField(17))
