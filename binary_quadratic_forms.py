@@ -1,7 +1,7 @@
 import math
 from fractions import Fraction
 from collections import abc
-from numbers import Rational
+from numbers import Number, Rational
 import typing
 
 import sl2z
@@ -9,7 +9,7 @@ import prime_numbers
 import pell
 
 
-class RealQuadraticNumber:
+class RealQuadraticNumber(Number):
     __slots__ = ["d", "x", "y"]
 
     def __init__(self: typing.Self, d: int, x: Rational, y: Rational) -> None:
@@ -205,7 +205,7 @@ class RealQuadraticField:
     def __str__(self: typing.Self) -> str:
         b1, b2 = self.integral_basis
         fundamental_unit = self.fundamental_unit
-        return f"𝐐(√{self.d}), discriminant {self.D}, integral basis {b1=!s}, {b2=!s}."
+        return f"𝐐(√{self.d}):\tdiscriminant D={self.D}, integral basis {b1=!s}, {b2=!s}, fundamental unit {fundamental_unit}"
 
 
 class IndefiniteBQF:
@@ -353,7 +353,6 @@ class IndefiniteBQF:
         C = a * beta ** 2 + b * beta * delta + c * delta ** 2
         return type(self)(A, B, C)
 
-    
 
 if __name__ == "__main__":
     d = 67
