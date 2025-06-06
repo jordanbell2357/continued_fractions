@@ -142,11 +142,11 @@ class SL2Z(GL2Z):
 
 I = SL2Z.I()
 P = GL2Z.P() # det == -1
-R = SL2Z.R()
+R = SL2Z.R() # S ** (-1)
 S = SL2Z.S()
 T = SL2Z.T()
-U = SL2Z.U()
-V = SL2Z.V()
+U = SL2Z.U() # T ** (-1)
+V = SL2Z.V() # S * T
 
 
 ALPHABET_DICT = {
@@ -159,8 +159,11 @@ ALPHABET_DICT = {
     "V": V
 }
 
+ALPHABET = ALPHABET_DICT.keys()
 
 REVERSE_ALPHABET_DICT = {v: k for k, v in ALPHABET_DICT.items()}
+
+MATRIX_ALPHABET = REVERSE_ALPHABET_DICT.keys()
 
 
 def minimum_matrix_list_from_matrix_alphabet_it(target_matrix: GL2Z, matrix_alphabet: list[GL2Z]) -> GL2Z:
@@ -224,8 +227,8 @@ def transformation_to_fundamental_domain(tau: complex) -> tuple[list[SL2Z], SL2Z
     
 
 def word_to_matrix_list(word: str) -> list[GL2Z]:
-    if not all(letter in ALPHABET_DICT.keys() for letter in word):
-        raise ValueError(f"{word=} must belong to alphabet {ALPHABET_DICT.keys()}.")
+    if not all(letter in ALPHABET for letter in word):
+        raise ValueError(f"{word=} must belong to {ALPHABET=}.")
     matrix_list = []
     for letter in word:
         matrix_list.append(ALPHABET_DICT[letter])
@@ -237,8 +240,8 @@ def word_to_matrix(word: str) -> GL2Z:
     return matrix_product
 
 def matrix_list_to_word(matrix_list: list[SL2Z]) -> str:
-    if not all(matrix in REVERSE_ALPHABET_DICT.keys() for matrix in matrix_list):
-        raise ValueError(f"{matrix_list=} must belong to alphabet {REVERSE_ALPHABET_DICT.keys()}.")
+    if not all(matrix in MATRIX_ALPHABET for matrix in matrix_list):
+        raise ValueError(f"{matrix_list=} must belong to {MATRIX_ALPHABET=}.")
     word = ""
     for matrix in matrix_list:
         word += REVERSE_ALPHABET_DICT[matrix]
@@ -295,4 +298,3 @@ if __name__ == "__main__":
     assert word_to_matrix_list(word) == matrix_list
     assert matrix_list_to_word(matrix_list) == word
     assert word == "SSSTSTS"
-

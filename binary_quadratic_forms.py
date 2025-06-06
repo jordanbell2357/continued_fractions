@@ -1,12 +1,32 @@
 import math
+import itertools as it
 from fractions import Fraction
+from numbers import Number
+from numbers import Rational
 from collections import abc
-from numbers import Number, Rational
 import typing
 
 import sl2z
 import prime_numbers
 import pell
+
+
+class RationalQuadraticPolynomial(typing.NamedTuple):
+    a: Rational
+    b: Rational
+    c: Rational
+
+    def __add__(self, other: typing.Self) -> typing.Self:
+        return type(self)(self.a + other.a, self.b + other.b, self.c + other.c)
+
+    def __str__(self) -> str:
+        return f"{self.a}x² {self.b:+}x {self.c:+}"
+
+    def evaluate(self, x: Number) -> Number:
+        return self.a * x * x + self.b * x + self.c
+    
+    def is_integral(self) -> bool:
+        return all(e == int(e) for e in [self.a, self.b, self.c])
 
 
 class RealQuadraticNumber(Number):
@@ -19,7 +39,11 @@ class RealQuadraticNumber(Number):
             raise ValueError("d must be > 0")
         squarefull_part_d, squarefree_part_d = prime_numbers.squarefull_and_squarefree_parts(d)
         self.d = squarefree_part_d
+        if isinstance(x, int):
+            x = Fraction(x, 1)
         self.x = x
+        if isinstance(y, int):
+            x = Fraction(y, 1)
         self.y = y * math.isqrt(squarefull_part_d)
 
     def __repr__(self: typing.Self) -> str:
@@ -125,14 +149,14 @@ class RealQuadraticNumber(Number):
     def __float__(self: typing.Self) -> float:
         return self.x + self.y * math.sqrt(self.d)
     
+    def conjugate(self: typing.Self) -> typing.Self:
+        return type(self)(self.d, self.x, -self.y)
+    
     def __abs__(self: typing.Self) -> float:
-        return abs(float(self))
+        return math.sqrt(self * self.conjugate())
     
     def __str__(self: typing.Self) -> str:
         return f"{self.x} {self.y:+} * √{self.d}"
-
-    def conjugate(self: typing.Self) -> typing.Self:
-        return type(self)(self.d, self.x, -self.y)
 
     @property
     def norm(self: typing.Self) -> Fraction:
@@ -146,11 +170,21 @@ class RealQuadraticNumber(Number):
     def is_integral(self: typing.Self) -> bool:
         return self.norm == int(self.norm) and self.trace == int(self.trace)
     
+    def minimal_polynomial(self: typing.Self) -> RationalQuadraticPolynomial:
+        """
+        Galois theory:
+        m_a(x)
+        = (x-a)(x-a.conjugate())
+        = x ** 2 - (a + a.conjugate()) * x + a * a.conjugate()
+        = x ** 2 - 2 * a.x * x + abs(a) ** 2
+        """
+        return RationalQuadraticPolynomial(1, -2 * self.x, (self * self.conjugate()).x)
+    
     def GL2Z_action(self: typing.Self, matrix: sl2z.GL2Z) -> typing.Self:
         return (matrix.alpha * self + matrix.beta) / (matrix.gamma * self + matrix.delta)
 
 
-class RealQuadraticField:
+class RealQuadraticField(abc.Container):
     """
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
     Proposition 4.4.1, p. 165, for definition of discriminant using integral basis.
@@ -175,6 +209,12 @@ class RealQuadraticField:
     
     def __hash__(self: typing.Self) -> int:
         return hash(self.d)
+    
+    def __contains__(self: typing.Self, item: Number) -> bool:
+        if isinstance(item, Rational):
+            return True
+        if isinstance(item, RealQuadraticNumber):
+            return self.d == item.d
 
     # Discriminant
     @property
@@ -361,6 +401,8 @@ if __name__ == "__main__":
         b1, b2 = (RealQuadraticNumber(d, 1, 0), RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)))
     elif d % 4 in [2, 3]:
         b1, b2 = (RealQuadraticNumber(d, 1, 0), RealQuadraticNumber(d, 0, 1))
+    assert b1.is_integral and b2.is_integral
+    assert b1.minimal_polynomial().is_integral and b2.minimal_polynomial().is_integral
     determinant = b1 * b2.conjugate() - b2 * b1.conjugate()
     discriminant = (determinant ** 2).x
     assert discriminant == RealQuadraticField(d).D
@@ -373,8 +415,18 @@ if __name__ == "__main__":
 
     assert float(RealQuadraticField(d).fundamental_unit) > 1
 
-    m = 13
+    d = 43
+    x = 2
+    y = Fraction(2, 7)
+    assert RealQuadraticNumber(d, x, y) in RealQuadraticField(d)
 
+    d = 43
+    x = 2
+    y = Fraction(2, 7)
+    assert RealQuadraticNumber(d, x, y).is_integral and RealQuadraticNumber(d, x, y).minimal_polynomial().is_integral() or \
+        (not RealQuadraticNumber(d, x, y).is_integral and not RealQuadraticNumber(d, x, y).minimal_polynomial().is_integral())
+
+    m = 13
     d = 4 * m + 1
     _, d0 = prime_numbers.squarefull_and_squarefree_parts(d)
     D = d0
@@ -410,7 +462,7 @@ if __name__ == "__main__":
     bqf = IndefiniteBQF(2,  2, -2)
     assert bqf.D == bqf.gcd ** 2 * bqf.primitive_associate().D
 
-    bqf = IndefiniteBQF(1,  1, -1) # gcd=1 so primitive
+    bqf = IndefiniteBQF(1,  1, -1) # gcd=1 means primitive
     assert bqf.is_primitive
     assert bqf.primitive_associate() == bqf
 
@@ -422,9 +474,9 @@ if __name__ == "__main__":
 
     m = 5  # positive integer that is not a perfect square
     bqf = IndefiniteBQF(1, 0, -m)
-    τ = bqf.real_quadratic_number_associate
-    # The form is equal to 0 when (x,y) = (τ,1).
-    assert bqf.evaluate(τ, 1) == RealQuadraticNumber(bqf.D, 0, 0)
+    tau = bqf.real_quadratic_number_associate
+    # The BQF is equal to 0 when (x,y) = (τ,1).
+    assert bqf.evaluate(tau, 1) == RealQuadraticNumber(bqf.D, 0, 0)
 
     bqf = IndefiniteBQF(3, 11, 2)
     reduced_bqf, exponent_list = bqf.reduced_with_exponent_list()
