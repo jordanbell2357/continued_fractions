@@ -1,5 +1,4 @@
 import math
-import itertools as it
 from fractions import Fraction
 from numbers import Number
 from numbers import Rational
@@ -27,6 +26,13 @@ class RationalQuadraticPolynomial(typing.NamedTuple):
     
     def is_integral(self) -> bool:
         return all(e == int(e) for e in [self.a, self.b, self.c])
+    
+
+class IntegralQuadraticPolynomial(RationalQuadraticPolynomial):
+    def __init__(self, a: int, b: int, c: int) -> None:
+        if not all(isinstance(e, int) for e in [a, b, c]):
+            raise TypeError(f"{a}, {b}, {c} must be integers.")
+        super().__init__(a, b, c)
 
 
 class RealQuadraticNumber(Number):
@@ -34,10 +40,12 @@ class RealQuadraticNumber(Number):
 
     def __init__(self: typing.Self, d: int, x: Rational, y: Rational) -> None:
         if not isinstance(d, int):
-            raise TypeError("d must be integer")
-        if not d > 0:
-            raise ValueError("d must be > 0")
+            raise TypeError("d must be integer.")
+        if not d > 1:
+            raise ValueError("d must be > 1.")
         squarefull_part_d, squarefree_part_d = prime_numbers.squarefull_and_squarefree_parts(d)
+        if squarefree_part_d == 1:
+            raise ValueError("d must not be a perfect square.")
         self.d = squarefree_part_d
         if isinstance(x, int):
             x = Fraction(x, 1)
@@ -62,35 +70,35 @@ class RealQuadraticNumber(Number):
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
-            raise ValueError("algebraic numbers must be members of same field")
+            raise ValueError("Algebraic numbers must be members of same field 𝐐(√d) to be added.")
         return type(self)(self.d, self.x + other.x, self.y + other.y)
     
     def __radd__(self: typing.Self, other: typing.Self) -> typing.Self:
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
-            raise ValueError("algebraic numbers must be members of same field")
+            raise ValueError("Algebraic numbers must be members of same field 𝐐(√d) to be added.")
         return type(self)(self.d, other.x + self.x, other.y + self.y)
     
     def __sub__(self: typing.Self, other: typing.Self) -> typing.Self:
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
-            raise ValueError("algebraic numbers must be members of same field")
+            raise ValueError("Algebraic numbers must be members of same field 𝐐(√d) to be subtracted.")
         return type(self)(self.d, self.x - other.x, self.y - other.y)
     
     def __rsub__(self: typing.Self, other: typing.Self) -> typing.Self:
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
-            raise ValueError("algebraic numbers must be members of same field")
+            raise ValueError("Algebraic numbers must be members of same field 𝐐(√d) to be subtracted.")
         return type(self)(self.d, other.x - self.x, other.y - self.y)
     
     def __mul__(self: typing.Self, other: typing.Self) -> typing.Self:
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
-            raise ValueError("algebraic numbers must be members of same field")
+            raise ValueError("Algebraic numbers must be members of same field 𝐐(√d) to be multiplied.")
         return type(self)(self.d,
                           self.x * other.x + self.y * other.y * self.d,
                           self.x * other.y + self.y * other.x)
@@ -99,7 +107,7 @@ class RealQuadraticNumber(Number):
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
-            raise ValueError("algebraic numbers must be members of same field")
+            raise ValueError("Algebraic numbers must be members of same field 𝐐(√d) to be multiplied.")
         return type(self)(self.d,
                           self.x * other.x + self.y * other.y * self.d,
                           self.x * other.y + self.y * other.x)
@@ -110,10 +118,10 @@ class RealQuadraticNumber(Number):
         if isinstance(divisor, Rational):
             divisor = type(dividend)(dividend.d, divisor, 0)
         if dividend.d != divisor.d:
-            raise ValueError("dividend and divisor must be members of same field")
+            raise ValueError("Dividend and divisor must be members of same field 𝐐(√d).")
         divisor_norm = divisor.norm
         if divisor_norm == 0:
-            raise ZeroDivisionError(f"divisor must have nonzero norm: {divisor_norm=}")
+            raise ZeroDivisionError(f"Divisor must have nonzero norm: {divisor_norm=}")
         return type(dividend)(dividend.d,
                           Fraction(dividend.x * divisor.x - dividend.y * divisor.y * dividend.d, divisor_norm),
                           Fraction(-dividend.x * divisor.y + dividend.y * divisor.x, divisor_norm))
@@ -124,19 +132,19 @@ class RealQuadraticNumber(Number):
         if isinstance(dividend, Rational):
             dividend = type(divisor)(divisor.d, dividend, 0)
         if dividend.d != divisor.d:
-            raise ValueError("dividend and divisor must be members of same field")
+            raise ValueError("Dividend and divisor must be members of same field 𝐐(√d).")
         divisor_norm = divisor.norm
         if divisor_norm == 0:
-            raise ZeroDivisionError(f"divisor must have nonzero norm: {divisor_norm=}")
+            raise ZeroDivisionError(f"Divisor must have nonzero norm: {divisor_norm=}")
         return type(dividend)(dividend.d,
                           Fraction(dividend.x * divisor.x - dividend.y * divisor.y * dividend.d, divisor_norm),
                           Fraction(-dividend.x * divisor.y + dividend.y * divisor.x, divisor_norm))
     
     def __pow__(self: typing.Self, exponent: int) -> typing.Self:
         if not isinstance(exponent, int):
-            raise TypeError(f"{exponent=} must be integer")
+            raise TypeError(f"{exponent=} must be an integer.")
         if exponent <= 0 and self.norm == 0:
-            raise ZeroDivisionError(f"{exponent=} must be positive for non-invertible field elements")
+            raise ZeroDivisionError(f"{exponent=} must be positive for non-invertible elements of 𝐐(√d).")
         if exponent == 0:
             return type(self)(self.d, 1, 0)
         u = exponent // abs(exponent)
@@ -149,6 +157,9 @@ class RealQuadraticNumber(Number):
     def __float__(self: typing.Self) -> float:
         return self.x + self.y * math.sqrt(self.d)
     
+    def identity(self: typing.Self) -> typing.Self:
+        return type(self)(self.d, self.x, self.y)
+
     def conjugate(self: typing.Self) -> typing.Self:
         return type(self)(self.d, self.x, -self.y)
     
@@ -173,6 +184,11 @@ class RealQuadraticNumber(Number):
     def minimal_polynomial(self: typing.Self) -> RationalQuadraticPolynomial:
         """
         Galois theory:
+        When d is not a perfect square,
+        Gal(𝐐(√d) / 𝐐) = {identity, conjugate}
+        When d is a perfect square,
+        Gal(𝐐(√d) / 𝐐) = {identity}
+        
         m_a(x)
         = (x-a)(x-a.conjugate())
         = x ** 2 - (a + a.conjugate()) * x + a * a.conjugate()
@@ -248,7 +264,7 @@ class RealQuadraticField(abc.Container):
         return f"𝐐(√{self.d}):\tdiscriminant D={self.D}, integral basis {b1=!s}, {b2=!s}, fundamental unit {fundamental_unit}"
 
 
-class IndefiniteBQF:
+class IndefiniteBQF(abc.Hashable):
     """
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
     Definition 5.2.3, p. 225, for binary quadratic forms.
@@ -294,15 +310,22 @@ class IndefiniteBQF:
     def __str__(self) -> str:
         return f"{self.a}x²\t{self.b:+}xy\t{self.c:+}y².\tD={self.D}"
     
-    def transform(self: typing.Self, matrix: sl2z.SL2Z) -> typing.Self:
-        a = self.a * matrix.alpha ** 2 + self.b * matrix.alpha * matrix.gamma + self.c * matrix.gamma ** 2
-        b = 2 * self.a * matrix.alpha * matrix.beta + \
-            self.b * matrix.alpha * matrix.delta + \
-            self.b * matrix.beta * matrix.gamma + \
-            2 * self.c * matrix.gamma * matrix.delta
-        c = self.a * matrix.beta ** 2 + self.b * matrix.beta * matrix.delta + self.c * matrix.delta ** 2
-        return type(self)(a, b, c)
-    
+    def SL2Z_action(self: typing.Self, matrix: sl2z.SL2Z) -> typing.Self:
+        """
+        axx + bxy + cyy
+        == a(alpha x + beta y)(alpha x + beta y) + b(alpha x + beta y)(gamma x + delta y) + c(gamma x + delta y)(gamma x + delta y)
+        == (a*alpha**2 + b*alpha*gamma + c*gamma**2) xx
+           + (2*a*alpha*beta + b*(alpha*delta + beta*gamma) + 2*c*gamma*delta) xy
+           + (a*beta**2 + b*beta*delta + c*delta**2) yy
+        == Axx + Bxy + Cyy
+        """
+        a, b, c = self.a, self.b, self.c
+        alpha, beta, gamma, delta = matrix.alpha, matrix.beta, matrix.gamma, matrix.delta
+        A = a * alpha ** 2 + b * alpha * gamma + c * gamma ** 2
+        B = 2 * a * alpha * beta + b * alpha * delta + b * beta * gamma + 2 * c * gamma * delta
+        C = a * beta ** 2 + b * beta * delta + c * delta ** 2
+        return type(self)(A, B, C)
+
     @property
     def gcd(self: typing.Self) -> int:
         return math.gcd(self.a, self.b, self.c)
@@ -364,6 +387,9 @@ class IndefiniteBQF:
     @property
     def real_quadratic_number_associate(self: typing.Self) -> RealQuadraticNumber:
         return RealQuadraticNumber(self.D, Fraction(-self.b, 2 * abs(self.a)), Fraction(1, 2 * abs(self.a)))
+    
+    def integral_quadratic_polynomial_associate(self: typing.Self) -> IntegralQuadraticPolynomial:
+        return self.real_quadratic_number_associate.minimal_polynomial()
 
     def evaluate(self: typing.Self, x: Rational | RealQuadraticNumber, y: Rational | RealQuadraticNumber) -> int:
         return self.a * x ** 2 + self.b * x * y + self.c * y **2
@@ -376,22 +402,6 @@ class IndefiniteBQF:
             word = "S" + "T" * m
             word_list.append(word)
         return "".join(word_list)
-    
-    def SL2Z_action(self, matrix: sl2z.SL2Z) -> typing.Self:
-        """
-        axx + bxy + cyy
-        == a(alpha x + beta y)(alpha x + beta y) + b(alpha x + beta y)(gamma x + delta y) + c(gamma x + delta y)(gamma x + delta y)
-        == (a*alpha**2 + b*alpha*gamma + c*gamma**2) xx
-           + (2*a*alpha*beta + b*(alpha*delta + beta*gamma) + 2*c*gamma*delta) xy
-           + (a*beta**2 + b*beta*delta + c*delta**2) yy
-        == Axx + Bxy + Cyy
-        """
-        a, b, c = self.a, self.b, self.c
-        alpha, beta, gamma, delta = matrix.alpha, matrix.beta, matrix.gamma, matrix.delta
-        A = a * alpha ** 2 + b * alpha * gamma + c * gamma ** 2
-        B = 2 * a * alpha * beta + b * alpha * delta + b * beta * gamma + 2 * c * gamma * delta
-        C = a * beta ** 2 + b * beta * delta + c * delta ** 2
-        return type(self)(A, B, C)
 
 
 if __name__ == "__main__":
@@ -482,7 +492,7 @@ if __name__ == "__main__":
     reduced_bqf, exponent_list = bqf.reduced_with_exponent_list()
     word = IndefiniteBQF.exponent_list_to_word(exponent_list)
     product_matrix = sl2z.word_to_matrix(word)
-    assert bqf.transform(product_matrix) == reduced_bqf
+    assert bqf.SL2Z_action(product_matrix) == reduced_bqf
 
     # d = 19
     # ε = RealQuadraticField(d).fundamental_unit
@@ -491,7 +501,5 @@ if __name__ == "__main__":
     #     print(f"ε^{k}:", ε ** k, sep="\t")
 
     m = sl2z.T
-    bqf = IndefiniteBQF(1, 3, 1)
+    bqf = IndefiniteBQF(1, 17, -14)
     assert bqf.SL2Z_action(m).D == bqf.D
-
-    print(RealQuadraticField(17))
