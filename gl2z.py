@@ -146,22 +146,14 @@ class GL2Z(M2Z):
             return ft.reduce(operator.mul, (self_inv for _ in range(abs(exponent))), type(self).I())
 
 
-class SL2Z(GL2Z):
-    def __init__(self: typing.Self, alpha: int, beta: int, gamma: int, delta: int) -> None:
-        det = detM2(alpha, beta, gamma, delta)
-        if det != 1:
-            raise ValueError("Determinant must be 1.")
-        super().__init__(alpha, beta, gamma, delta)
-
-
 I = GL2Z.I()
 P = GL2Z.P() # det == -1. P⁻¹ = P
-R = SL2Z.R() # S⁻¹
-S = SL2Z.S()
-T = SL2Z.T()
-U = SL2Z.U() # T⁻¹
-V = SL2Z.V() # S * T
-W = SL2Z.W() # V⁻¹
+R = GL2Z.R() # S⁻¹
+S = GL2Z.S()
+T = GL2Z.T()
+U = GL2Z.U() # T⁻¹
+V = GL2Z.V() # S * T
+W = GL2Z.W() # V⁻¹
 
 
 ALPHABET_DICT = {
@@ -263,13 +255,15 @@ def minimum_word_from_alphabet_dp_max_len(target_matrix: GL2Z, alphabet: list[st
                 return word
 
 
-def upper_half_plane_action(matrix: SL2Z, tau: complex) -> complex:
+def upper_half_plane_action(matrix: GL2Z, tau: complex) -> complex:
+    if matrix.det != 1:
+        raise ValueError(f"{matrix=} must belong to SL₂(𝐙).")
     if tau.imag <= 0:
         raise ValueError(f"{tau=} must belong to upper half plane 𝓗.")
     return (matrix.alpha * tau + matrix.beta) / (matrix.gamma * tau + matrix.delta)
 
 
-def transformation_to_fundamental_domain(tau: complex) -> tuple[list[SL2Z], SL2Z, list[int]]:
+def transformation_to_fundamental_domain(tau: complex) -> tuple[list[GL2Z], GL2Z, list[int]]:
     """
     Henri Cohen, A Course in Computational Algebraic Number Theory.
     Algorithm 7.4.2, p. 395:
@@ -281,7 +275,7 @@ def transformation_to_fundamental_domain(tau: complex) -> tuple[list[SL2Z], SL2Z
     exponent_list = []
     n = math.floor(tau.real + 1 / 2)
     tau = tau - n
-    N = SL2Z(1, -n, 0, 1) # T ** (-n) == U ** n
+    N = GL2Z(1, -n, 0, 1) # T ** (-n) == U ** n
     A = N * A
     matrix_list.append(N)
     exponent_list.append(n)
@@ -292,7 +286,7 @@ def transformation_to_fundamental_domain(tau: complex) -> tuple[list[SL2Z], SL2Z
         matrix_list.append(S)
         n = round(tau.real)
         tau = tau - n
-        N = SL2Z(1, -n, 0, 1) # T ** (-n) == U ** n
+        N = GL2Z(1, -n, 0, 1) # T ** (-n) == U ** n
         A = N * A
         matrix_list.append(N)
         exponent_list.append(n)
@@ -313,7 +307,7 @@ def word_to_matrix(word: str) -> GL2Z:
     matrix_product = math.prod(matrix_list, start=I)
     return matrix_product
 
-def matrix_list_to_word(matrix_list: list[SL2Z]) -> str:
+def matrix_list_to_word(matrix_list: list[GL2Z]) -> str:
     if not all(matrix in MATRIX_ALPHABET for matrix in matrix_list):
         raise ValueError(f"{matrix_list=} must belong to {MATRIX_ALPHABET=}.")
     word = ""
@@ -322,34 +316,31 @@ def matrix_list_to_word(matrix_list: list[SL2Z]) -> str:
     return word
 
 
-PHI = (1 + math.sqrt(5)) / 2
+EXTREME_AND_MEAN_RATIO = (1 + math.sqrt(5)) / 2
 
 def max_word_len_linf(m1: GL2Z, m2: GL2Z) -> int:
     """
-    Guaranteed search radius for words in {P,S,T} solving  w·m1 = m2.
-    Uses the ℓ∞ norm bound   L = 3·⌈log_ϕ ‖core‖∞⌉ + 2,  plus 1 if a
+    Guaranteed search radius for words w in {P,S,T} solving w·m1 = m2.
+    Uses the ℓ∞ norm bound L = 3·⌈log_ϕ ‖core‖∞⌉ + 2, plus 1 if a
     single leading P is required.
     """
-    # ── 1.  Do we have to prefix one P?  (determinant mismatch)
-    prepend_P: bool = (m1.det != m2.det)
 
-    # ── 2.  Comparison matrix that lies in SL₂(ℤ)
-    core = (P * m2 if prepend_P else m2) * m1.inv()
+    prepend_P_bool = m1.det != m2.det
 
-    # If the core itself is I, no S,T letters are needed
+    core = (P * m2 if prepend_P_bool else m2) * m1.inv()
+
     if core == I:
-        return 1 if prepend_P else 0
+        return 1 if prepend_P_bool else 0
 
-    N = abs(core)                  # ℓ∞‐norm via __abs__
+    N = abs(core) # ℓ∞‐norm
 
-    # General logarithmic bound (Cohen-style Euclidean decomposition)
-    L = 3 * math.ceil(math.log(N, PHI)) + 2
+    L = 3 * math.ceil(math.log(N, EXTREME_AND_MEAN_RATIO)) + 2
 
     # For N = 1 the formula gives L = 2, but S³ (and hence R) needs 3.
     if N == 1 and L < 3:
         L = 3
 
-    return L + (1 if prepend_P else 0)
+    return L + (1 if prepend_P_bool else 0)
 
 
 
@@ -372,10 +363,10 @@ if __name__ == "__main__":
 
     assert P * V * P == W
 
-    m = U
+    m = U # any matrix in GL₂(𝐙)
     assert U / U == I
 
-    m = U
+    m = U # any matrix in GL₂(𝐙)
     assert m ** (-1) == m.inv()
 
     tau = complex(13.5, 0.3) # in 𝓗
@@ -385,8 +376,8 @@ if __name__ == "__main__":
 
     tau = complex(13.5, 0.3) # in 𝓗
     matrix_list, m, exponent_list = transformation_to_fundamental_domain(tau)
-    assert ft.reduce(operator.mul, reversed(matrix_list), SL2Z.I()) == m
-    assert math.prod(reversed(matrix_list), start=SL2Z.I()) == ft.reduce(operator.mul, reversed(matrix_list), SL2Z.I())
+    assert ft.reduce(operator.mul, reversed(matrix_list), GL2Z.I()) == m
+    assert math.prod(reversed(matrix_list), start=GL2Z.I()) == ft.reduce(operator.mul, reversed(matrix_list), GL2Z.I())
 
     tau = complex(13.5, 0.3) # in 𝓗
     matrix_list0, _, exponent_list = transformation_to_fundamental_domain(tau)
@@ -408,7 +399,7 @@ if __name__ == "__main__":
     assert matrix_list_to_word(matrix_list) == word
     assert word == "SSSTSTS"
 
-    word = "SSTSSSTSSTSTSTSSTTSSSSSS"
+    word = "SSTSSSTSSTSTSTSSTTSSSSSS" # any string from alphabet {I, P, S, R, T, U, V, W}
     reduced_word = reduce_word(word)
     assert word_to_matrix(reduced_word) == word_to_matrix(word)
     
