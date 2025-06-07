@@ -205,6 +205,9 @@ class RealQuadraticField(abc.Container):
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
     Proposition 4.4.1, p. 165, for definition of discriminant using integral basis.
     Proposition 5.1.1, p. 223, for integral basis and discriminant formula for real quadratic fields.
+
+    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+    Chapter I, Section 6, "Quadratic Number Fields and Their Units", pp. 35-38.
     """
 
     __slots__ = ["d"]
@@ -272,6 +275,12 @@ class IndefiniteBQF(abc.Hashable):
     Section 5.6, p. 263, for (a, b, c) being reduced if and only if 0 < (-b + √D) / (2|a|) < 1 and (b + √D) / (2|a|) > 1.
     Definition 5.6.4, p. 263 for reduction operator and helper function r.
     Algorithm 5.6.5, p. 263 for reduction algorithm for indefinite quadratic forms.
+
+    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+    Chapter I, Sections 3, "Equivalence and Reduction of Quadratic Forms", pp. 13-24.
+    Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
+    Chapter I, Section 5, "Genera", pp. 31-34.
+    Chapter I, Section 7, "Relationship of Quadratic Forms to Ideals", pp. 38-50.
     """
 
     __slots__ = ["a", "b", "c"]

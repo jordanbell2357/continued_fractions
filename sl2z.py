@@ -3,7 +3,7 @@ import itertools as it
 import functools as ft
 import operator
 from collections import abc
-# import cmath
+import re
 import typing
 
 
@@ -72,11 +72,13 @@ class M2Z(abc.Hashable):
     def I(cls) -> typing.Self:
         return cls(1, 0, 0, 1)
     
-    # det(P) == -1; P * P == I
+    # det(P) == -1
+    # P * P == I
     @classmethod
     def P(cls) -> typing.Self:
         return cls(0, 1, 1, 0)
 
+    # R = S⁻¹
     # R * S == I
     @classmethod
     def R(cls) -> typing.Self:
@@ -92,6 +94,7 @@ class M2Z(abc.Hashable):
     def T(cls) -> typing.Self:
         return cls(1, 1, 0, 1)
     
+    # U = T⁻¹
     # U * T == I
     @classmethod
     def U(cls) -> typing.Self:
@@ -139,13 +142,12 @@ class SL2Z(GL2Z):
         super().__init__(alpha, beta, gamma, delta)
 
 
-
 I = SL2Z.I()
-P = GL2Z.P() # det == -1
-R = SL2Z.R() # S ** (-1)
+P = GL2Z.P() # det == -1. P⁻¹ = P
+R = SL2Z.R() # S⁻¹
 S = SL2Z.S()
 T = SL2Z.T()
-U = SL2Z.U() # T ** (-1)
+U = SL2Z.U() # T⁻¹
 V = SL2Z.V() # S * T
 
 
@@ -164,6 +166,41 @@ ALPHABET = ALPHABET_DICT.keys()
 REVERSE_ALPHABET_DICT = {v: k for k, v in ALPHABET_DICT.items()}
 
 MATRIX_ALPHABET = REVERSE_ALPHABET_DICT.keys()
+
+RELATIONS_GL2Z = {
+    # length 1 word
+    "I": "",
+    # length 2 words
+    "PP": "",
+    "RS": "",
+    "SR": "",
+    "UT": "",
+    "TU": "",
+    # length 3 words
+    "PSP": "R",
+    "PTP": "TST",
+    "SSS": "R",
+    "RRR": "S",
+    # higher length words
+    "SSSS": "", # S⁴ = I
+    "STSTST": "SS", # (ST)³ = S²
+}
+
+RELATIONS_GL2Z_REGEX = re.compile('|'.join(sorted(RELATIONS_GL2Z, key=len, reverse=True)))
+
+
+def rewrite_word(word: str) -> str:
+    """Apply one relation from left, if possible."""
+    return RELATIONS_GL2Z_REGEX.sub(lambda m: RELATIONS_GL2Z[m.group()], word, count=1)
+
+
+def reduce_word(word: str) -> str:
+    """Repeatedly apply rewrite_once until fixed point reached."""
+    while True:
+        new_word = rewrite_word(word)
+        if new_word == word:
+            return word
+        word = new_word
 
 
 def minimum_matrix_list_from_matrix_alphabet_it(target_matrix: GL2Z, matrix_alphabet: list[GL2Z]) -> GL2Z:
@@ -249,6 +286,8 @@ def matrix_list_to_word(matrix_list: list[SL2Z]) -> str:
 
 
 if __name__ == "__main__":
+    assert P ** (-1) == P
+
     assert S ** 2 == -I
 
     assert S * T == V
@@ -272,7 +311,7 @@ if __name__ == "__main__":
     tau = complex(13.5, 0.3) # in 𝓗
     matrix_list, m, exponent_list = transformation_to_fundamental_domain(tau)
     tau_F = upper_half_plane_action(m, tau)
-    assert -1 / 2 <= tau_F.real <= 1 / 2 and abs(tau_F) >= 1
+    assert -1 / 2 <= tau_F.real <= 1 / 2 and abs(tau_F) >= 1 # in 𝓕
 
     tau = complex(13.5, 0.3) # in 𝓗
     matrix_list, m, exponent_list = transformation_to_fundamental_domain(tau)
@@ -298,3 +337,8 @@ if __name__ == "__main__":
     assert word_to_matrix_list(word) == matrix_list
     assert matrix_list_to_word(matrix_list) == word
     assert word == "SSSTSTS"
+
+    word = "SSTTSSTSTSTSSTT"
+    reduced_word = reduce_word(word)
+    assert word_to_matrix(reduced_word) == word_to_matrix(word)
+    
