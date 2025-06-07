@@ -1,11 +1,13 @@
 import math
+import decimal
+from decimal import Decimal
 from fractions import Fraction
 from numbers import Number
 from numbers import Rational
 from collections import abc
 import typing
 
-import sl2z
+import gl2z
 import prime_numbers
 import pell
 
@@ -15,21 +17,21 @@ class RationalQuadraticPolynomial(typing.NamedTuple):
     b: Rational
     c: Rational
 
-    def __add__(self, other: typing.Self) -> typing.Self:
+    def __add__(self: typing.Self, other: typing.Self) -> typing.Self:
         return type(self)(self.a + other.a, self.b + other.b, self.c + other.c)
 
-    def __str__(self) -> str:
+    def __str__(self: typing.Self) -> str:
         return f"{self.a}x² {self.b:+}x {self.c:+}"
 
-    def evaluate(self, x: Number) -> Number:
+    def evaluate(self: typing.Self, x: Number) -> Number:
         return self.a * x * x + self.b * x + self.c
     
-    def is_integral(self) -> bool:
+    def is_integral(self: typing.Self) -> bool:
         return all(e == int(e) for e in [self.a, self.b, self.c])
     
 
 class IntegralQuadraticPolynomial(RationalQuadraticPolynomial):
-    def __init__(self, a: int, b: int, c: int) -> None:
+    def __init__(self: typing.Self, a: int, b: int, c: int) -> None:
         if not all(isinstance(e, int) for e in [a, b, c]):
             raise TypeError(f"{a}, {b}, {c} must be integers.")
         super().__init__(a, b, c)
@@ -66,35 +68,35 @@ class RealQuadraticNumber(Number):
     def __neg__(self: typing.Self) -> typing.Self:
         return type(self)(self.d, -self.x, -self.y)
     
-    def __add__(self: typing.Self, other: typing.Self) -> typing.Self:
+    def __add__(self: typing.Self, other: typing.Self | Rational) -> typing.Self:
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
             raise ValueError("Algebraic numbers must be members of same field 𝐐(√d) to be added.")
         return type(self)(self.d, self.x + other.x, self.y + other.y)
     
-    def __radd__(self: typing.Self, other: typing.Self) -> typing.Self:
+    def __radd__(self: typing.Self, other: typing.Self | Rational) -> typing.Self:
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
             raise ValueError("Algebraic numbers must be members of same field 𝐐(√d) to be added.")
         return type(self)(self.d, other.x + self.x, other.y + self.y)
     
-    def __sub__(self: typing.Self, other: typing.Self) -> typing.Self:
+    def __sub__(self: typing.Self, other: typing.Self | Rational) -> typing.Self:
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
             raise ValueError("Algebraic numbers must be members of same field 𝐐(√d) to be subtracted.")
         return type(self)(self.d, self.x - other.x, self.y - other.y)
     
-    def __rsub__(self: typing.Self, other: typing.Self) -> typing.Self:
+    def __rsub__(self: typing.Self, other: typing.Self | Rational) -> typing.Self:
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
             raise ValueError("Algebraic numbers must be members of same field 𝐐(√d) to be subtracted.")
         return type(self)(self.d, other.x - self.x, other.y - self.y)
     
-    def __mul__(self: typing.Self, other: typing.Self) -> typing.Self:
+    def __mul__(self: typing.Self, other: typing.Self | Rational) -> typing.Self:
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
@@ -103,7 +105,7 @@ class RealQuadraticNumber(Number):
                           self.x * other.x + self.y * other.y * self.d,
                           self.x * other.y + self.y * other.x)
     
-    def __rmul__(self: typing.Self, other: typing.Self) -> typing.Self:
+    def __rmul__(self: typing.Self, other: typing.Self | Rational) -> typing.Self:
         if isinstance(other, Rational):
             other = type(self)(self.d, other, 0)
         if self.d != other.d:
@@ -112,7 +114,7 @@ class RealQuadraticNumber(Number):
                           self.x * other.x + self.y * other.y * self.d,
                           self.x * other.y + self.y * other.x)
     
-    def __truediv__(self: typing.Self, other: typing.Self) -> typing.Self:
+    def __truediv__(self: typing.Self, other: typing.Self | Rational) -> typing.Self:
         dividend = self
         divisor = other
         if isinstance(divisor, Rational):
@@ -126,7 +128,7 @@ class RealQuadraticNumber(Number):
                           Fraction(dividend.x * divisor.x - dividend.y * divisor.y * dividend.d, divisor_norm),
                           Fraction(-dividend.x * divisor.y + dividend.y * divisor.x, divisor_norm))
     
-    def __rtruediv__(self: typing.Self, other: typing.Self) -> typing.Self:
+    def __rtruediv__(self: typing.Self, other: typing.Self | Rational) -> typing.Self:
         dividend = other
         divisor = self
         if isinstance(dividend, Rational):
@@ -196,7 +198,7 @@ class RealQuadraticNumber(Number):
         """
         return RationalQuadraticPolynomial(1, -2 * self.x, (self * self.conjugate()).x)
     
-    def GL2Z_action(self: typing.Self, matrix: sl2z.GL2Z) -> typing.Self:
+    def GL2Z_action(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self:
         return (matrix.alpha * self + matrix.beta) / (matrix.gamma * self + matrix.delta)
 
 
@@ -223,7 +225,7 @@ class RealQuadraticField(abc.Container):
     def __repr__(self: typing.Self) -> str:
         return f"{type(self).__name__}({d})"
 
-    def __eq__(self, other: typing.Self) -> bool:
+    def __eq__(self: typing.Self, other: typing.Self) -> bool:
         return self.d == other.d
     
     def __hash__(self: typing.Self) -> int:
@@ -246,8 +248,16 @@ class RealQuadraticField(abc.Container):
         return RealQuadraticNumber(self.d, x, y)
 
     @property
-    def regulator(self: typing.Self) -> float:
+    def regulator_float(self: typing.Self) -> float:
         return math.log(float(self.fundamental_unit))
+
+    def regulator_decimal(self: typing.Self, precision: int = 10) -> Decimal:
+        decimal.getcontext().prec = precision
+        fundamental_unit = self.fundamental_unit
+        x = int(fundamental_unit.x)
+        y = int(fundamental_unit.y)
+        d = self.d
+        return (Decimal(x) + Decimal(y) * Decimal(d).sqrt()).ln()
     
     @property
     def primitive_real_dirichlet_character(self: typing.Self) -> abc.Callable:
@@ -277,7 +287,7 @@ class IndefiniteBQF(abc.Hashable):
     Algorithm 5.6.5, p. 263 for reduction algorithm for indefinite quadratic forms.
 
     Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-    Chapter I, Sections 3, "Equivalence and Reduction of Quadratic Forms", pp. 13-24.
+    Chapter I, Sections 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
     Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
     Chapter I, Section 5, "Genera", pp. 31-34.
     Chapter I, Section 7, "Relationship of Quadratic Forms to Ideals", pp. 38-50.
@@ -287,14 +297,14 @@ class IndefiniteBQF(abc.Hashable):
 
     def __init__(self: typing.Self, a: int, b: int, c: int) -> None:
         if not all(isinstance(x, int) for x in [a, b, c]):
-            raise TypeError("a, b, c must all be integers")
+            raise TypeError("a, b, c must all be integers.")
         if a==0 or c == 0:
-            raise ValueError(f"For indefinite binary quadratic form ax²+bx+c, a and c must be nonzero: {a=}, {c=}")
+            raise ValueError(f"For indefinite binary quadratic form ax²+bx+c, a and c must be nonzero: {a=}, {c=}.")
         D = b ** 2 - 4 * a * c
         if D <= 0:
-            raise ValueError(f"Discriminant {D=} must be positive")
+            raise ValueError(f"Discriminant {D=} must be positive.")
         if math.sqrt(D) == math.isqrt(D):
-            raise ValueError(f"Discriminant {D=} of must not be a perfect square")
+            raise ValueError(f"Discriminant {D=} of must not be a perfect square.")
         self.a = a
         self.b = b
         self.c = c
@@ -319,12 +329,12 @@ class IndefiniteBQF(abc.Hashable):
     def __str__(self) -> str:
         return f"{self.a}x²\t{self.b:+}xy\t{self.c:+}y².\tD={self.D}"
     
-    def SL2Z_action(self: typing.Self, matrix: sl2z.SL2Z) -> typing.Self:
+    def SL2Z_action(self: typing.Self, matrix: gl2z.SL2Z) -> typing.Self:
         """
         axx + bxy + cyy
         == a(alpha x + beta y)(alpha x + beta y) + b(alpha x + beta y)(gamma x + delta y) + c(gamma x + delta y)(gamma x + delta y)
         == (a*alpha**2 + b*alpha*gamma + c*gamma**2) xx
-           + (2*a*alpha*beta + b*(alpha*delta + beta*gamma) + 2*c*gamma*delta) xy
+           + (2*a*alpha*beta + b**alpha*delta + b*beta*gamma + 2*c*gamma*delta) xy
            + (a*beta**2 + b*beta*delta + c*delta**2) yy
         == Axx + Bxy + Cyy
         """
@@ -407,7 +417,7 @@ class IndefiniteBQF(abc.Hashable):
     def exponent_list_to_word(exponent_list: list[int]) -> list[str]:
         word_list = []
         for m in exponent_list:
-            # sl2z.SL2Z.S and sl2z.SL2Z.T
+            # gl2z.gl2z.S and gl2z.gl2z.T
             word = "S" + "T" * m
             word_list.append(word)
         return "".join(word_list)
@@ -428,7 +438,8 @@ if __name__ == "__main__":
 
     d = 48
 
-    assert math.isclose(RealQuadraticField(d).regulator, math.log(float(RealQuadraticField(d).fundamental_unit)))
+    assert math.isclose(RealQuadraticField(d).regulator_float, math.log(float(RealQuadraticField(d).fundamental_unit)))
+    assert math.isclose(RealQuadraticField(d).regulator_decimal(), math.log(float(RealQuadraticField(d).fundamental_unit)))
 
     assert RealQuadraticField(d).fundamental_unit.norm == 1
 
@@ -500,7 +511,7 @@ if __name__ == "__main__":
     bqf = IndefiniteBQF(3, 11, 2)
     reduced_bqf, exponent_list = bqf.reduced_with_exponent_list()
     word = IndefiniteBQF.exponent_list_to_word(exponent_list)
-    product_matrix = sl2z.word_to_matrix(word)
+    product_matrix = gl2z.word_to_matrix(word)
     assert bqf.SL2Z_action(product_matrix) == reduced_bqf
 
     # d = 19
@@ -509,6 +520,6 @@ if __name__ == "__main__":
     # for k in range(-10, 10 + 1):
     #     print(f"ε^{k}:", ε ** k, sep="\t")
 
-    m = sl2z.T
+    m = gl2z.T
     bqf = IndefiniteBQF(1, 17, -14)
     assert bqf.SL2Z_action(m).D == bqf.D
