@@ -78,24 +78,20 @@ class M2Z(abc.Hashable):
     def P(cls) -> typing.Self:
         return cls(0, 1, 1, 0)
 
-    # R = S⁻¹
-    # R * S == I
+    # R == S⁻¹
     @classmethod
     def R(cls) -> typing.Self:
         return cls(0, 1, -1, 0)
 
-    # S * R == I
     @classmethod
     def S(cls) -> typing.Self:
         return cls(0, -1, 1, 0)
     
-    # T * U == I
     @classmethod
     def T(cls) -> typing.Self:
         return cls(1, 1, 0, 1)
     
-    # U = T⁻¹
-    # U * T == I
+    # U == T⁻¹
     @classmethod
     def U(cls) -> typing.Self:
         return cls(1, -1, 0, 1)
@@ -105,8 +101,24 @@ class M2Z(abc.Hashable):
     def V(cls) -> typing.Self:
         return cls(0, -1, 1, 1)
     
+    # W == V⁻¹
+    @classmethod
+    def W(cls) -> typing.Self:
+        return cls(1, 1, -1, 0)
+    
+    def __str__(self: typing.Self) -> str:
+        pass
+
 
 class GL2Z(M2Z):
+    """
+    Wilhelm Magnus, Abraham Karrass, Donald Solitar,
+    Combinatorial group theory: Presentations of Groups in Terms of Generators and Relations,
+    second revised edition, Dover Publications, 1976.
+    Section 1.4, Problem 24, pp. 46-47.
+    Section 3.2, Theorem 3.2, p. 131.
+    Section 3.5, Corollary N4, p. 169.
+    """
     def __init__(self, alpha: int, beta: int, gamma: int, delta: int):
         det = detM2(alpha, beta, gamma, delta)
         if det not in [-1, 1]:
@@ -142,13 +154,14 @@ class SL2Z(GL2Z):
         super().__init__(alpha, beta, gamma, delta)
 
 
-I = SL2Z.I()
+I = GL2Z.I()
 P = GL2Z.P() # det == -1. P⁻¹ = P
 R = SL2Z.R() # S⁻¹
 S = SL2Z.S()
 T = SL2Z.T()
 U = SL2Z.U() # T⁻¹
 V = SL2Z.V() # S * T
+W = SL2Z.W() # V⁻¹
 
 
 ALPHABET_DICT = {
@@ -158,7 +171,8 @@ ALPHABET_DICT = {
     "S": S,
     "T": T,
     "U": U,
-    "V": V
+    "V": V,
+    "W": W
 }
 
 ALPHABET = ALPHABET_DICT.keys()
@@ -170,18 +184,26 @@ MATRIX_ALPHABET = REVERSE_ALPHABET_DICT.keys()
 RELATIONS_GL2Z = {
     # length 1 word
     "I": "",
-    # length 2 words
+    # length 2 words, namely inverses
     "PP": "",
     "RS": "",
     "SR": "",
-    "UT": "",
     "TU": "",
+    "UT": "",
+    "VW": "",
+    "WV": "",
     # length 3 words
+    ## non-conjugations
+    "RRR": "S",
+    "SSS": "R",
+    ## conjugations
+    "PRP": "S",
     "PSP": "R",
     "PTP": "TST",
-    "SSS": "R",
-    "RRR": "S",
+    "PVP": "W",
+    "PWP": "V",
     # higher length words
+    "RRRR": "",
     "SSSS": "", # S⁴ = I
     "STSTST": "SS", # (ST)³ = S²
 }
@@ -214,6 +236,21 @@ def minimum_matrix_list_from_matrix_alphabet_it(target_matrix: GL2Z, matrix_alph
 def minimum_word_from_alphabet_dp(target_matrix: GL2Z, alphabet: list[str]) -> str:
     product_dict = {(): I}
     for word_length in it.count():
+        for letter_tuple in it.product(alphabet, repeat=word_length):
+            word = "".join(letter_tuple)
+            if word_length == 0:
+                matrix_product = I
+            else:
+                initial_word, terminal_letter = word[:-1], word[-1]
+                matrix_product = product_dict[initial_word] * ALPHABET_DICT[terminal_letter]
+            product_dict[word] = matrix_product
+            if matrix_product == target_matrix:
+                return word
+            
+
+def minimum_word_from_alphabet_dp_max_len(target_matrix: GL2Z, alphabet: list[str], max_len: int) -> str:
+    product_dict = {(): I}
+    for word_length in range(max_len + 1):
         for letter_tuple in it.product(alphabet, repeat=word_length):
             word = "".join(letter_tuple)
             if word_length == 0:
@@ -261,7 +298,7 @@ def transformation_to_fundamental_domain(tau: complex) -> tuple[list[SL2Z], SL2Z
         exponent_list.append(n)
         m = abs(tau ** 2)
     return matrix_list, A, exponent_list
-    
+
 
 def word_to_matrix_list(word: str) -> list[GL2Z]:
     if not all(letter in ALPHABET for letter in word):
@@ -285,6 +322,37 @@ def matrix_list_to_word(matrix_list: list[SL2Z]) -> str:
     return word
 
 
+PHI = (1 + math.sqrt(5)) / 2
+
+def max_word_len_linf(m1: GL2Z, m2: GL2Z) -> int:
+    """
+    Guaranteed search radius for words in {P,S,T} solving  w·m1 = m2.
+    Uses the ℓ∞ norm bound   L = 3·⌈log_ϕ ‖core‖∞⌉ + 2,  plus 1 if a
+    single leading P is required.
+    """
+    # ── 1.  Do we have to prefix one P?  (determinant mismatch)
+    prepend_P: bool = (m1.det != m2.det)
+
+    # ── 2.  Comparison matrix that lies in SL₂(ℤ)
+    core = (P * m2 if prepend_P else m2) * m1.inv()
+
+    # If the core itself is I, no S,T letters are needed
+    if core == I:
+        return 1 if prepend_P else 0
+
+    N = abs(core)                  # ℓ∞‐norm via __abs__
+
+    # General logarithmic bound (Cohen-style Euclidean decomposition)
+    L = 3 * math.ceil(math.log(N, PHI)) + 2
+
+    # For N = 1 the formula gives L = 2, but S³ (and hence R) needs 3.
+    if N == 1 and L < 3:
+        L = 3
+
+    return L + (1 if prepend_P else 0)
+
+
+
 if __name__ == "__main__":
     assert P ** (-1) == P
 
@@ -301,6 +369,8 @@ if __name__ == "__main__":
 
     assert T * U == I and U * T == I
     assert T ** (-1) == U
+
+    assert P * V * P == W
 
     m = U
     assert U / U == I
@@ -338,7 +408,18 @@ if __name__ == "__main__":
     assert matrix_list_to_word(matrix_list) == word
     assert word == "SSSTSTS"
 
-    word = "SSTTSSTSTSTSSTT"
+    word = "SSTSSSTSSTSTSTSSTTSSSSSS"
     reduced_word = reduce_word(word)
     assert word_to_matrix(reduced_word) == word_to_matrix(word)
     
+
+    m1 = I
+    m2 = R
+    max_word_len = max_word_len_linf(m1, m2)
+    word  = minimum_word_from_alphabet_dp_max_len(
+                target_matrix=m2 * m1.inv(),
+                alphabet=['P', 'S', 'T'],
+                max_len=max_word_len)
+    print(max_word_len)
+    print(word)
+
