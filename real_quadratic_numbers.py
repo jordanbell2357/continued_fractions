@@ -5,9 +5,10 @@ from fractions import Fraction
 from numbers import Number
 from numbers import Rational
 from collections import abc
+import itertools as it
 import typing
 
-import gl2z
+from gl2z import GL2Z, GL2Q
 import prime_numbers
 import pell
 
@@ -198,16 +199,26 @@ class RealQuadraticNumber(Number):
         """
         return RationalQuadraticPolynomial(1, -2 * self.x, (self * self.conjugate()).x)
     
-    def GL2Z_action(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self:
+    def GL2Z_action(self: typing.Self, matrix: GL2Z) -> typing.Self:
         return (matrix.alpha * self + matrix.beta) / (matrix.gamma * self + matrix.delta)
+    
+    def embed_in_GL2Q(self: typing.Self) -> GL2Q:
+        return GL2Q(self.x, self.y * self.d, self.y, self.x)
     
     @classmethod
     def find_GL2Z_transformation(cls, source_number: typing.Self, target_number: typing.Self):
         """
-        If there is some m in GL2Z such that source_number.GL2Z_action(m) == target_number, return m.
-        If there is not, return None.
+        If there is some m in GL2Z such that source_number.GL2Z_action(m) == target_number, then return m.
+        If there is not, then return None.
         """
-        ...
+        source_matrix = source_number.embed_in_GL2Q()
+        target_matrix = target_number.embed_in_GL2Q()
+        # somehow we want to use GL2Z and GL2Q.embed_from_GL2Z to work with source_matrix and target_matrix
+        # note there are tools like max_word_len_linf and ball_GL2Z which may be important for being
+        # able to declare there is no transformation.
+
+
+
 
 
 class RealQuadraticField(abc.Container):
@@ -271,18 +282,28 @@ class RealQuadraticField(abc.Container):
     def primitive_real_dirichlet_character(self: typing.Self) -> abc.Callable:
         return lambda n: prime_numbers.kronecker_symbol(self.D, n)
     
+    # K = 𝐐(√d)
+    # 𝒪_K = 𝐙[ω]
+    @property
+    def omega(self: typing.Self) -> RealQuadraticNumber:
+        if self.d % 4 == 1:
+            return RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2))
+        elif d % 4 in [2, 3]:
+            return RealQuadraticNumber(d, 0, 1)
+
+    
     @property
     def integral_basis(self: typing.Self) -> tuple[RealQuadraticNumber, RealQuadraticNumber]:
-        if self.d % 4 == 1:
-            b1, b2 = (RealQuadraticNumber(d, 1, 0), RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)))
-        elif d % 4 in [2, 3]:
-            b1, b2 = (RealQuadraticNumber(d, 1, 0), RealQuadraticNumber(d, 0, 1))
+        b1 = RealQuadraticNumber(d, 1, 0)
+        b2 = self.omega
         return b1, b2
+
     
     def __str__(self: typing.Self) -> str:
         b1, b2 = self.integral_basis
+        omega = self.omega
         fundamental_unit = self.fundamental_unit
-        return f"𝐐(√{self.d}):\tdiscriminant D={self.D}, integral basis {b1=!s}, {b2=!s}, fundamental unit {fundamental_unit}"
+        return f"𝐐(√{self.d}):\tdiscriminant D={self.D}, integral basis {b1=!s}, {b2=!s}, ring of integers 𝐙[{omega}], fundamental unit {fundamental_unit}"
 
 
 if __name__ == "__main__":
@@ -342,3 +363,8 @@ if __name__ == "__main__":
 
     d = 4 * m + 3
     assert RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == False
+
+    real_quadratic_number = RealQuadraticNumber(d, Fraction(11, 2), Fraction(1, 25))
+    m = real_quadratic_number.embed_in_GL2Q()
+    assert m.det == real_quadratic_number.norm
+    assert m.trace == real_quadratic_number.trace

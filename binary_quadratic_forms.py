@@ -61,7 +61,7 @@ class IndefiniteBQF(abc.Hashable):
     def __str__(self) -> str:
         return f"{self.a}x²\t{self.b:+}xy\t{self.c:+}y².\tD={self.D}"
     
-    def SL2Z_action(self: typing.Self, matrix: gl2z.SL2Z) -> typing.Self:
+    def SL2Z_action(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self:
         """
         axx + bxy + cyy
         == a(alpha x + beta y)(alpha x + beta y) + b(alpha x + beta y)(gamma x + delta y) + c(gamma x + delta y)(gamma x + delta y)
@@ -70,6 +70,8 @@ class IndefiniteBQF(abc.Hashable):
            + (a*beta**2 + b*beta*delta + c*delta**2) yy
         == Axx + Bxy + Cyy
         """
+        if matrix.det != 1:
+            raise TypeError(f"{matrix=} must belong to SL₂(𝐙).")
         a, b, c = self.a, self.b, self.c
         alpha, beta, gamma, delta = matrix.alpha, matrix.beta, matrix.gamma, matrix.delta
         A = a * alpha ** 2 + b * alpha * gamma + c * gamma ** 2
@@ -153,6 +155,9 @@ class IndefiniteBQF(abc.Hashable):
             word = "S" + "T" * m
             word_list.append(word)
         return "".join(word_list)
+    
+    def compose(self: typing.Self, other: typing.Self) -> typing.Self:
+        pass
 
 
 if __name__ == "__main__":
@@ -246,12 +251,18 @@ if __name__ == "__main__":
     product_matrix = gl2z.word_to_matrix(word)
     assert bqf.SL2Z_action(product_matrix) == reduced_bqf
 
-    # d = 19
-    # ε = RealQuadraticField(d).fundamental_unit
-    # print(f"Powers of fundamental unit {ε=}")
-    # for k in range(-10, 10 + 1):
-    #     print(f"ε^{k}:", ε ** k, sep="\t")
-
     m = gl2z.T
     bqf = IndefiniteBQF(1, 17, -14)
     assert bqf.SL2Z_action(m).D == bqf.D
+
+    d = 20
+    power_check_height = 10
+    power_print_height = 0
+    fundamental_unit_sqrtd = RealQuadraticField(d).fundamental_unit
+    assert all(fundamental_unit_sqrtd ** (-k) == (fundamental_unit_sqrtd ** k).conjugate() for k in range(power_check_height))
+
+    d = 20
+    fundamental_unit_sqrtd = RealQuadraticField(d).fundamental_unit
+    print(f"Powers of fundamental unit ε={fundamental_unit_sqrtd}")
+    for k in range(-5, 5 + 1):
+        print(f"ε^{k}:", fundamental_unit_sqrtd ** k, sep="\t")
