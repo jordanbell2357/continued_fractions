@@ -21,12 +21,11 @@ Done:
 - Adding related functions and sequences
 - Chinese remainder theorem
 - Infinite periodic continued fractions for arbitrary real quadratic irrationals
+- Find matrix transformations to take BQF to reduced BQF
 
 Todo:
-- Find matrix transformations to take BQF to reduced BQF
 - Class number
 - Visualizing CW and SB trees, Farey sequences (Farey graph), and displaying continued fractions
-- Connecting pieces with testing
 
 Further afield:
 
