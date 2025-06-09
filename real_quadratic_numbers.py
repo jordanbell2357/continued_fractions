@@ -8,7 +8,7 @@ from collections import abc
 import itertools as it
 import typing
 
-from gl2z import GL2Z, GL2Q
+import gl2z
 import prime_numbers
 import pell
 
@@ -54,7 +54,7 @@ class RealQuadraticNumber(Number):
             x = Fraction(x, 1)
         self.x = x
         if isinstance(y, int):
-            x = Fraction(y, 1)
+            y = Fraction(y, 1)
         self.y = y * math.isqrt(squarefull_part_d)
 
     def __repr__(self: typing.Self) -> str:
@@ -199,26 +199,78 @@ class RealQuadraticNumber(Number):
         """
         return RationalQuadraticPolynomial(1, -2 * self.x, (self * self.conjugate()).x)
     
-    def GL2Z_action(self: typing.Self, matrix: GL2Z) -> typing.Self:
+    def lft_GL2Z(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self: # linear fractional transformation
         return (matrix.alpha * self + matrix.beta) / (matrix.gamma * self + matrix.delta)
     
-    def embed_in_GL2Q(self: typing.Self) -> GL2Q:
-        return GL2Q(self.x, self.y * self.d, self.y, self.x)
+    def GL2Q_representation(self: typing.Self) -> gl2z.GL2Q: # Left regular representation of 𝐐(√d) in GL₂(𝐐)
+        alpha = self.x
+        beta = self.y * self.d
+        gamma = self.y
+        delta = self.x
+        return gl2z.GL2Q(alpha, beta, gamma, delta)
     
     @classmethod
-    def find_GL2Z_transformation(cls, source_number: typing.Self, target_number: typing.Self):
-        """
-        If there is some m in GL2Z such that source_number.GL2Z_action(m) == target_number, then return m.
-        If there is not, then return None.
-        """
-        source_matrix = source_number.embed_in_GL2Q()
-        target_matrix = target_number.embed_in_GL2Q()
-        # somehow we want to use GL2Z and GL2Q.embed_from_GL2Z to work with source_matrix and target_matrix
-        # note there are tools like max_word_len_linf and ball_GL2Z which may be important for being
-        # able to declare there is no transformation.
+    def from_GL2Q(cls, matrix: gl2z.GL2Q) -> typing.Self:
+        if matrix.gamma == 0:
+            raise ValueError(f"{matrix.gamma=} must not be 0.")
+        d = Fraction(matrix.beta, matrix.gamma)
+        if d != int(d):
+            raise ValueError(f"{matrix} must belong to image of 𝐐(√d) in GL₂(𝐐).")
+        d = int(d)
+        x = matrix.alpha
+        y = matrix.gamma
+        return cls(d, x, y)
 
+    def integral_basis_GL2Q_representation(self: typing.Self) -> gl2z.GL2Q:
+        d = self.d
+        x = self.x
+        y = self.y
+        # omega = RealQuadraticField.omega
 
+        if d % 4 in [2, 3]:
+            """
+            α = x + y√d
+            ω = √d
+            α = x + yω
+            α * 1 = x * 1 + y * ω
+            α * ω  = (x + yω) * ω = x√d + y * d = (d * y) + x√d = (d * y) * 1 + x * ω
 
+            [ x      y * d ]
+            [ y      x     ]
+            """
+            return gl2z.GL2Q(x, d * y, y, x)
+        elif d % 4 == 1:
+            """
+            α = x + y√d
+            ω = (1 + √d) / 2
+            √d = 2ω − 1
+            
+            √d * ω  
+            = √d * (1 + √d)/2  
+            = (√d + d)/2  
+            = d/2 + (1/2) * √d  
+            = d/2 + (1/2) * (2ω − 1)  
+            = d/2 + ω − 1/2  
+            = (d − 1)/2 + ω 
+
+            α * 1  
+            = x + y * √d  
+            = x + y(2ω − 1)  
+            = (x − y) + (2y) * ω  
+            = (x − y) * 1 + (2y) * ω  
+
+            α * ω  
+            = (x + y√d) * ω  
+            = xω + y(√d * ω)
+            = xω + y((d − 1)/2 + ω)
+            = (d − 1)/2 * y * 1 + (x + y) * ω
+
+            [ x - y      (d-1)/2 * y ]
+            [ 2y         x + y       ]
+            """
+            return gl2z.GL2Q(x - y, Fraction(d - 1, 2) * y, 2 * y, x + y)
+        else:
+            raise ValueError(f"{d=} must not be a multiple of 4.")
 
 
 class RealQuadraticField(abc.Container):
@@ -256,8 +308,7 @@ class RealQuadraticField(abc.Container):
         if isinstance(item, RealQuadraticNumber):
             return self.d == item.d
 
-    # Discriminant
-    @property
+    @property # Discriminant
     def D(self: typing.Self) -> int:
         return self.d if self.d % 4 == 1 else 4 * self.d
     
@@ -291,19 +342,19 @@ class RealQuadraticField(abc.Container):
         elif d % 4 in [2, 3]:
             return RealQuadraticNumber(d, 0, 1)
 
-    
     @property
     def integral_basis(self: typing.Self) -> tuple[RealQuadraticNumber, RealQuadraticNumber]:
-        b1 = RealQuadraticNumber(d, 1, 0)
+        b1 = RealQuadraticNumber(self.d, 1, 0)
         b2 = self.omega
         return b1, b2
 
-    
     def __str__(self: typing.Self) -> str:
         b1, b2 = self.integral_basis
         omega = self.omega
         fundamental_unit = self.fundamental_unit
         return f"𝐐(√{self.d}):\tdiscriminant D={self.D}, integral basis {b1=!s}, {b2=!s}, ring of integers 𝐙[{omega}], fundamental unit {fundamental_unit}"
+
+
 
 
 if __name__ == "__main__":
@@ -365,6 +416,29 @@ if __name__ == "__main__":
     assert RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == False
 
     real_quadratic_number = RealQuadraticNumber(d, Fraction(11, 2), Fraction(1, 25))
-    m = real_quadratic_number.embed_in_GL2Q()
+    m = real_quadratic_number.GL2Q_representation()
     assert m.det == real_quadratic_number.norm
     assert m.trace == real_quadratic_number.trace
+    assert RealQuadraticNumber.from_GL2Q(m) == real_quadratic_number
+
+    d = 15
+    source_number = RealQuadraticNumber(d, Fraction(11, 2), Fraction(1, 25))
+    target_number = source_number.lft_GL2Z(gl2z.P)
+    divided_number = target_number / source_number
+    m1 = divided_number.GL2Q_representation()
+    m2 = target_number.GL2Q_representation() / source_number.GL2Q_representation()
+    assert m1 == m2
+
+    d = 13
+    number = RealQuadraticNumber(d, Fraction(11, 2), Fraction(1, 25))
+    matrix = gl2z.S
+    transformed_number = number.lft_GL2Z(matrix)
+    image = number.GL2Q_representation()
+    transformed_image = image.action_GL2Z_on_real_quadratic_field_image(matrix)
+    preimage_transformed_image = RealQuadraticNumber.from_GL2Q(transformed_image)
+    assert preimage_transformed_image == transformed_number
+
+    print(number.integral_basis_GL2Q_representation())
+
+
+

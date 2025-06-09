@@ -48,7 +48,7 @@ class GL2Z(abc.Hashable):
         delta = self.gamma * other.beta + self.delta * other.delta
         return type(self)(alpha, beta, gamma, delta)
     
-    def inv(self) -> typing.Self:
+    def inverse(self) -> typing.Self:
         det = self.det # either 1 or -1
         alpha = self.delta // det
         beta = -self.beta // det
@@ -57,7 +57,7 @@ class GL2Z(abc.Hashable):
         return type(self)(alpha, beta, gamma, delta)
     
     def __truediv__(self: typing.Self, other: typing.Self) -> typing.Self:
-        return self * other.inv()
+        return self * other.inverse()
     
     def __pow__(self: typing.Self, exponent: int) -> typing.Self:
         I = type(self)(1, 0, 0, 1)
@@ -66,7 +66,7 @@ class GL2Z(abc.Hashable):
         elif exponent > 0:
             return ft.reduce(operator.mul, (self for _ in range(exponent)), I)
         elif exponent < 0:
-            self_inv = self.inv()
+            self_inv = self.inverse()
             return ft.reduce(operator.mul, (self_inv for _ in range(abs(exponent))), I)
     
     def __iter__(self: typing.Self) -> abc.Iterator[int]:
@@ -329,10 +329,10 @@ class GL2Q(abc.Hashable):
         det = detM2(alpha, beta, gamma, delta)
         if det == 0:
             raise ValueError(f"Determinant must be nonzero: {det=}")
-        self.alpha = alpha
-        self.beta = beta
-        self.gamma = gamma
-        self.delta = delta
+        self.alpha = Fraction(alpha)
+        self.beta = Fraction(beta)
+        self.gamma = Fraction(gamma)
+        self.delta = Fraction(delta)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.alpha}, {self.beta}, {self.gamma}, {self.delta})"
@@ -353,7 +353,7 @@ class GL2Q(abc.Hashable):
         delta = self.gamma * other.beta + self.delta * other.delta
         return type(self)(alpha, beta, gamma, delta)
     
-    def inv(self) -> typing.Self:
+    def inverse(self) -> typing.Self:
         det = self.det
         alpha = Fraction(self.delta, det)
         beta = Fraction(-self.beta, det)
@@ -362,7 +362,7 @@ class GL2Q(abc.Hashable):
         return type(self)(alpha, beta, gamma, delta)
     
     def __truediv__(self: typing.Self, other: typing.Self) -> typing.Self:
-        return self * other.inv()
+        return self * other.inverse()
     
     def __pow__(self: typing.Self, exponent: int) -> typing.Self:
         I = type(self)(1, 0, 0, 1)
@@ -371,16 +371,16 @@ class GL2Q(abc.Hashable):
         elif exponent > 0:
             return ft.reduce(operator.mul, (self for _ in range(exponent)), I)
         elif exponent < 0:
-            self_inv = self.inv()
+            self_inv = self.inverse()
             return ft.reduce(operator.mul, (self_inv for _ in range(abs(exponent))), I)
     
-    def __iter__(self: typing.Self) -> abc.Iterator[Rational]:
+    def __iter__(self: typing.Self) -> abc.Iterator[Fraction]:
         return iter((self.alpha, self.beta, self.gamma, self.delta))
     
     def __contains__(self: typing.Self, other: int) -> bool:
         return any(other == entry for entry in self)
     
-    def __getitem__(self: typing.Self, index: int) -> Rational:
+    def __getitem__(self: typing.Self, index: int) -> Fraction:
         return (*self, )[index]
     
     def __len__(self: typing.Self) -> int:
@@ -390,16 +390,70 @@ class GL2Q(abc.Hashable):
         return type(self)(self.alpha, self.gamma, self.beta, self.delta)
     
     @property
-    def det(self: typing.Self) -> int:
+    def det(self: typing.Self) -> Fraction:
         return detM2(*self)
     
     @property
-    def trace(self: typing.Self) -> int:
+    def trace(self: typing.Self) -> Fraction:
         return self.alpha + self.delta
     
-    @classmethod
-    def embed_from_GL2Z(cls, matrix: GL2Z) -> typing.Self:
-        return cls(matrix.alpha, matrix.beta, matrix.gamma, matrix.delta)
+
+    
+    def action_GL2Z_on_real_quadratic_field_image(self, matrix: GL2Z) -> typing.Self:
+        """
+        Given left regular representation L of 𝐐(√d) in GL₂(𝐐)
+        x + y * √d
+        alpha = x
+        beta = x * d
+        gamma = y
+        delta = x
+
+        This function implements action of GL₂(𝐙) on GL₂(𝐐) that is compatible
+        with the action of GL₂(𝐙) by linear fractional transformations on 𝐐(√d).
+        In other words, the diagram
+
+        𝐐(√d)  -> 𝐐(√d)
+         |         |
+         v         v
+        GL₂(𝐐) -> GL₂(𝐐)
+
+        s in 𝐐(√d)
+        g = (a, b, c, d) in GL₂(𝐙)
+        g·s = (alpha s + beta)/(gamma s + delta) = s.lft_GL2Z(g)
+
+        s  ———→  g·s
+        │         │
+       L│         │L
+        ↓         ↓
+        L(s) ———→ L(g·s)
+
+        commutes.
+
+        Given: self = L(s) for s = x + y√d.
+        Return L(g·s) where g = (alpha, beta, gamma, delta) ∈ GL₂(𝐙).
+        """
+        # 1) recover x, y, and the field parameter d:
+        x, dy, y, _ = self.alpha, self.beta, self.gamma, self.delta
+        if y == 0:
+            raise ValueError("y must be nonzero to uniquely determine d from L(s).")
+        d = Fraction(dy, y) # d == int(d)
+
+        alpha, beta, gamma, delta = matrix.alpha, matrix.beta, matrix.gamma, matrix.delta
+
+        # L(a·s + b)
+        # a·s + b = (a*x + b) + (a*y)·√d
+        x_numerator = alpha * x + beta
+        y_numerator = alpha * y
+        result_numerator = type(self)(x_numerator, d * y_numerator, y_numerator, x_numerator)
+
+        # L(c·s + d):
+        # c·s + d = (c*x + d0) + (c*y)·√d
+        x_denominator = gamma * x + delta
+        y_denominator = gamma * y
+        result_denominator = type(self)(x_denominator, d * y_denominator, y_denominator, x_denominator)
+
+        return result_numerator * result_denominator.inverse()
+
 
 
 if __name__ == "__main__":
@@ -425,7 +479,7 @@ if __name__ == "__main__":
     assert U / U == I
 
     m = U # any matrix in GL₂(𝐙)
-    assert m ** (-1) == m.inv()
+    assert m ** (-1) == m.inverse()
 
     tau = complex(13.5, 0.3) # in 𝓗
     matrix_list, m, exponent_list = transformation_to_fundamental_domain(tau)
@@ -468,10 +522,3 @@ if __name__ == "__main__":
 
     radius = 5
     assert len(list(ball_GL2Z(radius))) == 2 * len(list(ball_SL2Z(radius)))
-
-    m1 = GL2Q(Fraction(1, 3), 1, 2, Fraction(7, 4))
-    m2 = GL2Q(5, Fraction(13, 5), -2, Fraction(1, 6))
-    print(m1, m2)
-    print(m1 * m2)
-    print(GL2Q.embed_from_GL2Z(m))
-
