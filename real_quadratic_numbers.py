@@ -202,7 +202,7 @@ class RealQuadraticNumber(Number):
     def lft_GL2Z(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self: # linear fractional transformation
         return (matrix.alpha * self + matrix.beta) / (matrix.gamma * self + matrix.delta)
     
-    def GL2Q_representation(self: typing.Self) -> gl2z.GL2Q: # Left regular representation of 𝐐(√d) in GL₂(𝐐)
+    def GL2Q_left_regular_representation(self: typing.Self) -> gl2z.GL2Q: # Left regular representation of 𝐐(√d) in GL₂(𝐐)
         alpha = self.x
         beta = self.y * self.d
         gamma = self.y
@@ -210,22 +210,22 @@ class RealQuadraticNumber(Number):
         return gl2z.GL2Q(alpha, beta, gamma, delta)
     
     @classmethod
-    def from_GL2Q(cls, matrix: gl2z.GL2Q) -> typing.Self:
+    def from_GL2Q_left_regular_representation(cls, matrix: gl2z.GL2Q) -> typing.Self:
         if matrix.gamma == 0:
             raise ValueError(f"{matrix.gamma=} must not be 0.")
         d = Fraction(matrix.beta, matrix.gamma)
         if d != int(d):
-            raise ValueError(f"{matrix} must belong to image of 𝐐(√d) in GL₂(𝐐).")
+            raise ValueError(f"{matrix} must belong to image of left regular representation of 𝐐(√d) in GL₂(𝐐).")
         d = int(d)
         x = matrix.alpha
         y = matrix.gamma
         return cls(d, x, y)
 
-    def integral_basis_GL2Q_representation(self: typing.Self) -> gl2z.GL2Q:
+    def GL2Q_integral_basis_representation(self: typing.Self) -> gl2z.GL2Q:
         d = self.d
         x = self.x
         y = self.y
-        # omega = RealQuadraticField.omega
+        # omega = RealQuadraticField.omega which implemented later and not directly used here.
 
         if d % 4 in [2, 3]:
             """
@@ -271,6 +271,20 @@ class RealQuadraticNumber(Number):
             return gl2z.GL2Q(x - y, Fraction(d - 1, 2) * y, 2 * y, x + y)
         else:
             raise ValueError(f"{d=} must not be a multiple of 4.")
+        
+
+    @classmethod
+    def from_GL2Q_integral_basis_representation(cls, matrix: gl2z.GL2Q) -> typing.Self:
+        if matrix.gamma == 0:
+            raise ValueError(f"{matrix.gamma=} must not be 0.")
+        x = Fraction(matrix.alpha + matrix.delta, 2)
+        y = Fraction(matrix.delta - matrix.alpha, 2)
+        d = Fraction(matrix.beta, y) * 2 + 1
+        if d != int(d):
+            raise ValueError(f"{matrix} must belong to image of integral basis representation of 𝐐(√d) in GL₂(𝐐).")
+        d = int(d)
+        return cls(d, x, y)
+
 
 
 class RealQuadraticField(abc.Container):
@@ -416,29 +430,34 @@ if __name__ == "__main__":
     assert RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == False
 
     real_quadratic_number = RealQuadraticNumber(d, Fraction(11, 2), Fraction(1, 25))
-    m = real_quadratic_number.GL2Q_representation()
+    m = real_quadratic_number.GL2Q_left_regular_representation()
     assert m.det == real_quadratic_number.norm
     assert m.trace == real_quadratic_number.trace
-    assert RealQuadraticNumber.from_GL2Q(m) == real_quadratic_number
+    assert RealQuadraticNumber.from_GL2Q_left_regular_representation(m) == real_quadratic_number
 
     d = 15
     source_number = RealQuadraticNumber(d, Fraction(11, 2), Fraction(1, 25))
     target_number = source_number.lft_GL2Z(gl2z.P)
     divided_number = target_number / source_number
-    m1 = divided_number.GL2Q_representation()
-    m2 = target_number.GL2Q_representation() / source_number.GL2Q_representation()
+    m1 = divided_number.GL2Q_left_regular_representation()
+    m2 = target_number.GL2Q_left_regular_representation() / source_number.GL2Q_left_regular_representation()
     assert m1 == m2
 
     d = 13
     number = RealQuadraticNumber(d, Fraction(11, 2), Fraction(1, 25))
     matrix = gl2z.S
     transformed_number = number.lft_GL2Z(matrix)
-    image = number.GL2Q_representation()
+    image = number.GL2Q_left_regular_representation()
     transformed_image = image.action_GL2Z_on_real_quadratic_field_image(matrix)
-    preimage_transformed_image = RealQuadraticNumber.from_GL2Q(transformed_image)
+    preimage_transformed_image = RealQuadraticNumber.from_GL2Q_left_regular_representation(transformed_image)
     assert preimage_transformed_image == transformed_number
 
-    print(number.integral_basis_GL2Q_representation())
+    d = 13
+    number = RealQuadraticNumber(d, Fraction(11, 2), Fraction(1, 25))
+    mq = number.GL2Q_integral_basis_representation()
+    assert RealQuadraticNumber.from_GL2Q_integral_basis_representation(mq) == number
+
+
 
 
 

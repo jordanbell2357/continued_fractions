@@ -397,8 +397,6 @@ class GL2Q(abc.Hashable):
     def trace(self: typing.Self) -> Fraction:
         return self.alpha + self.delta
     
-
-    
     def action_GL2Z_on_real_quadratic_field_image(self, matrix: GL2Z) -> typing.Self:
         """
         Given left regular representation L of 𝐐(√d) in GL₂(𝐐)
