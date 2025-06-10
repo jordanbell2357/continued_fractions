@@ -5,12 +5,14 @@ from collections import abc
 import typing
 
 import gl2z
-from real_quadratic_numbers import IntegralQuadraticPolynomial, RealQuadraticNumber, RealQuadraticField
+import qsqrtd
 import prime_numbers
 
 
 class IndefiniteBQF(abc.Hashable):
     """
+    Primitive indefinite binary quadratic forms.
+
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
     Definition 5.2.3, p. 225, for binary quadratic forms.
     Definition 5.6.2, p. 262, for reduced indefinite binary quadratic forms.
@@ -32,6 +34,8 @@ class IndefiniteBQF(abc.Hashable):
             raise TypeError("a, b, c must all be integers.")
         if a==0 or c == 0:
             raise ValueError(f"For indefinite binary quadratic form ax²+bx+c, a and c must be nonzero: {a=}, {c=}.")
+        if math.gcd(a, b, c) > 1:
+            raise ValueError(f"Primitive requires gcd(a, b, c) = 1: {math.gcd(a, b, c)=}")
         D = b ** 2 - 4 * a * c
         if D <= 0:
             raise ValueError(f"Discriminant {D=} must be positive.")
@@ -43,9 +47,8 @@ class IndefiniteBQF(abc.Hashable):
 
     def __repr__(self: typing.Self) -> str:
         return f"{type(self).__name__}({self.a}, {self.b}, {self.c})"
-    
-    # Discriminant
-    @property
+
+    @property # discriminant
     def D(self: typing.Self) -> int:
         return self.b ** 2 - 4 * self.a * self.c
 
@@ -79,13 +82,6 @@ class IndefiniteBQF(abc.Hashable):
         C = a * beta ** 2 + b * beta * delta + c * delta ** 2
         return type(self)(A, B, C)
 
-    @property
-    def gcd(self: typing.Self) -> int:
-        return math.gcd(self.a, self.b, self.c)
-    
-    @property
-    def is_primitive(self: typing.Self) -> bool:
-        return self.gcd == 1
 
     @property
     def is_reduced(self: typing.Self) -> bool:
@@ -97,11 +93,7 @@ class IndefiniteBQF(abc.Hashable):
         sqrtD = math.sqrt(self.D)
         return abs(sqrtD - 2 * abs(self.a)) < self.b < sqrtD
 
-    def primitive_associate(self: typing.Self) -> typing.Self:
-        gcd = self.gcd
-        return type(self)(self.a // gcd, self.b // gcd, self.c // gcd)
     
-
     def reduce_with_exponent(self: typing.Self) -> tuple[typing.Self, int]:
         """
         Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
@@ -138,13 +130,13 @@ class IndefiniteBQF(abc.Hashable):
         return bqf, exponent_list
 
     @property
-    def real_quadratic_number_associate(self: typing.Self) -> RealQuadraticNumber:
-        return RealQuadraticNumber(self.D, Fraction(-self.b, 2 * abs(self.a)), Fraction(1, 2 * abs(self.a)))
+    def real_quadratic_number_associate(self: typing.Self) -> qsqrtd.RealQuadraticNumber:
+        return qsqrtd.RealQuadraticNumber(self.D, Fraction(-self.b, 2 * abs(self.a)), Fraction(1, 2 * abs(self.a)))
     
-    def integral_quadratic_polynomial_associate(self: typing.Self) -> IntegralQuadraticPolynomial:
+    def integral_quadratic_polynomial_associate(self: typing.Self) -> qsqrtd.IntegralQuadraticPolynomial:
         return self.real_quadratic_number_associate.minimal_polynomial()
 
-    def evaluate(self: typing.Self, x: Rational | RealQuadraticNumber, y: Rational | RealQuadraticNumber) -> int:
+    def evaluate(self: typing.Self, x: Rational | qsqrtd.RealQuadraticNumber, y: Rational | qsqrtd.RealQuadraticNumber) -> int:
         return self.a * x ** 2 + self.b * x * y + self.c * y **2
     
     @staticmethod
@@ -164,86 +156,70 @@ if __name__ == "__main__":
     d = 67
 
     if d % 4 == 1:
-        b1, b2 = (RealQuadraticNumber(d, 1, 0), RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)))
+        b1, b2 = (qsqrtd.RealQuadraticNumber(d, 1, 0), qsqrtd.RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)))
     elif d % 4 in [2, 3]:
-        b1, b2 = (RealQuadraticNumber(d, 1, 0), RealQuadraticNumber(d, 0, 1))
+        b1, b2 = (qsqrtd.RealQuadraticNumber(d, 1, 0), qsqrtd.RealQuadraticNumber(d, 0, 1))
     assert b1.is_integral and b2.is_integral
     assert b1.minimal_polynomial().is_integral and b2.minimal_polynomial().is_integral
     determinant = b1 * b2.conjugate() - b2 * b1.conjugate()
     discriminant = (determinant ** 2).x
-    assert discriminant == RealQuadraticField(d).D
+    assert discriminant == qsqrtd.RealQuadraticField(d).D
 
     d = 48
 
-    assert math.isclose(RealQuadraticField(d).regulator_float, math.log(float(RealQuadraticField(d).fundamental_unit)))
-    assert math.isclose(RealQuadraticField(d).regulator_decimal(), math.log(float(RealQuadraticField(d).fundamental_unit)))
+    assert math.isclose(qsqrtd.RealQuadraticField(d).regulator_float, math.log(float(qsqrtd.RealQuadraticField(d).fundamental_unit)))
+    assert math.isclose(qsqrtd.RealQuadraticField(d).regulator_decimal(), math.log(float(qsqrtd.RealQuadraticField(d).fundamental_unit)))
 
-    assert RealQuadraticField(d).fundamental_unit.norm == 1
+    assert qsqrtd.RealQuadraticField(d).fundamental_unit.norm == 1
 
-    assert float(RealQuadraticField(d).fundamental_unit) > 1
-
-    d = 43
-    x = 2
-    y = Fraction(2, 7)
-    assert RealQuadraticNumber(d, x, y) in RealQuadraticField(d)
+    assert float(qsqrtd.RealQuadraticField(d).fundamental_unit) > 1
 
     d = 43
     x = 2
     y = Fraction(2, 7)
-    assert RealQuadraticNumber(d, x, y).is_integral and RealQuadraticNumber(d, x, y).minimal_polynomial().is_integral() or \
-        (not RealQuadraticNumber(d, x, y).is_integral and not RealQuadraticNumber(d, x, y).minimal_polynomial().is_integral())
+    assert qsqrtd.RealQuadraticNumber(d, x, y) in qsqrtd.RealQuadraticField(d)
+
+    d = 43
+    x = 2
+    y = Fraction(2, 7)
+    assert qsqrtd.RealQuadraticNumber(d, x, y).is_integral and qsqrtd.RealQuadraticNumber(d, x, y).minimal_polynomial().is_integral() or \
+        (not qsqrtd.RealQuadraticNumber(d, x, y).is_integral and not qsqrtd.RealQuadraticNumber(d, x, y).minimal_polynomial().is_integral())
 
     m = 13
     d = 4 * m + 1
     _, d0 = prime_numbers.squarefull_and_squarefree_parts(d)
     D = d0
-    assert RealQuadraticField(d).D == D
+    assert qsqrtd.RealQuadraticField(d).D == D
 
     d = 4 * m + 2
     _, d0 = prime_numbers.squarefull_and_squarefree_parts(d)
     D = 4 * d0
-    assert RealQuadraticField(d).D == D
+    assert qsqrtd.RealQuadraticField(d).D == D
 
     d = 4 * m + 3
     _, d0 = prime_numbers.squarefull_and_squarefree_parts(d)
     D = 4 * d0
-    assert RealQuadraticField(d).D == D
+    assert qsqrtd.RealQuadraticField(d).D == D
 
     d = 4 * m + 1
-    assert RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == True
+    assert qsqrtd.RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == True
 
     d = 4 * m + 2
-    assert RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == False
+    assert qsqrtd.RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == False
 
     d = 4 * m + 3
-    assert RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == False
+    assert qsqrtd.RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == False
 
-    bqf = IndefiniteBQF(2, 0, -6)
+    bqf = IndefiniteBQF(2, 0, -5)
 
     assert bqf.is_reduced and (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1) or \
         not bqf.is_reduced and not (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1)
-
-    bqf = IndefiniteBQF(2,  2, -2)
-    assert bqf.primitive_associate().is_primitive
-
-    bqf = IndefiniteBQF(2,  2, -2)
-    assert bqf.D == bqf.gcd ** 2 * bqf.primitive_associate().D
-
-    bqf = IndefiniteBQF(1,  1, -1) # gcd=1 means primitive
-    assert bqf.is_primitive
-    assert bqf.primitive_associate() == bqf
-
-    bqf = IndefiniteBQF(6, 14, -4)
-    primitive_bqf = bqf.primitive_associate()
-    tau = bqf.real_quadratic_number_associate
-    primitive_tau = primitive_bqf.real_quadratic_number_associate
-    assert tau == primitive_tau
 
     m = 5  # positive integer that is not a perfect square
     bqf = IndefiniteBQF(1, 0, -m)
     tau = bqf.real_quadratic_number_associate
     # The BQF is equal to 0 when (x,y) = (τ,1).
-    assert bqf.evaluate(tau, 1) == RealQuadraticNumber(bqf.D, 0, 0)
+    assert bqf.evaluate(tau, 1) == qsqrtd.RealQuadraticNumber(bqf.D, 0, 0)
 
     bqf = IndefiniteBQF(3, 11, 2)
     reduced_bqf, exponent_list = bqf.reduced_with_exponent_list()
@@ -257,12 +233,12 @@ if __name__ == "__main__":
 
     d = 20
     power_check_height = 10
-    power_print_height = 0
-    fundamental_unit_sqrtd = RealQuadraticField(d).fundamental_unit
+    fundamental_unit_sqrtd = qsqrtd.RealQuadraticField(d).fundamental_unit
     assert all(fundamental_unit_sqrtd ** (-k) == (fundamental_unit_sqrtd ** k).conjugate() for k in range(power_check_height))
 
-    d = 20
-    fundamental_unit_sqrtd = RealQuadraticField(d).fundamental_unit
-    print(f"Powers of fundamental unit ε={fundamental_unit_sqrtd}")
-    for k in range(-5, 5 + 1):
-        print(f"ε^{k}:", fundamental_unit_sqrtd ** k, sep="\t")
+    # d = 20
+    # power_range = range(-5, 6)
+    # fundamental_unit_sqrtd = qsqrtd.RealQuadraticField(d).fundamental_unit
+    # print(f"Powers of fundamental unit ε={fundamental_unit_sqrtd}")
+    # for k in power_range:
+    #     print(f"ε^{k}:", fundamental_unit_sqrtd ** k, sep="\t")
