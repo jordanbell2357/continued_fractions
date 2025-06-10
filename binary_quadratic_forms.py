@@ -5,8 +5,7 @@ from collections import abc
 import typing
 
 import gl2z
-import qsqrtd
-import prime_numbers
+import quadratic_fields
 
 
 class IndefiniteBQF(abc.Hashable):
@@ -64,8 +63,11 @@ class IndefiniteBQF(abc.Hashable):
     def __str__(self) -> str:
         return f"{self.a}x²\t{self.b:+}xy\t{self.c:+}y².\tD={self.D}"
     
-    def SL2Z_action(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self:
+    def GL2Z_action(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self:
         """
+        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", p. 12.
+
         axx + bxy + cyy
         == a(alpha x + beta y)(alpha x + beta y) + b(alpha x + beta y)(gamma x + delta y) + c(gamma x + delta y)(gamma x + delta y)
         == (a*alpha**2 + b*alpha*gamma + c*gamma**2) xx
@@ -73,8 +75,8 @@ class IndefiniteBQF(abc.Hashable):
            + (a*beta**2 + b*beta*delta + c*delta**2) yy
         == Axx + Bxy + Cyy
         """
-        if matrix.det != 1:
-            raise TypeError(f"{matrix=} must belong to SL₂(𝐙).")
+        if matrix.det not in [-1, 1]:
+            raise TypeError(f"{matrix=} must belong to GL₂(𝐙).")
         a, b, c = self.a, self.b, self.c
         alpha, beta, gamma, delta = matrix.alpha, matrix.beta, matrix.gamma, matrix.delta
         A = a * alpha ** 2 + b * alpha * gamma + c * gamma ** 2
@@ -87,8 +89,7 @@ class IndefiniteBQF(abc.Hashable):
     def is_reduced(self: typing.Self) -> bool:
         """
         Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
-        Definition 5.6.2, p. 262: an indefinite binary quadratic form (a,b,c) is reduced if
-        |√D - 2|a|| < b < √D.
+        Definition 5.6.2, p. 262: an indefinite binary quadratic form (a,b,c) is reduced when |√D - 2|a|| < b < √D.
         """
         sqrtD = math.sqrt(self.D)
         return abs(sqrtD - 2 * abs(self.a)) < self.b < sqrtD
@@ -130,13 +131,13 @@ class IndefiniteBQF(abc.Hashable):
         return bqf, exponent_list
 
     @property
-    def real_quadratic_number_associate(self: typing.Self) -> qsqrtd.RealQuadraticNumber:
-        return qsqrtd.RealQuadraticNumber(self.D, Fraction(-self.b, 2 * abs(self.a)), Fraction(1, 2 * abs(self.a)))
+    def real_quadratic_number_associate(self: typing.Self) -> quadratic_fields.RealQuadraticNumber:
+        return quadratic_fields.RealQuadraticNumber(self.D, Fraction(-self.b, 2 * abs(self.a)), Fraction(1, 2 * abs(self.a)))
     
-    def integral_quadratic_polynomial_associate(self: typing.Self) -> qsqrtd.IntegralQuadraticPolynomial:
+    def integral_quadratic_polynomial_associate(self: typing.Self) -> quadratic_fields.IntegralQuadraticPolynomial:
         return self.real_quadratic_number_associate.minimal_polynomial()
 
-    def evaluate(self: typing.Self, x: Rational | qsqrtd.RealQuadraticNumber, y: Rational | qsqrtd.RealQuadraticNumber) -> int:
+    def evaluate(self: typing.Self, x: Rational | quadratic_fields.RealQuadraticNumber, y: Rational | quadratic_fields.RealQuadraticNumber) -> int:
         return self.a * x ** 2 + self.b * x * y + self.c * y **2
     
     @staticmethod
@@ -148,97 +149,48 @@ class IndefiniteBQF(abc.Hashable):
             word_list.append(word)
         return "".join(word_list)
     
+    def in_GL2Q(self) -> gl2z.GL2Q:
+        return gl2z.GL2Q(2 * self.a, self.b, self.b, 2 * self.c)
+    
     def compose(self: typing.Self, other: typing.Self) -> typing.Self:
         pass
 
 
 if __name__ == "__main__":
-    d = 67
-
-    if d % 4 == 1:
-        b1, b2 = (qsqrtd.RealQuadraticNumber(d, 1, 0), qsqrtd.RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)))
-    elif d % 4 in [2, 3]:
-        b1, b2 = (qsqrtd.RealQuadraticNumber(d, 1, 0), qsqrtd.RealQuadraticNumber(d, 0, 1))
-    assert b1.is_integral and b2.is_integral
-    assert b1.minimal_polynomial().is_integral and b2.minimal_polynomial().is_integral
-    determinant = b1 * b2.conjugate() - b2 * b1.conjugate()
-    discriminant = (determinant ** 2).x
-    assert discriminant == qsqrtd.RealQuadraticField(d).D
-
-    d = 48
-
-    assert math.isclose(qsqrtd.RealQuadraticField(d).regulator_float, math.log(float(qsqrtd.RealQuadraticField(d).fundamental_unit)))
-    assert math.isclose(qsqrtd.RealQuadraticField(d).regulator_decimal(), math.log(float(qsqrtd.RealQuadraticField(d).fundamental_unit)))
-
-    assert qsqrtd.RealQuadraticField(d).fundamental_unit.norm == 1
-
-    assert float(qsqrtd.RealQuadraticField(d).fundamental_unit) > 1
-
-    d = 43
-    x = 2
-    y = Fraction(2, 7)
-    assert qsqrtd.RealQuadraticNumber(d, x, y) in qsqrtd.RealQuadraticField(d)
-
-    d = 43
-    x = 2
-    y = Fraction(2, 7)
-    assert qsqrtd.RealQuadraticNumber(d, x, y).is_integral and qsqrtd.RealQuadraticNumber(d, x, y).minimal_polynomial().is_integral() or \
-        (not qsqrtd.RealQuadraticNumber(d, x, y).is_integral and not qsqrtd.RealQuadraticNumber(d, x, y).minimal_polynomial().is_integral())
-
-    m = 13
-    d = 4 * m + 1
-    _, d0 = prime_numbers.squarefull_and_squarefree_parts(d)
-    D = d0
-    assert qsqrtd.RealQuadraticField(d).D == D
-
-    d = 4 * m + 2
-    _, d0 = prime_numbers.squarefull_and_squarefree_parts(d)
-    D = 4 * d0
-    assert qsqrtd.RealQuadraticField(d).D == D
-
-    d = 4 * m + 3
-    _, d0 = prime_numbers.squarefull_and_squarefree_parts(d)
-    D = 4 * d0
-    assert qsqrtd.RealQuadraticField(d).D == D
-
-    d = 4 * m + 1
-    assert qsqrtd.RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == True
-
-    d = 4 * m + 2
-    assert qsqrtd.RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == False
-
-    d = 4 * m + 3
-    assert qsqrtd.RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2)).is_integral == False
-
-    bqf = IndefiniteBQF(2, 0, -5)
+    bqf = IndefiniteBQF(2, 0, -5) # primitive indefinite BQF
 
     assert bqf.is_reduced and (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1) or \
         not bqf.is_reduced and not (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1)
 
-    m = 5  # positive integer that is not a perfect square
-    bqf = IndefiniteBQF(1, 0, -m)
+    d = 5  # positive integer that is not a perfect square
+    bqf = IndefiniteBQF(1, 0, -d)
     tau = bqf.real_quadratic_number_associate
     # The BQF is equal to 0 when (x,y) = (τ,1).
-    assert bqf.evaluate(tau, 1) == qsqrtd.RealQuadraticNumber(bqf.D, 0, 0)
+    assert bqf.evaluate(tau, 1) == quadratic_fields.RealQuadraticNumber(bqf.D, 0, 0)
 
     bqf = IndefiniteBQF(3, 11, 2)
     reduced_bqf, exponent_list = bqf.reduced_with_exponent_list()
     word = IndefiniteBQF.exponent_list_to_word(exponent_list)
     product_matrix = gl2z.word_to_matrix(word)
-    assert bqf.SL2Z_action(product_matrix) == reduced_bqf
+    assert bqf.GL2Z_action(product_matrix) == reduced_bqf
 
     m = gl2z.T
     bqf = IndefiniteBQF(1, 17, -14)
-    assert bqf.SL2Z_action(m).D == bqf.D
+    bqf_transformed = bqf.GL2Z_action(m)
+    assert bqf_transformed.D == bqf.D
 
-    d = 20
-    power_check_height = 10
-    fundamental_unit_sqrtd = qsqrtd.RealQuadraticField(d).fundamental_unit
-    assert all(fundamental_unit_sqrtd ** (-k) == (fundamental_unit_sqrtd ** k).conjugate() for k in range(power_check_height))
+    m = gl2z.S
+    bqf = IndefiniteBQF(1, 0, -14)
+    bqf_transformed = bqf.GL2Z_action(m)
+    bqf_transformed_image = bqf_transformed.in_GL2Q()
+    bqf_image = bqf.in_GL2Q()
+    bqf_image_transformed = bqf_image.transpose_action_GL2Z(m)
+    assert bqf_image_transformed  ==  bqf_transformed_image
 
-    # d = 20
-    # power_range = range(-5, 6)
-    # fundamental_unit_sqrtd = qsqrtd.RealQuadraticField(d).fundamental_unit
-    # print(f"Powers of fundamental unit ε={fundamental_unit_sqrtd}")
-    # for k in power_range:
-    #     print(f"ε^{k}:", fundamental_unit_sqrtd ** k, sep="\t")
+    m = gl2z.P
+    bqf = IndefiniteBQF(1, 0, -14)
+    bqf_image = bqf.in_GL2Q()    
+    assert bqf.D == -bqf_image.det
+
+
+
