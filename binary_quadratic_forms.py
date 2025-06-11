@@ -156,6 +156,27 @@ class IndefiniteBQF(abc.Hashable):
         pass
 
 
+def class_number(D: int) -> int:
+    """
+    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+    Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", Theorem 1.6, p. 14:
+
+    "Fix a nonsquare discriminant D.
+
+    "(a) The Dirichlet class number h(D) is finite. In fact, any form of discriminant
+    D is properly equivalent to a form (a, b, c) with |b| ≤ |a| ≤ |c| and therefore
+    has 3|ac| ≤ |D|, and the number of forms of discriminant D satisfying all these
+    inequalities is finite."
+
+    "(b) An odd prime p with GCD(D, p) = 1 is primitively representable by some
+    form (a, b, c) of discriminant D if and only if (D/p) = ± 1. In this case the number
+    of proper equivalence classes of forms primitively representing p is either 1 or 2,
+    and these classes are carried to one another by GL(2, Z). In fact, if (D/p) = ± 1,
+    then b² ≡ D mod 4p for some integer b, and representatives of these classes may
+    be taken to be (p, ±b, (b² - D) / 4p)."
+    """
+
+
 if __name__ == "__main__":
     bqf = IndefiniteBQF(2, 0, -5) # primitive indefinite BQF
 
