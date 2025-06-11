@@ -213,5 +213,16 @@ if __name__ == "__main__":
     bqf_image = bqf.in_GL2Q()    
     assert bqf.D == -bqf_image.det
 
+    bqf = IndefiniteBQF(1, 0, -14)
+    bqf_transformed = bqf.GL2Z_action(gl2z.S)
+    assert bqf_transformed.a == bqf.c and bqf_transformed.b == - bqf.b and bqf_transformed.c == bqf.a
+
+    bqf = IndefiniteBQF(1, 0, -14)
+    n = 5
+    bqf_transformed = bqf.GL2Z_action(gl2z.T ** n)
+    assert bqf_transformed.a == bqf.a and bqf_transformed.b == 2 * bqf.a * n + bqf.b
+
+
+
 
 

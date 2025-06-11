@@ -169,11 +169,18 @@ def periodic_cf_to_integral_quadratic_polynomial(periodic_cf: PeriodicCF) -> tup
 def is_real_reduced_surd(P: int, Q: int, D: int) -> bool:
     """
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
-    Corollary 5.6.7, p. 266.
+    Corollary 5.6.7, p. 266:
     A quadratic surd (P+√D)/Q is called "reduced" when it is greater than 1,
-    and its conjugate (P-√D)/Q is strictly between -1 and 0. Galois' theorem
-    for quadratic surds: a quadratic surd is reduced if and only if its
+    and its conjugate (P-√D)/Q is strictly between -1 and 0.
+    
+    Galois' theorem for quadratic surds: a quadratic surd is reduced if and only if its
     continued fraction is purely periodic.
+
+    Peter M. Neumann, The mathematical writings of Évariste Galois, European Mathematical Society, 2011.
+    II.1 A theorem on continued fractions, pp. 35-47
+    Proof of a theorem on periodic continued fractions
+    "If one of the roots of an equation of arbitrary degree is an immediately periodic continued fraction,
+    the equation will necessarily have another root that is likewise periodic."
     """
     r = (P + math.sqrt(D)) / Q
     r_conjugate = (P - math.sqrt(D)) / Q
