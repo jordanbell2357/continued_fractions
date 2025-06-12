@@ -1,6 +1,8 @@
 from array import array
 from collections import abc
 
+import prime_numbers
+
 
 def make_partition_list_generator(n: int, max_part: int) -> abc.Generator[list[int]]:
     if n == 0:
@@ -36,11 +38,14 @@ def partition_function(n: int) -> int:
 
 
 if __name__ == "__main__":
-    n = 6
+    n = 16
+    assert len(list_partitions(n)) == partition_function(n)
 
+    # Recurrence formula for partition function
+    n = 20
+    assert partition_function(n) == sum(prime_numbers.sum_of_divisors(n - k) * partition_function(k) for k in range(n)) // n
+
+    n = 7
     partition_list_generator = make_partition_list_generator(n, n)
-
     for partition_list in partition_list_generator:
         print(partition_list)
-
-    assert len(list_partitions(n)) == partition_function(n)

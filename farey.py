@@ -11,6 +11,8 @@ import cmath
 import time
 import typing
 
+import prime_numbers
+
 
 def find_ordered_list_index(ordered_list: list[typing.Any], target_item: typing.Any) -> int:
     left_index = bisect.bisect_left(ordered_list, target_item)
@@ -197,6 +199,11 @@ if __name__ == "__main__":
 
     f = Farey(n)
     assert f.mertens_function == mertens_function(n)
+
+    n = 23
+    f = Farey(n)
+    assert f.mertens_function == prime_numbers.mertens(n)
+
 
 
 
