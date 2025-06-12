@@ -94,6 +94,10 @@ class GL2Z(abc.Hashable):
     @property
     def trace(self: typing.Self) -> int:
         return self.alpha + self.delta
+    
+    @classmethod
+    def N(cls, n: int) -> typing.Self:
+        return cls(1, n, 0, 1) # T ** n
 
 
 I = GL2Z(1, 0, 0, 1)

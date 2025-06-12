@@ -19,7 +19,7 @@ class IndefiniteBQF(abc.Hashable):
     Section 5.6, p. 263, for (a, b, c) being reduced if and only if 0 < (-b + √D) / (2|a|) < 1 and (b + √D) / (2|a|) > 1.
     Definition 5.6.4, p. 263 for reduction operator and helper function r.
     Algorithm 5.6.5, p. 263 for reduction algorithm for indefinite quadratic forms.
-
+    
     Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
     Chapter I, Sections 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
     Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
@@ -67,8 +67,9 @@ class IndefiniteBQF(abc.Hashable):
     def GL2Z_action(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self:
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", p. 12.
-
+        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
+        
+        p. 12:
         axx + bxy + cyy
         == a(alpha x + beta y)(alpha x + beta y) + b(alpha x + beta y)(gamma x + delta y) + c(gamma x + delta y)(gamma x + delta y)
         == (a*alpha**2 + b*alpha*gamma + c*gamma**2) xx
@@ -93,7 +94,9 @@ class IndefiniteBQF(abc.Hashable):
         Definition 5.6.2, p. 262: an indefinite binary quadratic form (a,b,c) is reduced when |√D - 2|a|| < b < √D.
 
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", p. 21:
+        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
+
+        p. 21:
         "Let us call a primitive form (a, b, c) of discriminant D > 0 reduced when it satisfies the conditions
         0 < b < √D and √D − b < 2|a| < √D + b."
         """
@@ -107,8 +110,9 @@ class IndefiniteBQF(abc.Hashable):
         Definition 5.6.4 and Algorithm 5.6.5, p. 263.
 
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", p. 22:
+        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
 
+        p. 22:
         Theorem 1.8. Fix a positive nonsquare discriminant D.
         (a) Each form of discriminant D is properly equivalent to some reduced form
         of discriminant D.
@@ -157,13 +161,14 @@ class IndefiniteBQF(abc.Hashable):
     def equivalent_bqf_with_word(self: typing.Self) -> tuple[typing.Self, str]:
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", Theorem 1.6, p. 14:
-
-        "Fix a nonsquare discriminant D.
-        "(a) The Dirichlet class number h(D) is finite. In fact, any form of discriminant
+        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
+        
+        p. 14:
+        Theorem 1.6. Fix a nonsquare discriminant D.
+        (a) The Dirichlet class number h(D) is finite. In fact, any form of discriminant
         D is properly equivalent to a form (a, b, c) with |b| ≤ |a| ≤ |c| and therefore
         has 3|ac| ≤ |D|, and the number of forms of discriminant D satisfying all these
-        inequalities is finite."
+        inequalities is finite.
         """
         word = ""
         bqf = self
@@ -214,19 +219,37 @@ class IndefiniteBQF(abc.Hashable):
             if d % 4 in [2, 3]:
                 return True
         return False
+    
+    @classmethod
+    def principal_bqf_for_fundamental_discriminant(cls, D: int) -> typing.Self:
+        if not cls.is_fundamental_discriminant(D):
+            raise ValueError(f"{D=} must be a fundamental discriminant.")
+        if D % 4 == 1:
+            a = 1
+            b = 1
+            c = (1 - D) // 4
+            return cls(a, b, c)
+        else: # D % 4 == 0 since D is a fundamental discriminant
+            d = D // 4
+            a = 1
+            b = 0
+            c = -d
+            return cls(a, b, c)
 
     @classmethod
     def primitively_represent_odd_prime(cls, D: int, p: int) -> list[typing.Self]:
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", Theorem 1.6, p. 14:
-        "Fix a nonsquare discriminant D.
-        "(b) An odd prime p with GCD(D, p) = 1 is primitively representable by some
+        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
+        
+        p. 14:
+        Theorem 1.6. Fix a nonsquare discriminant D.
+        (b) An odd prime p with GCD(D, p) = 1 is primitively representable by some
         form (a, b, c) of discriminant D if and only if (D/p) = ± 1. In this case the number
         of proper equivalence classes of forms primitively representing p is either 1 or 2,
         and these classes are carried to one another by GL(2, Z). In fact, if (D/p) = ± 1,
         then b² ≡ D mod 4p for some integer b, and representatives of these classes may
-        be taken to be (p, ±b, (b² - D) / 4p)."
+        be taken to be (p, ±b, (b² - D) / 4p).
         """
         if not cls.is_fundamental_discriminant(D):
             return f"{D=} must be a fundamental discriminant."
@@ -241,25 +264,7 @@ class IndefiniteBQF(abc.Hashable):
             return [bqf1]
         return [bqf1, bqf2]
 
-    """
-    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-    Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", p. 21:
-
-    Two forms (a, b, c) and (a0, b0, c0) of discriminant D > 0 will be said to be
-    neighbors if c = a0 and b + b0 ≡ 0 mod 2c. More precisely we say in this
-    case that (a0, b0, c0) is a neighbor on the right of (a, b, c) and that (a, b, c) is
-    a neighbor on the left of (a0, b0, c0).
-
-    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-    Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", p. 22:
-
-    Theorem 1.8. Fix a positive nonsquare discriminant D.
-    (b) Each reduced form of discriminant D is a neighbor on the left of one and
-    only one reduced form of discriminant D and is a neighbor on the right of one
-    and only one reduced form of discriminant D.
-    """
-
-    def left_neighbor(self: typing.Self) -> typing.Self:
+    def reduced_left_neighbor(self: typing.Self) -> typing.Self:
         if not self.is_reduced:
             raise ValueError(f"{self=!r} must be reduced.")
         D = self.D
@@ -275,7 +280,29 @@ class IndefiniteBQF(abc.Hashable):
         return type(self)(a, b, c)
 
 
-    def right_neighbor(self: typing.Self) -> typing.Self:
+    def reduced_right_neighbor(self: typing.Self) -> typing.Self:
+        """
+        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms",
+        
+        p. 21:
+        Two forms (a, b, c) and (a', b', c') of discriminant D > 0 will be said to be
+        neighbors if c = a' and b + b' ≡ 0 mod 2c. More precisely we say in this
+        case that (a', b', c') is a neighbor on the right of (a, b, c) and that (a, b, c) is
+        a neighbor on the left of (a', b', c').
+
+        p. 22:
+        Theorem 1.8. Fix a positive nonsquare discriminant D.
+        (b) Each reduced form of discriminant D is a neighbor on the left of one and
+        only one reduced form of discriminant D and is a neighbor on the right of one
+        and only one reduced form of discriminant D.
+        (c) The reduced forms of discriminant D occur in uniquely determined cycles,
+        each one of even length, such that each member of a cycle is an iterated neighbor
+        on the right to all members of the cycle and consequently is properly equivalent
+        to all other members of the cycle.
+        (d) Two reduced forms of discriminant D are properly equivalent if and only
+        if they lie in the same cycle in the sense of (c).
+        """
         if not self.is_reduced:
             raise ValueError(f"{self=!r} must be reduced.")
         D = self.D
@@ -292,8 +319,118 @@ class IndefiniteBQF(abc.Hashable):
         return type(self)(a, b, c)
 
 
-    def compose(self: typing.Self, other: typing.Self) -> typing.Self:
-        pass
+    @classmethod
+    def count_reduced_bqf_fundamental_discriminant(cls, D: int) -> int:
+        if not cls.is_fundamental_discriminant(D):
+            raise ValueError(f"{D=} must be a fundamental discriminant.")
+        reduced_bqf_count = 0
+        bqf = cls.principal_bqf_for_fundamental_discriminant(D)
+        reduced_bqf, _ = bqf.reduced_with_exponent_list()
+        reduced_bqf_count += 1
+        right_neighbor = reduced_bqf.reduced_right_neighbor()
+        while right_neighbor != reduced_bqf:
+            right_neighbor = right_neighbor.reduced_right_neighbor()
+            reduced_bqf_count += 1
+        return reduced_bqf_count
+
+    @classmethod
+    def are_aligned(cls, bqf1: typing.Self, bqf2: typing.Self) -> bool:
+        """
+        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+        Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
+
+        p. 25:
+        Let us say that two primitive forms (a1, b1, c1) and (a2, b2, c2) of the same
+        nonsquare discriminant are aligned if b1 = b2 and if j = c1/a2 = c2/a1 is an
+        integer.
+        """
+        if bqf1.D == bqf2.D and bqf1.b == bqf2.b and bqf1.c % bqf2.a == 0:
+            return True
+        return False
+
+    @classmethod
+    def compose(cls, bqf1: typing.Self, bqf2: typing.Self) -> typing.Self:
+        """
+        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+        Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
+
+        p. 25, Proposition 1.9.
+
+        pp. 25-26:
+        The idea is that each pair of classes of properly equivalent primitive forms
+        of discriminant D has a pair of aligned representatives, and a multiplication of
+        proper equivalence classes is well defined if the product is defined as the class of
+        the composition of these aligned representatives in the sense of Proposition 1.9.
+        This multiplication for proper equivalence classes will make the set of classes
+        into a finite abelian group. This group will be defined as the “form class group”
+        for the discriminant D, except that we use only the positive definite classes in the
+        case that D < 0. Before phrasing these statements as a theorem, we make some
+        remarks and then state and prove two lemmas.
+        """
+        if not cls.are_aligned(bqf1, bqf2):
+            raise ValueError(f"{bqf1=} and {bqf2=} must be aligned.")
+        j = bqf1.c // bqf2.a
+        return cls(bqf1.a * bqf2.a, bqf1.b, j)
+
+
+    def translate(self, n: int) -> typing.Self:
+        bqf = self.GL2Z_action(gl2z.GL2Z.N(n))
+        return bqf
+
+
+    def primitively_represent(self, m: int) -> int:
+        """
+        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+        Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
+
+        p. 26:
+        Lemma 1.10. If (a, b, c) is a primitive form of nonsquare discriminant and if
+        m ≠ 0 is an integer, then (a, b, c) primitively represents some integer relatively
+        prime to m.
+        """
+        if m == 0:
+            raise ValueError(f"{m=} must be nonzero integer.")
+        a, _, c = self
+        x0 = math.prod(p for p in prime_numbers.make_prime_factor_list(math.gcd(a, m)) if c % p != 0)
+        y0 = math.prod(p for p in prime_numbers.make_prime_factor_list(m) if a % p != 0)
+        return self.evaluate(x0, y0)
+
+
+class ProperEquivalenceClass:
+    """
+    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+    Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
+    
+    pp. 27-28:
+    Theorem 1.12. Let D be a nonsquare discriminant, and let C1 and C2 be proper
+    equivalence classes of primitive forms of discriminant D.
+    (a) There exist aligned forms (a1, b, c1) ∈ C1 and (a2, b, c2) ∈ C2, and these
+    may be chosen in such a way that a1 and a2 are relatively prime to each other and
+    to any integer m ≠ 0 given in advance.
+    (b) If the product of C1 and C2 is defined to be the proper equivalence class
+    of the composition of any aligned representatives of C1 and C2, as for example
+    the ones in (a), then the resulting product operation is well defined on proper
+    equivalence classes of primitive forms of discriminant D.
+    (c) Under the product operation in (b), the set of proper equivalence classes
+    of primitive forms of discriminant D is a finite abelian group. The identity is the
+    class of (1, 0, −D/4) if D ≡ 0 mod 4 and is the class of (1, 1, −(D − 1)/4) if
+    D ≡ 1 mod 4. The group inverse of the class of (a, b, c) is the class of (a, −b, c).
+    """
+
+    def __init__(self, bqf: IndefiniteBQF) -> None:
+        self.bqf = bqf
+
+    @property
+    def D(self) -> int:
+        return self.bqf.D
+
+    @classmethod
+    def align_representatives(cls, m: int, C1: typing.Self, C2: typing.Self):
+        bqf1, bqf2 = C1.bqf, C2.bqf
+        a1 = bqf1.primitively_represent(m)
+        a2 = bqf2.primitively_represent(a1 * m)
+
+
 
 
 if __name__ == "__main__":
@@ -351,10 +488,13 @@ if __name__ == "__main__":
     
     bqf = IndefiniteBQF(3, 11, 2)
     reduced_bqf, _ = bqf.reduced_with_exponent_list()
-    right_neighbor = reduced_bqf.right_neighbor()
+    right_neighbor = reduced_bqf.reduced_right_neighbor()
     m = gl2z.GL2Z(0, -1, 1, (reduced_bqf.b + right_neighbor.b) // (2 * reduced_bqf.c))
     reduced_bqf_transformed = reduced_bqf.GL2Z_action(m)
     assert reduced_bqf_transformed == right_neighbor
+
+    D = 97
+    assert IndefiniteBQF.count_reduced_bqf_fundamental_discriminant(D) % 2 == 0
     
-    print(IndefiniteBQF.primitively_represent_odd_prime(13, 3))
+    # print(IndefiniteBQF.primitively_represent_odd_prime(13, 3))
 
