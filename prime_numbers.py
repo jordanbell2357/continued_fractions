@@ -216,6 +216,11 @@ def squarefull_and_squarefree_parts(d: int) -> tuple[int, int]:
         return squarefull_part_d, squarefree_part_d
 
 
+def is_squarefree(d: int) -> bool:
+    _, squarefree_part_d = squarefull_and_squarefree_parts(d)
+    return squarefree_part_d == d
+
+
 def legendre_symbol(a: int, p: int) -> int:
     if not isprime(p):
         raise ValueError(f"p must be prime: {p=}")
@@ -248,6 +253,13 @@ def kronecker_symbol(a: int, n: int) -> int:
     prime_factor_counter_n  = make_prime_factor_counter(n)
     legendre_symbol_product_n = math.prod(legendre_symbol(a, p) ** v for p, v in prime_factor_counter_n.items())
     return kronecker_symbol(a, u) * legendre_symbol_product_n
+
+
+def solve_quadratic_congruence(a: int, n: int) -> int:
+    for b in range(n):
+        if (b ** 2 - a) % n == 0:
+            return b
+    return None
 
 
 

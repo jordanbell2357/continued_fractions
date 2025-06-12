@@ -13,6 +13,13 @@ def modular_inverse(n: int, x: int) -> int:
         return bezout_coefficient % n
 
 
+def solve_linear_congruence(a: int, b: int, m: int) -> int:
+    """
+    Hardy and Wright, fifth edition.
+    Theorem 57, Chapter V, p. 62.
+    """
+    return [x for x in range(m) if (a * x - b) % m == 0]
+
 
 def crt_two_moduli(congruence_tuple_1: tuple[int, int], congruence_tuple_2: tuple[int, int]) -> int:
     # assumes moduli m1 and m2 are relatively prime, no assumptions on a1 and a2
