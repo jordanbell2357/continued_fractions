@@ -4,6 +4,7 @@ from numbers import Rational
 from collections import abc
 import typing
 
+import cflib
 import gl2z
 import quadratic_fields
 import prime_numbers
@@ -198,11 +199,23 @@ class IndefiniteBQF(abc.Hashable):
     def evaluate(self: typing.Self, x: Rational | quadratic_fields.RealQuadraticNumber, y: Rational | quadratic_fields.RealQuadraticNumber) -> int:
         return self.a * x ** 2 + self.b * x * y + self.c * y **2
     
+    def equivalent_bqf_to_evaluate(self, x0: int, y0: int) -> typing.Self:
+        if math.gcd(x0, y0) != 1:
+            raise ValueError(f"{x0=}, {y0=} must be relatively prime.")
+        eea = cflib.EEA(x0, y0)
+        a = x0
+        b = -eea.bezout_y
+        c = y0
+        d = eea.bezout_x
+        m = gl2z.GL2Z(a, b, c, d)
+        bqf = self.GL2Z_action(m)
+        return bqf
+    
     @staticmethod
     def exponent_list_to_word(exponent_list: list[int]) -> list[str]:
         word_list = []
         for m in exponent_list:
-            # gl2z.gl2z.S and gl2z.gl2z.T
+            # gl2z.GL2Z.S and gl2z.GL2Z.T
             word = "S" + "T" * m
             word_list.append(word)
         return "".join(word_list)
@@ -344,9 +357,7 @@ class IndefiniteBQF(abc.Hashable):
         nonsquare discriminant are aligned if b1 = b2 and if j = c1/a2 = c2/a1 is an
         integer.
         """
-        if bqf1.D == bqf2.D and bqf1.b == bqf2.b and bqf1.c % bqf2.a == 0:
-            return True
-        return False
+        return bqf1.D == bqf2.D and bqf1.b == bqf2.b and bqf1.c % bqf2.a == 0 and bqf2.c % bqf1.a == 0
 
     @classmethod
     def compose(cls, bqf1: typing.Self, bqf2: typing.Self) -> typing.Self:
@@ -378,7 +389,7 @@ class IndefiniteBQF(abc.Hashable):
         return bqf
 
 
-    def primitively_represent(self, m: int) -> int:
+    def primitively_represent(self, m: int) -> tuple[int, int, int]:
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
         Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
@@ -393,7 +404,8 @@ class IndefiniteBQF(abc.Hashable):
         a, _, c = self
         x0 = math.prod(p for p in prime_numbers.make_prime_factor_list(math.gcd(a, m)) if c % p != 0)
         y0 = math.prod(p for p in prime_numbers.make_prime_factor_list(m) if a % p != 0)
-        return self.evaluate(x0, y0)
+        l = self.evaluate(x0, y0)
+        return l, x0, y0
 
 
 class ProperEquivalenceClass:
@@ -418,19 +430,51 @@ class ProperEquivalenceClass:
     """
 
     def __init__(self, bqf: IndefiniteBQF) -> None:
-        self.bqf = bqf
+        reduced_bqf, _ = bqf.reduced_with_exponent_list()
+        self.bqf = reduced_bqf
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.bqf})"
+
+    def __eq__(self, other: typing.Self) -> typing.Self:
+        return self.bqf == other.bqf
 
     @property
     def D(self) -> int:
         return self.bqf.D
 
     @classmethod
-    def align_representatives(cls, m: int, C1: typing.Self, C2: typing.Self):
-        bqf1, bqf2 = C1.bqf, C2.bqf
-        a1 = bqf1.primitively_represent(m)
-        a2 = bqf2.primitively_represent(a1 * m)
+    def align_representatives(cls, m: int, C1: typing.Self, C2: typing.Self) -> tuple[IndefiniteBQF, IndefiniteBQF]:
+        ...
 
+    def __mul__(self: typing.Self, other: typing.Self) -> typing.Self:
+        if self.D != other.D:
+            raise ValueError(f"{self} and {other} must be associated with the same discriminant.")
+        bqf1, bqf2 = self.bqf, other.bqf
+        bqf1, bqf2 = type(self).align_representatives(bqf1.a * bqf2.a, self, other)
+        bqf_composed = IndefiniteBQF.compose(bqf1, bqf2)
+        bqf_composed_reduced, _ = bqf_composed.reduced_with_exponent_list()
+        return type(self)(bqf_composed_reduced)
+    
+    @classmethod
+    def identity_class(cls, D: int) -> typing.Self:
+        if not IndefiniteBQF.is_fundamental_discriminant(D):
+            raise ValueError(f"{D=} must be a fundamental discriminant.")
+        if D % 4 == 0:
+            bqf = IndefiniteBQF(1, 0, -D // 4)
+            return cls(bqf)
+        elif D % 4 == 1:
+            bqf = IndefiniteBQF(1, 1, -(D - 1) // 4)
+            return cls(bqf)
+        
+    def inverse(self) -> typing.Self:
+        bqf = IndefiniteBQF(self.a, -self.b, self.c)
+        return type(self)(bqf)
 
+    def __truediv__(self, other: typing.Self) -> typing.Self:
+        if self.D != other.D:
+            raise ValueError(f"{self} and {other} must be associated with the same discriminant.")
+        return self * other.inverse()
 
 
 if __name__ == "__main__":
@@ -495,6 +539,23 @@ if __name__ == "__main__":
 
     D = 97
     assert IndefiniteBQF.count_reduced_bqf_fundamental_discriminant(D) % 2 == 0
-    
-    # print(IndefiniteBQF.primitively_represent_odd_prime(13, 3))
+
+    bqf = IndefiniteBQF(2,8,-5)
+    bqf_reduced, _ = bqf.reduced_with_exponent_list()
+    assert bqf_reduced.is_reduced
+
+    m = 87
+    bqf = IndefiniteBQF(2,8,-5)
+    bqf_reduced, _ = bqf.reduced_with_exponent_list()
+    _, x0, y0 = bqf_reduced.primitively_represent(m)
+    assert math.gcd(x0, y0) == 1
+
+    m = 87
+    bqf = IndefiniteBQF(2, 8, -5)
+    bqf_reduced, _ = bqf.reduced_with_exponent_list()
+    _, x0, y0 = bqf_reduced.primitively_represent(m)
+    bqf_equivalent = bqf_reduced.equivalent_bqf_to_evaluate(x0, y0)
+    assert bqf_equivalent.evaluate(1, 0) == bqf_equivalent.a
+    assert bqf_equivalent.evaluate(1, 0) == bqf_reduced.evaluate(x0, y0)
+
 
