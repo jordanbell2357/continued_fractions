@@ -140,6 +140,7 @@ class IndefiniteBQF(abc.Hashable):
         c1 = (r0 * r0 - D) // (4 * c)
         return type(self)(a1, b1, c1), m
 
+
     def reduced_with_exponent_list(self: typing.Self) -> tuple[typing.Self, list[int]]:
         bqf = self
         exponent_list = []
@@ -148,16 +149,20 @@ class IndefiniteBQF(abc.Hashable):
             exponent_list.append(mi)
         return bqf, exponent_list
     
+    def reduced(self: typing.Self) -> typing.Self:
+        bqf_reduced, _ = self.reduced_with_exponent_list()
+        return bqf_reduced
+    
 
-    def is_equivalent(self: typing.Self, other: typing.Self) -> bool:
+    @staticmethod
+    def are_equivalent(bqf1: typing.Self, bqf2: typing.Self) -> bool:
         """
         Proper (SL2Z) equivalence.
         """
-        bqf1, _ = self.reduced_with_exponent_list()
-        bqf2, _ = other.reduced_with_exponent_list()
-        return bqf1 == bqf2
+        bqf1_reduced, _ = bqf1.reduced_with_exponent_list()
+        bqf2_reduced, _ = bqf2.reduced_with_exponent_list()
+        return bqf1_reduced == bqf2_reduced
 
-    
 
     def equivalent_bqf_with_word(self: typing.Self) -> tuple[typing.Self, str]:
         """
@@ -265,15 +270,15 @@ class IndefiniteBQF(abc.Hashable):
         be taken to be (p, ±b, (b² - D) / 4p).
         """
         if not cls.is_fundamental_discriminant(D):
-            return f"{D=} must be a fundamental discriminant."
+            raise ValueError(f"{D=} must be a fundamental discriminant.")
         if p == 2 or not prime_numbers.isprime(p):
-            return f"{p=} must be an odd prime."
+            raise ValueError(f"{p=} must be an odd prime.")
         if prime_numbers.kronecker_symbol(D, 4 * p) != 1:
             return None
         b = prime_numbers.solve_quadratic_congruence(D, 4 * p)
         bqf1 = cls(p, b, (b ** 2 - D) // (4 * p))
         bqf2 = cls(p, -b, (b ** 2 - D) // (4 * p))
-        if bqf1.is_equivalent(bqf2):
+        if IndefiniteBQF.are_equivalent(bqf1, bqf2):
             return [bqf1]
         return [bqf1, bqf2]
 
@@ -346,49 +351,6 @@ class IndefiniteBQF(abc.Hashable):
             reduced_bqf_count += 1
         return reduced_bqf_count
 
-    @classmethod
-    def are_aligned(cls, bqf1: typing.Self, bqf2: typing.Self) -> bool:
-        """
-        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-        Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
-
-        p. 25:
-        Let us say that two primitive forms (a1, b1, c1) and (a2, b2, c2) of the same
-        nonsquare discriminant are aligned if b1 = b2 and if j = c1/a2 = c2/a1 is an
-        integer.
-        """
-        return bqf1.D == bqf2.D and bqf1.b == bqf2.b and bqf1.c % bqf2.a == 0 and bqf2.c % bqf1.a == 0
-
-    @classmethod
-    def compose(cls, bqf1: typing.Self, bqf2: typing.Self) -> typing.Self:
-        """
-        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-        Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
-
-        p. 25, Proposition 1.9.
-
-        pp. 25-26:
-        The idea is that each pair of classes of properly equivalent primitive forms
-        of discriminant D has a pair of aligned representatives, and a multiplication of
-        proper equivalence classes is well defined if the product is defined as the class of
-        the composition of these aligned representatives in the sense of Proposition 1.9.
-        This multiplication for proper equivalence classes will make the set of classes
-        into a finite abelian group. This group will be defined as the “form class group”
-        for the discriminant D, except that we use only the positive definite classes in the
-        case that D < 0. Before phrasing these statements as a theorem, we make some
-        remarks and then state and prove two lemmas.
-        """
-        if not cls.are_aligned(bqf1, bqf2):
-            raise ValueError(f"{bqf1=} and {bqf2=} must be aligned.")
-        j = bqf1.c // bqf2.a
-        return cls(bqf1.a * bqf2.a, bqf1.b, j)
-
-
-    def translate(self, n: int) -> typing.Self:
-        bqf = self.GL2Z_action(gl2z.GL2Z.N(n))
-        return bqf
-
-
     def primitively_represent(self, m: int) -> tuple[int, int, int]:
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
@@ -406,29 +368,78 @@ class IndefiniteBQF(abc.Hashable):
         y0 = math.prod(p for p in prime_numbers.make_prime_factor_list(m) if a % p != 0)
         l = self.evaluate(x0, y0)
         return l, x0, y0
-
-
-class ProperEquivalenceClass:
-    """
-    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-    Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
     
-    pp. 27-28:
-    Theorem 1.12. Let D be a nonsquare discriminant, and let C1 and C2 be proper
-    equivalence classes of primitive forms of discriminant D.
-    (a) There exist aligned forms (a1, b, c1) ∈ C1 and (a2, b, c2) ∈ C2, and these
-    may be chosen in such a way that a1 and a2 are relatively prime to each other and
-    to any integer m ≠ 0 given in advance.
-    (b) If the product of C1 and C2 is defined to be the proper equivalence class
-    of the composition of any aligned representatives of C1 and C2, as for example
-    the ones in (a), then the resulting product operation is well defined on proper
-    equivalence classes of primitive forms of discriminant D.
-    (c) Under the product operation in (b), the set of proper equivalence classes
-    of primitive forms of discriminant D is a finite abelian group. The identity is the
-    class of (1, 0, −D/4) if D ≡ 0 mod 4 and is the class of (1, 1, −(D − 1)/4) if
-    D ≡ 1 mod 4. The group inverse of the class of (a, b, c) is the class of (a, −b, c).
-    """
 
+    @classmethod
+    def compose(cls, f1: typing.Self, f2: typing.Self) -> typing.Self:
+        """
+        Return the *reduced* composition of two **reduced** primitive
+        indefinite forms with the *same* positive, non-square discriminant.
+
+        The implementation follows Cohen, *A Course in Computational
+        Algebraic Number Theory* (Alg. 5.6.8) and keeps all coefficients
+        ≤ √D during the whole computation.
+
+        Parameters
+        ----------
+        f1, f2 : IndefiniteBQF
+            Reduced primitive forms with identical discriminant D.
+
+        Returns
+        -------
+        IndefiniteBQF
+            The reduced form representing the product of the two classes.
+
+        Raises
+        ------
+        ValueError
+            If the discriminants differ or either form is not reduced.
+        """
+        if f1.D != f2.D:
+            raise ValueError("Discriminants must match.")
+        if not (f1.is_reduced and f2.is_reduced):
+            raise ValueError("Both inputs must be reduced forms.")
+
+        a1, b1, c1 = f1
+        a2, b2, c2 = f2
+        D          = f1.D                         # common discriminant
+
+        # Step 1. g = gcd(a₁, a₂, (b₁+b₂)/2)
+        r  = (b1 + b2) // 2                       # always an integer
+        g  = math.gcd(a1, math.gcd(a2, r))
+
+        # Step 2. Scale down the inputs by g
+        a1_, a2_, r_ = a1 // g, a2 // g, r // g   # pairwise coprime
+
+        # Step 3. Solve  a1_·s + a2_·t = r_  via Bézout
+        eea = cflib.EEA(a1_, a2_)                 # a1_·x + a2_·y = 1
+        s0, t0 = eea.bezout_x, eea.bezout_y
+
+        s  = (s0 * r_) % a2_                      # 0 ≤ s < a2_
+        t  = (r_ - s * a1_) // a2_                # ensures equality
+
+        # Step 4. Compose
+        a3 = a1_ * a2_ + s * t * g
+        b3 = b1 + 2 * a1 * s
+        # Keep b₃ within (−a₃, a₃] to ease the final reduction
+        b3 = (b3 + a3) % (2 * a3) - a3
+
+        c3 = (b3 * b3 - D) // (4 * a3)
+
+        composed = cls(a3, b3, c3)
+
+        # Step 5.  Final reduction (≤ 2 iterations in practice)
+        reduced = composed.reduced()
+
+        # Step 6.  Canonical choice: ensure a > 0
+        if reduced.a < 0:
+            reduced = reduced.reduced_right_neighbor()
+
+        return reduced
+
+
+
+class ProperEquivalenceClass(abc.Container):
     def __init__(self, bqf: IndefiniteBQF) -> None:
         reduced_bqf, _ = bqf.reduced_with_exponent_list()
         self.bqf = reduced_bqf
@@ -438,24 +449,17 @@ class ProperEquivalenceClass:
 
     def __eq__(self, other: typing.Self) -> typing.Self:
         return self.bqf == other.bqf
+    
+    def __hash__(self) -> int:
+        return hash(self.bqf)
+    
+    def __contains__(self, item: IndefiniteBQF) -> bool:
+        return IndefiniteBQF.are_equivalent(self.bqf, item)
 
     @property
     def D(self) -> int:
         return self.bqf.D
 
-    @classmethod
-    def align_representatives(cls, m: int, C1: typing.Self, C2: typing.Self) -> tuple[IndefiniteBQF, IndefiniteBQF]:
-        ...
-
-    def __mul__(self: typing.Self, other: typing.Self) -> typing.Self:
-        if self.D != other.D:
-            raise ValueError(f"{self} and {other} must be associated with the same discriminant.")
-        bqf1, bqf2 = self.bqf, other.bqf
-        bqf1, bqf2 = type(self).align_representatives(bqf1.a * bqf2.a, self, other)
-        bqf_composed = IndefiniteBQF.compose(bqf1, bqf2)
-        bqf_composed_reduced, _ = bqf_composed.reduced_with_exponent_list()
-        return type(self)(bqf_composed_reduced)
-    
     @classmethod
     def identity_class(cls, D: int) -> typing.Self:
         if not IndefiniteBQF.is_fundamental_discriminant(D):
@@ -468,13 +472,87 @@ class ProperEquivalenceClass:
             return cls(bqf)
         
     def inverse(self) -> typing.Self:
-        bqf = IndefiniteBQF(self.a, -self.b, self.c)
-        return type(self)(bqf)
+        bqf_inverse = IndefiniteBQF(self.bqf.a, -self.bqf.b, self.bqf.c)
+        return type(self)(bqf_inverse)
+    
+    def __mul__(self, other: typing.Self) -> typing.Self:
+        bqf_composed = IndefiniteBQF.compose(self.bqf, other.bqf)
+        return type(self)(bqf_composed)
 
     def __truediv__(self, other: typing.Self) -> typing.Self:
         if self.D != other.D:
             raise ValueError(f"{self} and {other} must be associated with the same discriminant.")
         return self * other.inverse()
+    
+
+def classnumber_h(D: int) -> int:
+    """
+    Number of proper equivalence classes of primitive *indefinite*
+    binary quadratic forms of fundamental discriminant ``D > 0``.
+
+    The routine enumerates **all Knapp-reduced** forms
+
+        (a, b, c)   with
+            0 < b < √D                  and
+            √D − b < 2|a| < √D + b      and
+            4ac = b² − D ,  gcd(a,b,c)=1 ,
+
+    then partitions them into cycles under the right-neighbour map,
+    each cycle corresponding to one proper class.
+
+    Parameters
+    ----------
+    D : int
+        Positive, non-square, *fundamental* discriminant.
+
+    Returns
+    -------
+    int
+        Dirichlet class number h(D) (proper classes).
+
+    Raises
+    ------
+    ValueError
+        If D is not a positive fundamental discriminant.
+    """
+    if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
+        raise ValueError(f"{D} must be a positive fundamental discriminant.")
+
+    sqrtD  = math.isqrt(D)                    # ⌊√D⌋  (integer)
+    forms  : list[IndefiniteBQF] = []
+
+    # ➊  Enumerate every Knapp-reduced primitive form exactly once
+    for b in range(1, sqrtD + 1):             # 0 < b < √D  ⇒  b ≤ ⌊√D⌋
+        lower = sqrtD - b                     # left inequality bound
+        upper = sqrtD + b                     # right inequality bound
+        # a must be positive;  2a > lower  and  2a < upper
+        a_min = lower // 2 + 1
+        a_max = (upper - 1) // 2              # strict inequality
+        for a in range(a_min, a_max + 1):
+            n = b * b - D
+            den = 4 * a
+            if n % den:                       # 4a ∤ b² − D  ⇒  not a form
+                continue
+            c = n // den
+            if math.gcd(a, b, c) != 1:        # primitive only
+                continue
+            forms.append(IndefiniteBQF(a, b, c))
+
+    # ➋  Group reduced forms into neighbour-cycles
+    visited: set[IndefiniteBQF] = set()
+    cycles = 0
+    for f in forms:
+        if f in visited:
+            continue
+        cycles += 1
+        g = f
+        while True:
+            visited.add(g)
+            g = g.reduced_right_neighbor()
+            if g == f:
+                break
+
+    return cycles
 
 
 if __name__ == "__main__":
@@ -540,9 +618,13 @@ if __name__ == "__main__":
     D = 97
     assert IndefiniteBQF.count_reduced_bqf_fundamental_discriminant(D) % 2 == 0
 
-    bqf = IndefiniteBQF(2,8,-5)
+    bqf = IndefiniteBQF(2, 8, -5)
     bqf_reduced, _ = bqf.reduced_with_exponent_list()
     assert bqf_reduced.is_reduced
+
+    bqf = IndefiniteBQF(1, 0, -26)
+    bqf_reduced, _ = bqf.reduced_with_exponent_list()
+    assert IndefiniteBQF.are_equivalent(bqf, bqf_reduced)
 
     m = 87
     bqf = IndefiniteBQF(2,8,-5)
@@ -558,4 +640,17 @@ if __name__ == "__main__":
     assert bqf_equivalent.evaluate(1, 0) == bqf_equivalent.a
     assert bqf_equivalent.evaluate(1, 0) == bqf_reduced.evaluate(x0, y0)
 
+    bqf = IndefiniteBQF(2, 8, -5)
+    C = ProperEquivalenceClass(bqf)
+    assert bqf in C
 
+    bqf1 = IndefiniteBQF(1, 3, -2)   # D = 17, reduced
+    bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
+    bqf_composed = IndefiniteBQF.compose(bqf1, bqf2)
+    C1 = ProperEquivalenceClass(bqf1)
+    C2 = ProperEquivalenceClass(bqf2)
+    assert C1 * C2 == ProperEquivalenceClass(bqf_composed)
+
+    # for D in range(100):
+    #     if IndefiniteBQF.is_fundamental_discriminant(D):
+    #         print(f"h({D})", "=", classnumber_h(D), sep="\t")
