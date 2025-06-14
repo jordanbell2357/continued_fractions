@@ -25,6 +25,7 @@ class IndefiniteBQF(abc.Hashable):
     Chapter I, Sections 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
     Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
     Chapter I, Section 5, "Genera", pp. 31-34.
+    Chapter I, Section 6, "Quadratic Number Fields and Their Units", pp. 35-38.
     Chapter I, Section 7, "Relationship of Quadratic Forms to Ideals", pp. 38-50.
     """
 
@@ -234,7 +235,7 @@ class IndefiniteBQF(abc.Hashable):
             return True
         elif D % 4 == 0:
             d = D // 4
-            if d % 4 in [2, 3]:
+            if d % 4 in [2, 3] and prime_numbers.is_squarefree(d):
                 return True
         return False
     
