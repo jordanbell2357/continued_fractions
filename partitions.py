@@ -4,6 +4,13 @@ from collections import abc
 import prime_numbers
 
 
+"""
+Donald E. Knuth, The Art of Computer Programming, Volume 4A: Combinatorial Algorithms, Part 1,
+Addison-Wesley, 2011.
+Algorithm P (Partitions of n in reverse lexicographic order), Section 7.2.1.4, p. 392.
+"""
+
+
 def make_partition_list_generator(n: int, max_part: int) -> abc.Generator[list[int]]:
     if n == 0:
         yield []

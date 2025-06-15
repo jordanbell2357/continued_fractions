@@ -64,7 +64,13 @@ def integral_quadratic_polynomial_to_periodic_cf(
     Implements construction in Theorem 177 of Hardy and Wright, Chapter X, pp. 185-187, sixth edition:
     "The continued fraction which represents a quadratic surd is periodic."
 
-    Chakravala method used by Bhāskara II. Proved by Lagrange that the method terminates.
+    Chakravala method used by Bhāskara II. Theorem of Lagrange.
+
+    Manfred Einsiedler and Thomas Ward, Ergodic Theory with a view towards Number Theory,
+    Graduate Texts in Mathematics, Volume 259, Springer, 2011.
+    Theorem 3.13 (Lagrange). Let u be an irrational positive real number.
+    Then the continued fraction expansion of u is eventually periodic if and only
+    if u is a quadratic irrational.
     """
     if a == 0:
         raise ValueError("Not a quadratic polynomial: a must be non-zero")
