@@ -222,6 +222,10 @@ def is_squarefree(d: int) -> bool:
 
 
 def legendre_symbol(a: int, p: int) -> int:
+    """
+    We extend the usual Legendre symbol to include p=2,
+    following the extension by the Kronecker symbol.
+    """
     if not isprime(p):
         raise ValueError(f"p must be prime: {p=}")
     if p == 2:
@@ -241,6 +245,10 @@ def legendre_symbol(a: int, p: int) -> int:
 
 
 def kronecker_symbol(a: int, n: int) -> int:
+    """
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+    Definition 1.4.8, p. 28, 
+    """
     if n == 0:
         return 1 if a in [-1, 1] else 0
     elif n == -1:

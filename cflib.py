@@ -142,6 +142,10 @@ def cf_to_fraction_tuple(cf: list[int]) -> tuple[int, int]:
 
 
 class EEA(abc.Sequence):
+    """
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+    p. 16, Algorithm 1.3.6 (Euclid Extended).
+    """
     def __init__(self, x: int, y: int) -> None:
         self.x = x
         self.y = y

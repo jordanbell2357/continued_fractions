@@ -60,7 +60,9 @@ class RealQuadraticNumber(Number):
     def __repr__(self: typing.Self) -> str:
         return f"{type(self).__name__}({self.d}, {self.x}, {self.y})"
     
-    def __eq__(self: typing.Self, other: typing.Self) -> bool:
+    def __eq__(self: typing.Self, other: typing.Self | Rational) -> bool:
+        if isinstance(other, Rational):
+            other = type(self)(self.d, other, 0)
         return self.d == other.d and self.x == other.x and self.y == other.y
     
     def __hash__(self: typing.Self) -> int:
@@ -203,6 +205,10 @@ class RealQuadraticNumber(Number):
         return (matrix.alpha * self + matrix.beta) / (matrix.gamma * self + matrix.delta)
     
     def GL2Q_left_regular_representation(self: typing.Self) -> gl2z.GL2Q: # Left regular representation of 𝐐(√d) in GL₂(𝐐)
+        """
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        § 4.2.3 "The Matrix (or Regular) Representation of an Algebraic Number", p. 160.
+        """
         alpha = self.x
         beta = self.y * self.d
         gamma = self.y
@@ -225,7 +231,6 @@ class RealQuadraticNumber(Number):
         d = self.d
         x = self.x
         y = self.y
-        # omega = RealQuadraticField.omega which implemented later and not directly used here.
 
         if d % 4 in [2, 3]:
             """
@@ -286,7 +291,6 @@ class RealQuadraticNumber(Number):
         return cls(d, x, y)
 
 
-
 class RealQuadraticField(abc.Container):
     """
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
@@ -322,8 +326,8 @@ class RealQuadraticField(abc.Container):
         if isinstance(item, RealQuadraticNumber):
             return self.d == item.d
 
-    @property # Discriminant
-    def D(self: typing.Self) -> int:
+    @property
+    def D(self: typing.Self) -> int: # discriminant
         return self.d if self.d % 4 == 1 else 4 * self.d
     
     @property
@@ -333,6 +337,10 @@ class RealQuadraticField(abc.Container):
 
     @property
     def regulator_float(self: typing.Self) -> float:
+        """
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        Definition 4.9.8, p. 211.
+        """
         return math.log(float(self.fundamental_unit))
 
     def regulator_decimal(self: typing.Self, precision: int = 10) -> Decimal:
@@ -342,15 +350,25 @@ class RealQuadraticField(abc.Container):
         y = int(fundamental_unit.y)
         d = self.d
         return (Decimal(x) + Decimal(y) * Decimal(d).sqrt()).ln()
-    
+
+    @staticmethod
+    def prime_decomposition_type(D: int, p: int) -> int:
+        """
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        p. 198: "Theorem 4.8.13 immediately shows how prime numbers decompose in a quadratic field"
+
+        Corollary 4.8.12. The decomposition type of a prime number p in a quadratic
+        field K of discriminant D is the following: if (D / p) = -1 then p is inert. If
+        (D / p) = 0 then p is ramified (i.e. p𝐙_K = 𝖕²). Finally, if (D / p) = +1, then p splits
+        (completely), i.e. p𝐙_K = 𝖕1𝖕2.
+
+        Proposition 5.1.4, p. 224.
+        """
+        return prime_numbers.kronecker_symbol(D, p)
+
+
     @property
-    def primitive_real_dirichlet_character(self: typing.Self) -> abc.Callable:
-        return lambda n: prime_numbers.kronecker_symbol(self.D, n)
-    
-    # K = 𝐐(√d)
-    # 𝒪_K = 𝐙[ω]
-    @property
-    def omega(self: typing.Self) -> RealQuadraticNumber:
+    def omega(self: typing.Self) -> RealQuadraticNumber: # 𝓞_𝐐(√d) = 𝐙[ω]
         if self.d % 4 == 1:
             return RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2))
         elif d % 4 in [2, 3]:
@@ -363,11 +381,111 @@ class RealQuadraticField(abc.Container):
         return b1, b2
 
     def __str__(self: typing.Self) -> str:
-        b1, b2 = self.integral_basis
         omega = self.omega
         fundamental_unit = self.fundamental_unit
-        return f"𝐐(√{self.d}):\tdiscriminant D={self.D}, integral basis {b1=!s}, {b2=!s}, ring of integers 𝐙[{omega}], fundamental unit {fundamental_unit}"
+        return f"𝐐(√{self.d}):\tdiscriminant D={self.D}, ring of integers 𝓞_𝐐(√d)=𝐙[{omega}], fundamental unit {fundamental_unit}"
 
+
+class NonzeroIdeal(abc.Container):
+    """
+    Nonzero ideal in the ring of integers 𝓞_K of K=𝐐(√d).
+
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+
+    p. 166:
+    Theorem 4.4.2. The ring 𝐙_K is a free Z-module of rank n=deg(K). This is true more generally for any non-zero ideal of
+    𝐙_K.
+
+    p. 166:
+    Definition 4.4.3. A 𝐙-basis of the free module 𝐙_K will be called an integral
+    basis of K. The discriminant of an integral basis is independent of the choice
+    of that basis, and is called the discriminant of the field K and is denoted by
+    d(K).
+
+    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+    Chapter I, Section 7, "Relationship of Quadratic Forms to Ideals", pp. 38-50.
+
+    p. 44:
+    Lemma 1.19.
+    (a) If a ≠ 0 and b' are integers such that a divides N(b' + δ) in 𝐙, then
+    (a, b' + δ) = ⟨a, b' + δ⟩ in the sense that the free abelian subgroup of R generated
+    by a and b' + δ coincides with the ideal generated by a and b' + δ.
+    (b) If I is any nonzero ideal in R, then I is of the form I = ⟨a, r⟩ for some
+    integer a > 0 and some r in R.
+    """
+
+    @staticmethod
+    def orientation(r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> RealQuadraticNumber:
+        if not (r1.is_integral and r2.is_integral):
+            raise ValueError(f"{r1=} and {r2=} must be integral elements of 𝐐(√d).")
+        if r1.d != r2.d:
+            raise ValueError(f"{r1=} and {r2=} must belong to same integer ring.")
+        return r1 * r2.conjugate() - r1.conjugate() * r2
+
+    def __init__(self, r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> None:
+        if not (r1.is_integral and r2.is_integral):
+            raise ValueError(f"{r1=} and {r2=} must be integral elements of 𝐐(√d).")
+        if r1.d != d or r2.d != d:
+            raise ValueError("Generators must lie in the same 𝐐(√d).")
+        oriented_volume = type(self).orientation(r1, r2)
+        if oriented_volume == 0:
+            raise ValueError("A nonzero ideal in the ring of integers of 𝐐(√d) has rank 2.")
+        if float(oriented_volume) < 0:
+            r1, r2 = r2, r1
+        self.r1 = r1
+        self.r2 = r2
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.r1}, {self.r2})"
+    
+    def __eq__(self, other: typing.Self) -> bool:
+        return self.r1 == other.r1 and self.r2 == other.r2
+    
+    @property
+    def d(self) -> int:
+        return self.r1.d
+    
+    @property
+    def oriented_volume(self) -> RealQuadraticNumber:
+        return type(self).orientation(self.r1, self.r2)
+    
+    @property
+    def D(self: typing.Self) -> int: # discriminant
+        return self.d if self.d % 4 == 1 else 4 * self.d
+    
+    @property
+    def norm(self) -> int:
+        d = self.d
+        if d % 4 == 1: # D = d
+            D_sqrt = RealQuadraticNumber(d, 0, 1)
+            return self.oriented_volume / D_sqrt
+        elif d % 4 in [2, 3]: # D = 4d
+            D_sqrt = RealQuadraticNumber(d, 0, 2)
+            return self.oriented_volume / D_sqrt
+
+    def __contains__(self, r: RealQuadraticNumber) -> bool:
+        """
+        a1 * r1 + a2 * r2 = r
+        a1(x1 + y1√d) + a2(x2 + y2√d) = x + y√d
+        a1x1 + a2x2 + (a1y1 + a2y2)√d = x + y√d
+        x1a1 + x2a2 = x
+        y1a1 + y2a2 = y
+
+        Cramer's rule:
+        a1 = (x * y2 - x2 * y) / (x1y2 - x2y1)
+        a2 = (x1 * y - x * y1) / (x1y2 - x2y1)
+        """
+        if not r.is_integral:
+            raise ValueError(f"{r=} must be an integral element of 𝐐(√d).")
+        r1, r2 = self.r1, self.r2
+        x1, y1, x2, y2, x, y = r1.x, r1.y, r2.x, r2.y, r.x, r.y
+        D = x1 * y2 - x2 * y1 # nonzero by nonzero orientation
+
+        a1 = (x * y2 - x2 * y) / D
+        a2 = (x1 * y - x * y1) / D
+        if a1.denominator == 1 and a2.denominator == 1:
+            return True
+        return False
 
 
 
@@ -469,4 +587,24 @@ if __name__ == "__main__":
     # for k in power_range:
     #     print(f"ε^{k}:", fundamental_unit_sqrtd ** k, sep="\t")
 
+    d = 13
+    u = RealQuadraticNumber(d, 1, 0) # 1
+    v = RealQuadraticNumber(d, 0, 1) # √d
+    I1 = NonzeroIdeal(u, v)
+    I2 = NonzeroIdeal(v, u)
+    assert I1 == I2
+    assert 3 * u + 5 * v in I1
 
+    # unit 1 not in ⟨2, v⟩
+    J = NonzeroIdeal(2 * u, v)
+    assert u not in J
+
+    d = 17
+    omega_d = RealQuadraticField(d).omega
+    assert NonzeroIdeal(RealQuadraticNumber(d, 1, 0), omega_d).norm == 1
+
+    d = 13
+    u = RealQuadraticNumber(d, 1, 0) # 1
+    v = RealQuadraticNumber(d, 0, 1) # √d
+    I = NonzeroIdeal(u, v)
+    

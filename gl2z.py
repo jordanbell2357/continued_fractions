@@ -408,6 +408,9 @@ class GL2Q(abc.Hashable):
     
     def action_GL2Z_on_real_quadratic_field_image(self, matrix: GL2Z) -> typing.Self:
         """
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        § 4.2.3 "The Matrix (or Regular) Representation of an Algebraic Number", p. 160.
+        
         Given left regular representation L of 𝐐(√d) in GL₂(𝐐)
         x + y * √d
         alpha = x
