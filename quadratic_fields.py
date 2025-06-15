@@ -29,7 +29,7 @@ class RationalQuadraticPolynomial(typing.NamedTuple):
     
     def is_integral(self: typing.Self) -> bool:
         return all(e == int(e) for e in [self.a, self.b, self.c])
-    
+
 
 class IntegralQuadraticPolynomial(RationalQuadraticPolynomial):
     def __init__(self: typing.Self, a: int, b: int, c: int) -> None:
@@ -188,7 +188,6 @@ class RealQuadraticNumber(Number):
     
     def minimal_polynomial(self: typing.Self) -> RationalQuadraticPolynomial:
         """
-        Galois theory:
         When d is not a perfect square,
         Gal(𝐐(√d) / 𝐐) = {identity, conjugate}
         When d is a perfect square,

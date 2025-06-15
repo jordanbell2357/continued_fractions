@@ -6,6 +6,7 @@ from collections import abc
 from fractions import Fraction
 from numbers import Rational
 import re
+import random
 import typing
 
 import cflib
@@ -33,6 +34,8 @@ class GL2Z(abc.Hashable):
         return f"{type(self).__name__}({self.alpha}, {self.beta}, {self.gamma}, {self.delta})"
     
     def __eq__(self: typing.Self, other: typing.Self) -> bool:
+        if not isinstance(other, GL2Z):
+            return NotImplemented
         return self.alpha == other.alpha and self.beta == other.beta and self.gamma == other.gamma and self.delta == other.delta
     
     def __hash__(self: typing.Self) -> int:
@@ -42,6 +45,8 @@ class GL2Z(abc.Hashable):
         return type(self)(-self.alpha, -self.beta, -self.gamma, -self.delta)
 
     def __mul__(self: typing.Self, other: typing.Self) -> typing.Self:
+        if not isinstance(other, GL2Z):
+            return NotImplemented
         alpha = self.alpha * other.alpha + self.beta * other.gamma
         beta = self.alpha * other.beta + self.beta * other.delta
         gamma = self.gamma * other.alpha + self.delta * other.gamma
@@ -57,6 +62,8 @@ class GL2Z(abc.Hashable):
         return type(self)(alpha, beta, gamma, delta)
     
     def __truediv__(self: typing.Self, other: typing.Self) -> typing.Self:
+        if not isinstance(other, GL2Z):
+            return NotImplemented
         return self * other.inverse()
     
     def __pow__(self: typing.Self, exponent: int) -> typing.Self:
@@ -71,9 +78,6 @@ class GL2Z(abc.Hashable):
     
     def __iter__(self: typing.Self) -> abc.Iterator[int]:
         return iter((self.alpha, self.beta, self.gamma, self.delta))
-    
-    def __contains__(self: typing.Self, other: int) -> bool:
-        return any(other == entry for entry in self)
     
     def __getitem__(self: typing.Self, index: int) -> int:
         return (*self, )[index]
@@ -329,7 +333,11 @@ def transformation_to_fundamental_domain(tau: complex) -> tuple[list[GL2Z], GL2Z
 
 
 class GL2Q(abc.Hashable):
+    __slots__ = ("alpha", "beta", "gamma", "delta")
+
     def __init__(self, alpha: Rational, beta: Rational, gamma: Rational, delta: Rational) -> None:
+        if not all(isinstance(x, Rational) for x in [alpha, beta, gamma, delta]):
+            raise TypeError(f"{alpha=}, {beta=}, {gamma=}, {delta=} must all be rational.")
         det = detM2(alpha, beta, gamma, delta)
         if det == 0:
             raise ValueError(f"Determinant must be nonzero: {det=}")
@@ -342,6 +350,10 @@ class GL2Q(abc.Hashable):
         return f"{type(self).__name__}({self.alpha}, {self.beta}, {self.gamma}, {self.delta})"
 
     def __eq__(self: typing.Self, other: typing.Self) -> bool:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if not isinstance(other, GL2Q):
+            return NotImplemented
         return self.alpha == other.alpha and self.beta == other.beta and self.gamma == other.gamma and self.delta == other.delta
     
     def __hash__(self: typing.Self) -> int:
@@ -350,11 +362,26 @@ class GL2Q(abc.Hashable):
     def __neg__(self: typing.Self) -> typing.Self:
         return type(self)(-self.alpha, -self.beta, -self.gamma, -self.delta)
 
-    def __mul__(self: typing.Self, other: typing.Self) -> typing.Self:
+    def __mul__(self: typing.Self, other: typing.Self | GL2Z) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if not isinstance(other, GL2Q):
+            return NotImplemented
         alpha = self.alpha * other.alpha + self.beta * other.gamma
         beta = self.alpha * other.beta + self.beta * other.delta
         gamma = self.gamma * other.alpha + self.delta * other.gamma
         delta = self.gamma * other.beta + self.delta * other.delta
+        return type(self)(alpha, beta, gamma, delta)
+    
+    def __rmul__(self: typing.Self, other: typing.Self | GL2Z) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if not isinstance(other, GL2Q):
+            return NotImplemented
+        alpha = other.alpha * self.alpha + other.beta * self.gamma
+        beta = other.alpha * self.beta + other.beta * self.delta
+        gamma = other.gamma * self.alpha + other.delta * self.gamma
+        delta = other.gamma * self.beta + other.delta * self.delta
         return type(self)(alpha, beta, gamma, delta)
     
     def inverse(self) -> typing.Self:
@@ -366,7 +393,18 @@ class GL2Q(abc.Hashable):
         return type(self)(alpha, beta, gamma, delta)
     
     def __truediv__(self: typing.Self, other: typing.Self) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if not isinstance(other, GL2Q):
+            return NotImplemented
         return self * other.inverse()
+    
+    def __rtruediv__(self: typing.Self, other: typing.Self) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if not isinstance(other, GL2Q):
+            return NotImplemented
+        return other * self.inverse()
     
     def __pow__(self: typing.Self, exponent: int) -> typing.Self:
         I = type(self)(1, 0, 0, 1)
@@ -380,9 +418,6 @@ class GL2Q(abc.Hashable):
     
     def __iter__(self: typing.Self) -> abc.Iterator[Fraction]:
         return iter((self.alpha, self.beta, self.gamma, self.delta))
-    
-    def __contains__(self: typing.Self, other: int) -> bool:
-        return any(other == entry for entry in self)
     
     def __getitem__(self: typing.Self, index: int) -> Fraction:
         return (*self, )[index]
@@ -465,6 +500,244 @@ class GL2Q(abc.Hashable):
         return result_numerator * result_denominator.inverse()
 
 
+class M2Z(abc.Hashable):
+    """
+    𝐙-algebra M_2(𝐙).
+    """
+
+    __slots__ = ("a11", "a12", "a21", "a22")
+
+    def __init__(self, a11: int, a12: int, a21: int, a22: int) -> None:
+        if not all(isinstance(a, int) for a in [a11, a12, a21, a22]):
+            raise TypeError(f"{a11=}, {a12=}, {a21=}, {a22=} must all be integers.")
+        self.a11 = a11
+        self.a12 = a12
+        self.a21 = a21
+        self.a22 = a22
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.a11}, {self.a12}, {self.a21}, {self.a22})"
+    
+    def __eq__(self, other: typing.Self | GL2Z) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if not isinstance(other, M2Z):
+            return NotImplemented
+        return all(getattr(self, a) == getattr(other, a) for a in type(self).__slots__)
+    
+    def __hash__(self) -> int:
+        return hash((self.a11, self.a12, self.a21, self.a22))
+
+    def __neg__(self: typing.Self) -> typing.Self:
+        return type(self)(-self.a11, -self.a12, -self.a21, -self.a22)
+    
+    def __add__(self: typing.Self, other: typing.Self | GL2Z) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if not isinstance(other, M2Z):
+            return NotImplemented
+        a11 = self.a11 * other.a11
+        a12 = self.a12 * other.a12
+        a21 = self.a21 * other.a21
+        a22 = self.a22 * other.a22
+        return type(self)(a11, a12, a21, a22)
+    
+    def __radd__(self: typing.Self, other: typing.Self | GL2Z) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if not isinstance(other, M2Z):
+            return NotImplemented
+        a11 = other.a11 * self.a11
+        a12 = other.a12 * self.a12
+        a21 = other.a21 * self.a21
+        a22 = other.a22 * self.a22
+        return type(self)(a11, a12, a21, a22)
+    
+    def __sub__(self: typing.Self, other: typing.Self | GL2Z) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if not isinstance(other, M2Z):
+            return NotImplemented
+        a11 = self.a11 - other.a11
+        a12 = self.a12 - other.a12
+        a21 = self.a21 - other.a21
+        a22 = self.a22 - other.a22
+        return type(self)(a11, a12, a21, a22)
+    
+    def __rsub__(self: typing.Self, other: typing.Self | GL2Z) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if not isinstance(other, M2Z):
+            return NotImplemented
+        a11 = other.a11 - self.a11
+        a12 = other.a12 - self.a12
+        a21 = other.a21 - self.a21
+        a22 = other.a22 - self.a22
+        return type(self)(a11, a12, a21, a22)
+
+    def __mul__(self: typing.Self, other: typing.Self | GL2Z | int) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if isinstance(other, int):
+            other = type(self)(other, 0, 0, other)
+        if not isinstance(other, M2Z):
+            return NotImplemented
+        a11 = self.a11 * other.a11 + self.a12 * other.a21
+        a12 = self.a11 * other.a12 + self.a12 * other.a22
+        a21 = self.a21 * other.a11 + self.a22 * other.a21
+        a22 = self.a21 * other.a12 + self.a22 * other.a22
+        return type(self)(a11, a12, a21, a22)
+    
+    def __rmul__(self: typing.Self, other: typing.Self | GL2Z | int) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
+        if isinstance(other, int):
+            other = type(self)(other, 0, 0, other)
+        if not isinstance(other, M2Z):
+            return NotImplemented
+        a11 = other.a11 * self.a11 + other.a12 * self.a21
+        a12 = other.a11 * self.a12 + other.a12 * self.a22
+        a21 = other.a21 * self.a11 + other.a22 * self.a21
+        a22 = other.a21 * self.a12 + other.a22 * self.a22
+        return type(self)(a11, a12, a21, a22)
+    
+    @property
+    def det(self) -> int:
+        return detM2(*self)
+    
+    def __iter__(self: typing.Self) -> abc.Iterator[int]:
+        return iter((self.a11, self.a12, self.a21, self.a22))
+    
+    def __contains__(self: typing.Self, other: int) -> bool:
+        return any(other == entry for entry in self)
+    
+    def __getitem__(self: typing.Self, index: int) -> int:
+        return (*self, )[index]
+    
+    def __len__(self: typing.Self) -> int:
+        return len(type(self).__slots__)
+    
+    def transpose(self: typing.Self) -> typing.Self:
+        return type(self)(self.a11, self.a21, self.a12, self.a22)
+
+    def __pow__(self: typing.Self, exponent: int) -> typing.Self:
+        I = type(self)(1, 0, 0, 1)
+        if exponent == 0 and self.det != 0:
+            return I
+        elif exponent == 0 and self.det == 0:
+            raise ValueError("Exponent must be positive for matrix with determinant 0.")
+        elif exponent > 0:
+            return ft.reduce(operator.mul, (self for _ in range(exponent)), I)
+        elif exponent < 0:
+            raise ValueError(f"Exponent must be nonnegative.")
+    
+    @property
+    def trace(self: typing.Self) -> int:
+        return self.a11 + self.a22
+    
+    def __abs__(self: typing.Self) -> int: # maximum absolute value of entries (ℓ∞ norm)
+        return max(abs(entry) for entry in self)
+    
+
+def hnf_2x2(A: M2Z) -> tuple[GL2Z, M2Z]:
+    """
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+
+    p. 67:
+
+    Definition 2.4.2. We will say that an m x n matrix M = (mij) with integer
+    coefficients is in Hermite normal form (abbreviated HNF) if there exists r ≤ n
+    and a strictly increasing map f from [r + 1, n] to [1, m] satisfying the following
+    properties.
+    A) For r + 1 ≤ j ≤ n, m_{f(j),j} ≥ 1, m_{i,j} = 0 if i > f(j)
+    and 0 ≤ m_{f(k),j} < m_{f(k),k} if k < j.
+    B) The first r columns of M are equal to 0.
+
+    Remark. In the important special case where m = n and f(k) = k (or
+    equivalently det(M) ≠ 0), M is in HNF if it satisfies the following conditions.
+    A) M is an upper triangular matrix, i.e. m_{i,j} = 0 if i > j.
+    B) For every i, we have m_{i,i} > 0.
+    C) For every j > i we have 0 ≤ m_{i,j} < m_{i,i}.
+
+    Theorem 2.4.3. Let A be an m x n matrix with coefficients in 𝐙. Then there
+    exists a unique m x n matrix B = (bij) in HNF of the form B = AU with
+    U ∈ GL_n(𝐙), where GL_n(𝐙) is the group of matrices with integer coefficients
+    which are invertible, i.e. whose determinant is equal to ±1.
+
+    p. 69:
+    Algorithm 2.4.5 (Hermite Normal Form). Given an m x n matrix A with
+    integer coefficients (aij) this algorithm finds the Hermite normal form W of A.
+
+    Colun operations are performed, and we keep track of a running
+    unimodular matrix U on the right.
+    """
+    if isinstance(A, GL2Z):
+        A = M2Z(A.alpha, A.beta, A.gamma, A.delta)
+    if not isinstance(A, M2Z):
+        raise TypeError(f"{A=} must be an instance of M2Z.")
+
+    H = A
+    U = GL2Z(1, 0, 0, 1)  # cumulative product of column operations
+
+    # ------------------------------------------------------------------
+    # Step 1.  Kill the lower‑left entry (a21) using an extended–Euclid
+    #          combination of the two columns.
+    # ------------------------------------------------------------------
+    if H.a21 != 0:
+        # gcd(a22, a21) = u·a22 + v·a21
+        eea = cflib.EEA(H.a22, H.a21)
+        d = eea.gcd
+        u = eea.bezout_x
+        v = eea.bezout_y
+
+        # Construct the unimodular matrix
+        #     T₁ =  [ a22/d,  u ]
+        #           [−a21/d,  v ]   with det T₁ = 1.
+        a = H.a22 // d
+        b = -H.a21 // d
+        T1 = GL2Z(a, u, b, v)
+
+        # Apply the column operation and accumulate it in U.
+        H = H * T1
+        U = U * T1
+
+    # At this point H.a21 == 0 and H.a22 == gcd(original a21, a22)
+
+    # ------------------------------------------------------------------
+    # Step 2.  Make the diagonal entries positive.
+    # ------------------------------------------------------------------
+    if H.a22 < 0:
+        T2 = GL2Z(1, 0, 0, -1)   # multiply the 2nd column by −1
+        H = H * T2
+        U = U * T2
+
+    if H.a11 < 0:
+        T3 = GL2Z(-1, 0, 0, 1)   # multiply the 1st column by −1
+        H = H * T3
+        U = U * T3
+
+    # ------------------------------------------------------------------
+    # Step 3.  Reduce the (1, 2)‑entry modulo the first diagonal entry so
+    #          that 0 ≤ h₁₂ < h₁₁.
+    # ------------------------------------------------------------------
+    if H.a11 != 0:  # full rank in the first column
+        # First coarse reduction
+        q = H.a12 // H.a11
+        if q != 0:
+            T4 = GL2Z(1, -q, 0, 1)      # col₂ ← col₂ − q·col₁
+            H = H * T4
+            U = U * T4
+
+        # Ensure the entry is in the required half‑open interval.
+        r = H.a12 % H.a11
+        if r != H.a12:                   # a second fine adjustment was needed
+            q = (H.a12 - r) // H.a11     # q is positive or negative
+            T5 = GL2Z(1, -q, 0, 1)
+            H = H * T5
+            U = U * T5
+
+    return U, H
+
 
 if __name__ == "__main__":
     assert P ** (-1) == P
@@ -532,3 +805,15 @@ if __name__ == "__main__":
 
     radius = 5
     assert len(list(ball_GL2Z(radius))) == 2 * len(list(ball_SL2Z(radius)))
+
+    m = M2Z(1, 0, 12, -5)
+    assert I * m == m and m * I == m
+
+    A = M2Z(4, 3, 1, 1)
+    U, H = hnf_2x2(A)
+    print(A, U, H)
+    assert H.a21 == 0
+    if H.a11 > 0:
+        assert 0 <= H.a12 < H.a11
+    if H.a22 != 0:
+        assert H.a22 > 0
