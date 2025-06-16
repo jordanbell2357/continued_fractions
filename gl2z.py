@@ -638,105 +638,31 @@ class M2Z(abc.Hashable):
     def __abs__(self: typing.Self) -> int: # maximum absolute value of entries (ℓ∞ norm)
         return max(abs(entry) for entry in self)
     
+    @property
+    def v1(self) -> tuple[int, int]:
+        return self.a11, self.a21
+    
+    @property
+    def v2(self) -> tuple[int, int]:
+        return self.a12, self.a22
+    
+    @classmethod
+    def from_columns(cls, v1: tuple[int, int], v2: tuple[int, int]) -> typing.Self:
+        return cls(v1[0], v2[0], v1[1], v2[1])
+
 
 def hnf_2x2(A: M2Z) -> tuple[GL2Z, M2Z]:
     """
-    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
-
-    p. 67:
-
-    Definition 2.4.2. We will say that an m x n matrix M = (mij) with integer
-    coefficients is in Hermite normal form (abbreviated HNF) if there exists r ≤ n
-    and a strictly increasing map f from [r + 1, n] to [1, m] satisfying the following
-    properties.
-    A) For r + 1 ≤ j ≤ n, m_{f(j),j} ≥ 1, m_{i,j} = 0 if i > f(j)
-    and 0 ≤ m_{f(k),j} < m_{f(k),k} if k < j.
-    B) The first r columns of M are equal to 0.
-
-    Remark. In the important special case where m = n and f(k) = k (or
-    equivalently det(M) ≠ 0), M is in HNF if it satisfies the following conditions.
-    A) M is an upper triangular matrix, i.e. m_{i,j} = 0 if i > j.
-    B) For every i, we have m_{i,i} > 0.
-    C) For every j > i we have 0 ≤ m_{i,j} < m_{i,i}.
-
-    Theorem 2.4.3. Let A be an m x n matrix with coefficients in 𝐙. Then there
-    exists a unique m x n matrix B = (bij) in HNF of the form B = AU with
-    U ∈ GL_n(𝐙), where GL_n(𝐙) is the group of matrices with integer coefficients
-    which are invertible, i.e. whose determinant is equal to ±1.
-
-    p. 69:
-    Algorithm 2.4.5 (Hermite Normal Form). Given an m x n matrix A with
-    integer coefficients (aij) this algorithm finds the Hermite normal form W of A.
-
-    Colun operations are performed, and we keep track of a running
-    unimodular matrix U on the right.
+    Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
+    Cambridge University Press, 1994.
     """
     if isinstance(A, GL2Z):
         A = M2Z(A.alpha, A.beta, A.gamma, A.delta)
     if not isinstance(A, M2Z):
         raise TypeError(f"{A=} must be an instance of M2Z.")
 
-    H = A
-    U = GL2Z(1, 0, 0, 1)  # cumulative product of column operations
 
-    # ------------------------------------------------------------------
-    # Step 1.  Kill the lower‑left entry (a21) using an extended–Euclid
-    #          combination of the two columns.
-    # ------------------------------------------------------------------
-    if H.a21 != 0:
-        # gcd(a22, a21) = u·a22 + v·a21
-        eea = cflib.EEA(H.a22, H.a21)
-        d = eea.gcd
-        u = eea.bezout_x
-        v = eea.bezout_y
 
-        # Construct the unimodular matrix
-        #     T₁ =  [ a22/d,  u ]
-        #           [−a21/d,  v ]   with det T₁ = 1.
-        a = H.a22 // d
-        b = -H.a21 // d
-        T1 = GL2Z(a, u, b, v)
-
-        # Apply the column operation and accumulate it in U.
-        H = H * T1
-        U = U * T1
-
-    # At this point H.a21 == 0 and H.a22 == gcd(original a21, a22)
-
-    # ------------------------------------------------------------------
-    # Step 2.  Make the diagonal entries positive.
-    # ------------------------------------------------------------------
-    if H.a22 < 0:
-        T2 = GL2Z(1, 0, 0, -1)   # multiply the 2nd column by −1
-        H = H * T2
-        U = U * T2
-
-    if H.a11 < 0:
-        T3 = GL2Z(-1, 0, 0, 1)   # multiply the 1st column by −1
-        H = H * T3
-        U = U * T3
-
-    # ------------------------------------------------------------------
-    # Step 3.  Reduce the (1, 2)‑entry modulo the first diagonal entry so
-    #          that 0 ≤ h₁₂ < h₁₁.
-    # ------------------------------------------------------------------
-    if H.a11 != 0:  # full rank in the first column
-        # First coarse reduction
-        q = H.a12 // H.a11
-        if q != 0:
-            T4 = GL2Z(1, -q, 0, 1)      # col₂ ← col₂ − q·col₁
-            H = H * T4
-            U = U * T4
-
-        # Ensure the entry is in the required half‑open interval.
-        r = H.a12 % H.a11
-        if r != H.a12:                   # a second fine adjustment was needed
-            q = (H.a12 - r) // H.a11     # q is positive or negative
-            T5 = GL2Z(1, -q, 0, 1)
-            H = H * T5
-            U = U * T5
-
-    return U, H
 
 
 if __name__ == "__main__":
@@ -809,11 +735,3 @@ if __name__ == "__main__":
     m = M2Z(1, 0, 12, -5)
     assert I * m == m and m * I == m
 
-    A = M2Z(4, 3, 1, 1)
-    U, H = hnf_2x2(A)
-    print(A, U, H)
-    assert H.a21 == 0
-    if H.a11 > 0:
-        assert 0 <= H.a12 < H.a11
-    if H.a22 != 0:
-        assert H.a22 > 0
