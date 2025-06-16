@@ -104,6 +104,8 @@ class GL2Z(abc.Hashable):
         return cls(1, n, 0, 1) # T ** n
 
 
+
+
 I = GL2Z(1, 0, 0, 1)
 P = GL2Z(0, 1, 1, 0) # det == -1. P⁻¹ = P
 R = GL2Z(0, 1, -1, 0) # S⁻¹
@@ -639,28 +641,71 @@ class M2Z(abc.Hashable):
         return max(abs(entry) for entry in self)
     
     @property
-    def v1(self) -> tuple[int, int]:
-        return self.a11, self.a21
+    def row1(self) -> tuple[int, int]:
+        return self.a11, self.a12
     
     @property
-    def v2(self) -> tuple[int, int]:
-        return self.a12, self.a22
+    def row2(self) -> tuple[int, int]:
+        return self.a21, self.a22
     
     @classmethod
-    def from_columns(cls, v1: tuple[int, int], v2: tuple[int, int]) -> typing.Self:
-        return cls(v1[0], v2[0], v1[1], v2[1])
+    def from_rows(cls, row1: tuple[int, int], row2: tuple[int, int]) -> typing.Self:
+        return cls(row1[0], row2[0], row1[1], row2[1])
+
+    
+    @classmethod
+    def elementary_matrix_swap_rows(cls, i1: int, i2: int) -> typing.Self:
+        """
+        Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
+        Cambridge University Press, 1994.
+        Chapter 8: Abelian groups, pp. 319-382.
+        p. 321: There are three types of integer row operations:
+        (1) Interchange two rows.
+        (2) Multiply a row by -1.
+        (3) Add an integral multiple of one row to another row.
+        """
+        if i1 == 1 and i2 == 1 or i1 == 2 and i2 == 2:
+            return cls(1, 0, 0, 1)
+        elif i1 == 1 and i2 == 2 or i1 == 2 and i2 == 1:
+            return cls(0, 1, 1, 0)
+        else:
+            raise ValueError(f"Row numbers {i1=} and {i2=} must be 1 or 2.")
+        
+    @classmethod
+    def elementary_matrix_multiply_row(cls, i: int, sgn: int) -> typing.Self:
+        if sgn not in [-1, 1]:
+            raise ValueError(f"{sgn=} must be 1 or -1.")
+        if i == 1:
+            return cls(sgn, 0, 0, 1)
+        elif i == 2:
+            return cls(1, 0, 0, sgn)
+        else:
+            raise ValueError(f"Row number {i=} must be 1 or 2.")
+        
+
+    @classmethod
+    def elementary_matrix_add_multiple_of_row(cls, i1: int, i2: int, c: int) -> typing.Self:
+        if i1 == 1 and i2 == 2:
+            return cls(1, 0, 0, c)
+        elif i1 == 2 and i2 == 1:
+            return cls(c, 0, 0, 1)
+        else:
+            raise ValueError(f"Row numbers {i1=} and {i2=} must be distinct and 1 or 2.")
+
 
 
 def hnf_2x2(A: M2Z) -> tuple[GL2Z, M2Z]:
     """
     Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
     Cambridge University Press, 1994.
+    Chapter 8: Abelian groups, pp. 319-382.
+
     """
     if isinstance(A, GL2Z):
         A = M2Z(A.alpha, A.beta, A.gamma, A.delta)
     if not isinstance(A, M2Z):
         raise TypeError(f"{A=} must be an instance of M2Z.")
-
+    ...
 
 
 
@@ -734,4 +779,7 @@ if __name__ == "__main__":
 
     m = M2Z(1, 0, 12, -5)
     assert I * m == m and m * I == m
+
+    print(M2Z.elementary_matrix_add_multiple_of_row(1, 2, 3))
+
 
