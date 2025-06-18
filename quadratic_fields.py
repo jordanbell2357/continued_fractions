@@ -162,6 +162,9 @@ class RealQuadraticNumber(Number):
     def __float__(self: typing.Self) -> float:
         return self.x + self.y * math.sqrt(self.d)
     
+    def __int__(self: typing.Self) -> int:
+        return int(float(self))
+    
     def identity(self: typing.Self) -> typing.Self:
         return type(self)(self.d, self.x, self.y)
 
@@ -288,6 +291,26 @@ class RealQuadraticNumber(Number):
             raise ValueError(f"{matrix} must belong to image of integral basis representation of 𝐐(√d) in GL₂(𝐐).")
         d = int(d)
         return cls(d, x, y)
+    
+    @classmethod
+    def discriminant(cls, alpha1: typing.Self, alpha2: typing.Self) -> Rational:
+        """
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        Proposition 4.4.1, p. 165.
+        """
+        return (alpha1 * alpha2.conjugate() - alpha2 * alpha1.conjugate()) ** 2
+    
+    @classmethod
+    def discriminant_by_trace(cls, alpha1: typing.Self, alpha2: typing.Self) -> Rational:
+        """
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        Proposition 4.4.1, p. 165.
+        """
+        alpha11 = (alpha1 * alpha1).trace
+        alpha12 = (alpha1 * alpha2).trace
+        alpha21 = (alpha2 * alpha1).trace
+        alpha22 = (alpha2 * alpha2).trace
+        return alpha11 * alpha22 - alpha12 * alpha21
 
 
 class RealQuadraticField(abc.Container):
@@ -413,39 +436,52 @@ class NonzeroIdeal(abc.Container):
     integer a > 0 and some r in R.
     """
 
+    __slots__ = ["a", "r", "r1", "r2"]
+
     @staticmethod
     def orientation(r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> RealQuadraticNumber:
         if not (r1.is_integral and r2.is_integral):
             raise ValueError(f"{r1=} and {r2=} must be integral elements of 𝐐(√d).")
         if r1.d != r2.d:
-            raise ValueError(f"{r1=} and {r2=} must belong to same integer ring.")
+            raise ValueError(f"{r1=} and {r2=} must belong to same ring of integers.")
         return r1 * r2.conjugate() - r1.conjugate() * r2
 
-    def __init__(self, r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> None:
-        if not (r1.is_integral and r2.is_integral):
-            raise ValueError(f"{r1=} and {r2=} must be integral elements of 𝐐(√d).")
-        if r1.d != d or r2.d != d:
-            raise ValueError("Generators must lie in the same 𝐐(√d).")
-        oriented_volume = type(self).orientation(r1, r2)
+    def __init__(self, a: RealQuadraticNumber | int, r: RealQuadraticNumber) -> None:
+        if isinstance(a, int):
+            a = RealQuadraticNumber(r.d, a, 0)
+        if not (a.is_integral and r.is_integral):
+            raise ValueError(f"{a=} and {r=} must be integral elements of 𝐐(√d).")
+        if a.d != d or r.d != d:
+            raise ValueError("Generators must belong to the same ring of integers.")
+        oriented_volume = type(self).orientation(a, r)
         if oriented_volume == 0:
             raise ValueError("A nonzero ideal in the ring of integers of 𝐐(√d) has rank 2.")
+        r1, r2 = a, r
         if float(oriented_volume) < 0:
             r1, r2 = r2, r1
+        if int(r) == r:
+            a, r = r, a
+        self.a = a
+        self.r = r
         self.r1 = r1
         self.r2 = r2
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.r1}, {self.r2})"
+        return f"{type(self).__name__}({self.a}, {self.r})"
     
     def __eq__(self, other: typing.Self) -> bool:
-        return self.r1 == other.r1 and self.r2 == other.r2
+        return self.a == other.a and self.r == other.r
     
     @property
     def d(self) -> int:
-        return self.r1.d
+        return self.r.d
     
     @property
     def oriented_volume(self) -> RealQuadraticNumber:
+        return type(self).orientation(self.a, self.r)
+    
+    @property
+    def volume(self) -> RealQuadraticNumber:
         return type(self).orientation(self.r1, self.r2)
     
     @property
@@ -457,12 +493,12 @@ class NonzeroIdeal(abc.Container):
         d = self.d
         if d % 4 == 1: # D = d
             D_sqrt = RealQuadraticNumber(d, 0, 1)
-            return self.oriented_volume / D_sqrt
+            return self.volume / D_sqrt
         elif d % 4 in [2, 3]: # D = 4d
             D_sqrt = RealQuadraticNumber(d, 0, 2)
-            return self.oriented_volume / D_sqrt
+            return self.volume / D_sqrt
 
-    def __contains__(self, r: RealQuadraticNumber) -> bool:
+    def __contains__(self, item: RealQuadraticNumber | Rational) -> bool:
         """
         a1 * r1 + a2 * r2 = r
         a1(x1 + y1√d) + a2(x2 + y2√d) = x + y√d
@@ -474,17 +510,33 @@ class NonzeroIdeal(abc.Container):
         a1 = (x * y2 - x2 * y) / (x1y2 - x2y1)
         a2 = (x1 * y - x * y1) / (x1y2 - x2y1)
         """
-        if not r.is_integral:
-            raise ValueError(f"{r=} must be an integral element of 𝐐(√d).")
-        r1, r2 = self.r1, self.r2
-        x1, y1, x2, y2, x, y = r1.x, r1.y, r2.x, r2.y, r.x, r.y
-        D = x1 * y2 - x2 * y1 # nonzero by nonzero orientation
+        if isinstance(item, Rational):
+            item = RealQuadraticNumber(self.d, item, 0)
+        if not item.is_integral:
+            raise ValueError(f"{item=} must be an integral element of 𝐐(√d).")
+        a, r = self.a, self.r
+        ax, ay, rx, ry, x, y = a.x, a.y, r.x, r.y, item.x, item.y
+        D = ax * ry - rx * ay # nonzero by nonzero orientation
 
-        a1 = (x * y2 - x2 * y) / D
-        a2 = (x1 * y - x * y1) / D
+        a1 = (x * ry - rx * y) / D
+        a2 = (ax * y - x * ay) / D
         if a1.denominator == 1 and a2.denominator == 1:
             return True
         return False
+    
+    def __add__(self, other: typing.Self) -> typing.Self:
+        if not isinstance(other, NonzeroIdeal):
+            return NotImplemented
+        if self.d != other.d:
+            raise ValueError("Ideals must lie in the same ring of integers 𝓞_𝐐(√d).")
+        I1, I2 = self, other
+        a1, r1, a2, r2 = I1.a, I1.r, I2.a, I2.r
+        
+
+
+
+
+
 
 
 
@@ -603,7 +655,26 @@ if __name__ == "__main__":
     assert NonzeroIdeal(RealQuadraticNumber(d, 1, 0), omega_d).norm == 1
 
     d = 13
-    u = RealQuadraticNumber(d, 1, 0) # 1
-    v = RealQuadraticNumber(d, 0, 1) # √d
-    I = NonzeroIdeal(u, v)
+    a = RealQuadraticNumber(d, 1, 0) # 1
+    r = RealQuadraticNumber(d, 0, 1) # √d
+    I1 = NonzeroIdeal(a, r)
+    I2 = NonzeroIdeal(r, a)
+    assert I1 == I2
     
+    """
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+    p. 167:
+
+    Proposition 4.4.5. The algebraic numbers 𝛼1, ..., 𝛼n form an integral basis
+    if and only if they are algebraic integers and if d(𝛼1, ..., 𝛼n) = d(K), where
+    d(K) is the discriminant of K.
+    """
+
+    d = 17
+    omega_d = RealQuadraticField(d).omega
+    assert RealQuadraticNumber.discriminant(RealQuadraticNumber(d, 1, 0), omega_d) == RealQuadraticField(d).D
+
+    d = 30
+    assert RealQuadraticNumber.discriminant(RealQuadraticNumber(d, 1, 0), RealQuadraticField(d).fundamental_unit) == \
+        RealQuadraticNumber.discriminant_by_trace(RealQuadraticNumber(d, 1, 0), RealQuadraticField(d).fundamental_unit)
+

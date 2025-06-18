@@ -651,10 +651,21 @@ class M2Z(abc.Hashable):
     @classmethod
     def from_rows(cls, row1: tuple[int, int], row2: tuple[int, int]) -> typing.Self:
         return cls(row1[0], row2[0], row1[1], row2[1])
-
+    
+    def entry(self, row_index: int, column_index: int) -> int:
+        if row_index == 1 and column_index == 1:
+            return self.a11
+        elif row_index == 1 and column_index == 2:
+            return self.a12
+        elif row_index == 2 and column_index == 1:
+            return self.a21
+        elif row_index == 2 and column_index == 2:
+            return self.a22
+        else:
+            raise ValueError(f"Both {row_index=} and {column_index=} must each be 1 or 2.")
     
     @classmethod
-    def elementary_matrix_swap_rows(cls, i1: int, i2: int) -> typing.Self:
+    def elementary_matrix_interchange_rows(cls) -> typing.Self:
         """
         Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
         Cambridge University Press, 1994.
@@ -664,12 +675,7 @@ class M2Z(abc.Hashable):
         (2) Multiply a row by -1.
         (3) Add an integral multiple of one row to another row.
         """
-        if i1 == 1 and i2 == 1 or i1 == 2 and i2 == 2:
-            return cls(1, 0, 0, 1)
-        elif i1 == 1 and i2 == 2 or i1 == 2 and i2 == 1:
-            return cls(0, 1, 1, 0)
-        else:
-            raise ValueError(f"Row numbers {i1=} and {i2=} must be 1 or 2.")
+        return cls(0, 1, 1, 0)
         
     @classmethod
     def elementary_matrix_multiply_row(cls, i: int, sgn: int) -> typing.Self:
@@ -684,13 +690,19 @@ class M2Z(abc.Hashable):
         
 
     @classmethod
-    def elementary_matrix_add_multiple_of_row(cls, i1: int, i2: int, c: int) -> typing.Self:
-        if i1 == 1 and i2 == 2:
-            return cls(1, 0, 0, c)
-        elif i1 == 2 and i2 == 1:
-            return cls(c, 0, 0, 1)
+    def elementary_matrix_add_multiple_of_row(cls, target_row: int, multiplicand_row: int, c: int) -> typing.Self:
+        if target_row == 1 and multiplicand_row == 2:
+            return cls(1, c, 0, 1)
+        elif target_row == 2 and multiplicand_row == 1:
+            return cls(1, 0, c, 1)
         else:
-            raise ValueError(f"Row numbers {i1=} and {i2=} must be distinct and 1 or 2.")
+            raise ValueError(f"Row numbers {target_row=} and {multiplicand_row=} must be distinct and 1 or 2.")
+        
+    def try_to_GL2Q(self) -> GL2Q:
+        if self.det != 0:
+            return GL2Q(self.a11, self.a12, self.a21, self.a22)
+        else:
+            return None
 
 
 
@@ -699,16 +711,63 @@ def hnf_2x2(A: M2Z) -> tuple[GL2Z, M2Z]:
     Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
     Cambridge University Press, 1994.
     Chapter 8: Abelian groups, pp. 319-382.
+    p. 323, Procedure ROW_REDUCE for integer row reduction.
 
+    Given 2x2 matrix A in M2Z, find U in GL2Z and H in M2Z such that H=UA
+    where H is in row Hermite normal form.
+
+    Returns U, H.
     """
+
     if isinstance(A, GL2Z):
         A = M2Z(A.alpha, A.beta, A.gamma, A.delta)
     if not isinstance(A, M2Z):
         raise TypeError(f"{A=} must be an instance of M2Z.")
-    ...
+    U = M2Z(1, 0, 0, 1) # I in M2Z
+    H = A
 
+    i, j = 1, 1
+    while i <= 2 and j <= 2:
 
+        if all(H.entry(k, j) == 0 for k in range(i, 3)):
+            j += 1
+            continue
 
+        if i == 1:
+            while (0 < abs(H.entry(1, j)) <= abs(H.entry(2, j))
+                   or 0 < abs(H.entry(2, j)) <= abs(H.entry(1, j))):
+                if abs(H.entry(1, j)) <= abs(H.entry(2, j)):
+                    q = H.entry(2, j) // H.entry(1, j)
+                    T = M2Z.elementary_matrix_add_multiple_of_row(2, 1, -q)
+                else:
+                    q = H.entry(1, j) // H.entry(2, j)
+                    T = M2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
+                U = T * U
+                H = T * H
+
+        if H.entry(i, j) == 0: # unique non-zero entry in the column is in the other row
+            T = M2Z.elementary_matrix_interchange_rows()
+            U = T * U
+            H = T * H
+
+        # make the pivot positive
+        if H.entry(i, j) < 0:
+            T = M2Z.elementary_matrix_multiply_row(i, -1)
+            U = T * U
+            H = T * H
+
+        # clear entries above the pivot (only possible when i == 2)
+        if i == 2 and H.entry(1, j) != 0:
+            q = H.entry(1, j) // H.entry(i, j)
+            T = M2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
+            U = T * U
+            H = T * H
+
+        i += 1
+        j += 1
+
+    return GL2Z(U.a11, U.a12, U.a21, U.a22), H
+            
 
 if __name__ == "__main__":
     assert P ** (-1) == P
@@ -780,6 +839,12 @@ if __name__ == "__main__":
     m = M2Z(1, 0, 12, -5)
     assert I * m == m and m * I == m
 
-    print(M2Z.elementary_matrix_add_multiple_of_row(1, 2, 3))
+    A = M2Z(-13, 2, 0, 0)
+    U, H = hnf_2x2(A)
+    print(U)
+    print(H, U * A)
 
+    A = M2Z(1, 1, 0, 1)
+    U, H = hnf_2x2(A)
+    print(U, H, U * A)
 
