@@ -8,6 +8,7 @@ from collections import abc
 import itertools as it
 import typing
 
+import cflib
 import gl2z
 import prime_numbers
 import pell
@@ -311,6 +312,15 @@ class RealQuadraticNumber(Number):
         alpha21 = (alpha2 * alpha1).trace
         alpha22 = (alpha2 * alpha2).trace
         return alpha11 * alpha22 - alpha12 * alpha21
+    
+    @property
+    def integer_coefficient_tuple(self: typing.Self) -> tuple[int,int]:
+        if not self.is_integral:
+            raise TypeError(f"{self} must be an integral element of ")
+        if d % 4 in (2, 3):       # ω = √d
+            return (int(self.x), int(self.y))
+        else:                    # d % 4 == 1,  ω = (1+√d)/2
+            return (int(self.x - self.y), int(2 * self.y))
 
 
 class RealQuadraticField(abc.Container):
@@ -438,6 +448,7 @@ class NonzeroIdeal(abc.Container):
 
     __slots__ = ["a", "r", "r1", "r2"]
 
+
     @staticmethod
     def orientation(r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> RealQuadraticNumber:
         if not (r1.is_integral and r2.is_integral):
@@ -459,18 +470,16 @@ class NonzeroIdeal(abc.Container):
         r1, r2 = a, r
         if float(oriented_volume) < 0:
             r1, r2 = r2, r1
-        if int(r) == r:
-            a, r = r, a
         self.a = a
         self.r = r
         self.r1 = r1
         self.r2 = r2
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.a}, {self.r})"
+        return f"{type(self).__name__}({self.r1}, {self.r2})"
     
     def __eq__(self, other: typing.Self) -> bool:
-        return self.a == other.a and self.r == other.r
+        return self.r1 == other.r1 and self.r2 == other.r2
     
     @property
     def d(self) -> int:
@@ -507,7 +516,7 @@ class NonzeroIdeal(abc.Container):
         y1a1 + y2a2 = y
 
         Cramer's rule:
-        a1 = (x * y2 - x2 * y) / (x1y2 - x2y1)
+        a1 = (x * y2 - x2 * y) / (x1y2 - x2y1) 
         a2 = (x1 * y - x * y1) / (x1y2 - x2y1)
         """
         if isinstance(item, Rational):
@@ -523,20 +532,13 @@ class NonzeroIdeal(abc.Container):
         if a1.denominator == 1 and a2.denominator == 1:
             return True
         return False
-    
-    def __add__(self, other: typing.Self) -> typing.Self:
-        if not isinstance(other, NonzeroIdeal):
-            return NotImplemented
-        if self.d != other.d:
-            raise ValueError("Ideals must lie in the same ring of integers 𝓞_𝐐(√d).")
-        I1, I2 = self, other
-        a1, r1, a2, r2 = I1.a, I1.r, I2.a, I2.r
-        
 
 
-
-
-
+    def __contains__(self, item: RealQuadraticNumber | Rational) -> bool:
+        if isinstance(item, Rational):
+            item = RealQuadraticNumber(self.d, item, 0)
+        if not item.is_integral:
+            raise ValueError(f"{item=} must be an integral element of 𝐐(√d).")
 
 
 
@@ -677,4 +679,15 @@ if __name__ == "__main__":
     d = 30
     assert RealQuadraticNumber.discriminant(RealQuadraticNumber(d, 1, 0), RealQuadraticField(d).fundamental_unit) == \
         RealQuadraticNumber.discriminant_by_trace(RealQuadraticNumber(d, 1, 0), RealQuadraticField(d).fundamental_unit)
+    
+    d = 23
+    r1 = RealQuadraticNumber(d, 1, 3)
+    r2 = RealQuadraticNumber(d, 2, 2)
+    I1 = NonzeroIdeal(r1, r2)
+    A = gl2z.M2Z(r1.x, r2.x, r1.y, r2.y)
+    U, H = gl2z.hnf_2x2(A)
+    a = RealQuadraticNumber(d, H.a11, H.a21)
+    r = RealQuadraticNumber(d, H.a12, H.a22)
+    I2 = NonzeroIdeal(a, r)
+    print(I1, I2)
 

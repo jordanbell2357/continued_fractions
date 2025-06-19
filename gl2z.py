@@ -510,12 +510,12 @@ class M2Z(abc.Hashable):
     __slots__ = ("a11", "a12", "a21", "a22")
 
     def __init__(self, a11: int, a12: int, a21: int, a22: int) -> None:
-        if not all(isinstance(a, int) for a in [a11, a12, a21, a22]):
+        if not all(a == int(a) for a in [a11, a12, a21, a22]):
             raise TypeError(f"{a11=}, {a12=}, {a21=}, {a22=} must all be integers.")
-        self.a11 = a11
-        self.a12 = a12
-        self.a21 = a21
-        self.a22 = a22
+        self.a11 = int(a11)
+        self.a12 = int(a12)
+        self.a21 = int(a21)
+        self.a22 = int(a22)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.a11}, {self.a12}, {self.a21}, {self.a22})"
@@ -639,18 +639,6 @@ class M2Z(abc.Hashable):
     
     def __abs__(self: typing.Self) -> int: # maximum absolute value of entries (ℓ∞ norm)
         return max(abs(entry) for entry in self)
-    
-    @property
-    def row1(self) -> tuple[int, int]:
-        return self.a11, self.a12
-    
-    @property
-    def row2(self) -> tuple[int, int]:
-        return self.a21, self.a22
-    
-    @classmethod
-    def from_rows(cls, row1: tuple[int, int], row2: tuple[int, int]) -> typing.Self:
-        return cls(row1[0], row2[0], row1[1], row2[1])
     
     def entry(self, row_index: int, column_index: int) -> int:
         if row_index == 1 and column_index == 1:
