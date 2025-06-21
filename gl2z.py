@@ -173,8 +173,6 @@ class GL2Z(abc.Hashable):
             raise ValueError("Column numbers must be distinct and either 1 or 2.")
 
 
-
-
 I = GL2Z(1, 0, 0, 1)
 P = GL2Z(0, 1, 1, 0) # det == -1. P⁻¹ = P
 R = GL2Z(0, 1, -1, 0) # S⁻¹
@@ -692,13 +690,12 @@ class M2Z(abc.Hashable):
         return type(self)(self.a11, self.a21, self.a12, self.a22)
 
     def __pow__(self: typing.Self, exponent: int) -> typing.Self:
-        I = type(self)(1, 0, 0, 1)
         if exponent == 0 and self.det != 0:
-            return I
+            return type(self)(1, 0, 0, 1)
         elif exponent == 0 and self.det == 0:
             raise ValueError("Exponent must be positive for matrix with determinant 0.")
         elif exponent > 0:
-            return ft.reduce(operator.mul, (self for _ in range(exponent)), I)
+            return ft.reduce(operator.mul, (self for _ in range(exponent)), type(self)(1, 0, 0, 1))
         elif exponent < 0:
             raise ValueError(f"Exponent must be nonnegative.")
     
@@ -787,7 +784,7 @@ class M2x4Z(abc.Hashable):
         return len(type(self).__slots__)
     
     def __iter__(self: typing.Self) -> int:
-        return iter([self.a11, self.a12, self.a13, self.a14, self.a21, self.a22, self.a23, self.a24])
+        return iter((self.a11, self.a12, self.a13, self.a14, self.a21, self.a22, self.a23, self.a24))
     
     def __rmul__(self: typing.Self, other: M2Z | GL2Z) -> typing.Self:
         if isinstance(other, GL2Z):
@@ -910,8 +907,8 @@ def hnf_2x4(A: M2x4Z) -> tuple[GL2Z, M2x4Z]:
     if not isinstance(A, M2x4Z):
         raise TypeError("hnf_2x4 expects an M2x4Z argument")
 
-    U: GL2Z = GL2Z(1, 0, 0, 1)   # accumulator for row operations
-    H: M2x4Z = A                # work on a mutable alias (M2x4Z is immutable)
+    U = GL2Z(1, 0, 0, 1)   # accumulator for row operations
+    H = A                # work on a mutable alias (M2x4Z is immutable)
 
     # ------------------------------------------------------------------
     # 1  Sims-style sweep through the columns
@@ -977,8 +974,7 @@ def hnf_2x4(A: M2x4Z) -> tuple[GL2Z, M2x4Z]:
     # 3  Rank‑2 tidy‑up: enforce divisibility between pivots via 2×2 HNF
     # ------------------------------------------------------------------
     first_pivot_col = next(c for c in range(1, 5) if H.entry(1, c) != 0)
-    second_pivot_col = next(c for c in range(first_pivot_col + 1, 5)
-                             if H.entry(2, c) != 0)
+    second_pivot_col = next(c for c in range(first_pivot_col + 1, 5) if H.entry(2, c) != 0)
 
     block = M2Z(
         H.entry(1, first_pivot_col), H.entry(1, second_pivot_col),
