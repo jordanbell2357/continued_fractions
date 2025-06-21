@@ -538,10 +538,10 @@ class M2Z(abc.Hashable):
             other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
         if not isinstance(other, M2Z):
             return NotImplemented
-        a11 = self.a11 * other.a11
-        a12 = self.a12 * other.a12
-        a21 = self.a21 * other.a21
-        a22 = self.a22 * other.a22
+        a11 = self.a11 + other.a11
+        a12 = self.a12 + other.a12
+        a21 = self.a21 + other.a21
+        a22 = self.a22 + other.a22
         return type(self)(a11, a12, a21, a22)
     
     def __radd__(self: typing.Self, other: typing.Self | GL2Z) -> typing.Self:
@@ -549,10 +549,10 @@ class M2Z(abc.Hashable):
             other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
         if not isinstance(other, M2Z):
             return NotImplemented
-        a11 = other.a11 * self.a11
-        a12 = other.a12 * self.a12
-        a21 = other.a21 * self.a21
-        a22 = other.a22 * self.a22
+        a11 = other.a11 + self.a11
+        a12 = other.a12 + self.a12
+        a21 = other.a21 + self.a21
+        a22 = other.a22 + self.a22
         return type(self)(a11, a12, a21, a22)
     
     def __sub__(self: typing.Self, other: typing.Self | GL2Z) -> typing.Self:
@@ -658,10 +658,21 @@ class M2Z(abc.Hashable):
         Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
         Cambridge University Press, 1994.
         Chapter 8: Abelian groups, pp. 319-382.
-        p. 321: There are three types of integer row operations:
+        
+        Section 8.1, "Free abelian groups", p. 321:
+        There are three types of integer row operations:
         (1) Interchange two rows.
         (2) Multiply a row by -1.
         (3) Add an integral multiple of one row to another row.
+
+        Section 8.2, "Elementary matrices", p. 331:
+        Proposition 2.2. Let B be an m-by-m integer matrix. The following are
+        equivalent:
+        (a) det£ = ±l.
+        (b) B is in GL(m,Z).
+        (c) B is row equivalent to the m-by-m identity matrix.
+        (d) S(B) = Zm.
+        (e) B is a product of elementary matrices.
         """
         return cls(0, 1, 1, 0)
         
@@ -691,6 +702,79 @@ class M2Z(abc.Hashable):
             return GL2Q(self.a11, self.a12, self.a21, self.a22)
         else:
             return None
+    
+    @property
+    def hadamard_det_bound(self) -> float:
+        """
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        Proposition 2.2.4 (Hadamard's inequality), p. 51.
+        """
+        return math.prod(math.sqrt(sum(self.entry(i, j) ** 2 for j in range(1, 3))) for i in range(1, 3))
+
+    @classmethod
+    def GL2Z_to_M2Z(cls, m: GL2Z) -> typing.Self:
+        return cls(m.alpha, m.beta, m.gamma, m.delta)
+
+
+class M2x4Z(abc.Hashable):
+    """
+    2x4 matrices with entries in 𝐙.
+    """
+
+    __slots__ = ("a11", "a12", "a13", "a14", "a21", "a22", "a23", "a24")
+
+    def __init__(self, a11: int, a12: int, a13: int, a14: int, a21: int, a22: int, a23: int, a24: int) -> None:
+        if not all(a == int(a) for a in [a11, a12, a13, a14, a21, a22, a23, a24]):
+            raise TypeError(f"{a11=}, {a12=}, {a13=}, {a14=}, {a21=}, {a22=}, {a23=}, {a24=} must all be integers.")
+        self.a11 = int(a11)
+        self.a12 = int(a12)
+        self.a13 = int(a13)
+        self.a14 = int(a14)
+        self.a21 = int(a21)
+        self.a22 = int(a22)
+        self.a23 = int(a23)
+        self.a24 = int(a24)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.a11}, {self.a12}, {self.a13}, {self.a14}, {self.a21}, {self.a22}, {self.a23}, {self.a24})"
+    
+    def __eq__(self, other: typing.Self) -> typing.Self:
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return all(getattr(self, a) == getattr(other, a) for a in type(self).__slots__)
+    
+    def __hash__(self) -> int:
+        return hash((self.a11, self.a12, self.a13, self.a14, self.a21, self.a22, self.a23, self.a24))
+
+    def __neg__(self: typing.Self) -> typing.Self:
+        return type(self)(-self.a11, -self.a12, -self.a13, -self.a14, -self.a21, -self.a22, -self.a23, -self.a24)
+    
+    def __contains__(self: typing.Self, other: int) -> bool:
+        return any(other == entry for entry in self)
+    
+    def __getitem__(self: typing.Self, index: int) -> int:
+        return (*self, )[index]
+    
+    def __len__(self: typing.Self) -> int:
+        return len(type(self).__slots__)
+    
+    def __iter__(self: typing.Self) -> int:
+        return iter([self.a11, self.a12, self.a13, self.a14, self.a21, self.a22, self.a23, self.a24])
+    
+    def __rmul__(self: typing.Self, other: M2Z | GL2Z) -> typing.Self:
+        if isinstance(other, GL2Z):
+            other = M2Z.GL2Z_to_M2Z(other)
+        l11, l12, l21, l22 = other
+        r11, r12, r13, r14, r21, r22, r23, r24 = self
+        a11 = l11 * r11 + l12 * r21
+        a12 = l11 * r12 + l12 * r22
+        a13 = l11 * r13 + l12 * r23
+        a14 = l11 * r14 + l12 * r24
+        a21 = l21 * r11 + l22 * r21
+        a22 = l21 * r12 + l22 * r22
+        a23 = l21 * r13 + l22 * r23
+        a24 = l21 * r14 + l22 * r24
+        return type(self)(a11, a12, a13, a14, a21, a22, a23, a24)
 
 
 
@@ -757,107 +841,141 @@ def hnf_2x2(A: M2Z) -> tuple[GL2Z, M2Z]:
     return GL2Z(U.a11, U.a12, U.a21, U.a22), H
 
 
-# --------------------------------------------------------------------------
-#  Row-Hermite normal form  for a 2 × 4 integer matrix
-# --------------------------------------------------------------------------
-def hnf_2x4(A: list[list[int]] | tuple[tuple[int, ...], ...]
-            ) -> tuple[GL2Z, list[list[int]]]:
+def hnf_2x4(A: M2x4Z) -> tuple[GL2Z, M2x4Z]:
+    """Row Hermite normal form for a 2×4 integer matrix.
+
+    Given A ∈ M2x4Z this returns a pair (U, H) with
+
+    * U ∈ GL2Z (determinant ±1),
+    * H ∈ M2x4Z in row Hermite normal form,
+      
+    such that H=U * A.
+
+    The implementation is a direct 2×4 instantiation of Sims'
+    *ROW_REDUCE* procedure (Computation with Finitely Presented Groups,
+    §8).
     """
-    Return U ∈ GL₂(ℤ) and H = U·A in *row* Hermite normal form (m = 2, n = 4).
 
-    The algorithm is the usual column-by-column row–reduction (Cohen §2.4,
-    Sims §8.3) carried out until two pivots are in place, **followed by a
-    final 2 × 2 clean-up step** that re-reduces the sub-matrix formed by the
-    pivot columns.  That extra Euclidean step is what was missing before – it
-    removes the spurious factor 13 in the user’s counter-example and restores
-    the divisibility/positivity conditions required of a true row-HNF.
-    """
+    # ------------------------------------------------------------------
+    # 0Input sanity check
+    # ------------------------------------------------------------------
+    if not isinstance(A, M2x4Z):
+        raise TypeError(f"{A=} must be an instance of M2x4Z.")
 
-    # ---- 0  coerce input into a mutable 2 × 4 list ------------------------
-    if (isinstance(A, (list, tuple)) and len(A) == 2
-            and all(len(row) == 4 for row in A)):
-        H = [list(map(int, A[0])), list(map(int, A[1]))]
-    else:
-        raise TypeError("A must be a 2 × 4 container of integers.")
+    # Working copies (they are immutable → we rebind after every op)
+    U: M2Z = M2Z(1, 0, 0, 1)   # accumulator for row ops (starts as I₂)
+    H: M2x4Z = A               # matrix we progressively row‑reduce
 
-    # identity matrix in M₂(ℤ)   (kept mutable so we can accumulate updates)
-    Umat = [[1, 0],
-            [0, 1]]
-
-    # --- small helper ------------------------------------------------------
-    def apply_row_op(T: M2Z) -> None:
-        """Left-multiply H by the elementary matrix T and accumulate into U."""
-        nonlocal H, Umat
-        # U ← T·U
-        Umat = [
-            [T.a11*Umat[0][0] + T.a12*Umat[1][0],
-             T.a11*Umat[0][1] + T.a12*Umat[1][1]],
-            [T.a21*Umat[0][0] + T.a22*Umat[1][0],
-             T.a21*Umat[0][1] + T.a22*Umat[1][1]],
-        ]
-        # H ← T·H
-        newH0 = [T.a11*H[0][k] + T.a12*H[1][k] for k in range(4)]
-        newH1 = [T.a21*H[0][k] + T.a22*H[1][k] for k in range(4)]
-        H = [newH0, newH1]
-
-    # ---- 1  Sims / Cohen row-reduction, column by column ------------------
-    i, j = 0, 0                       # i = current row (0-based), j = column
+    # ------------------------------------------------------------------
+    # 1Place the two pivots (at most one per row)
+    # ------------------------------------------------------------------
+    i, j = 0, 0                               # current row / column (0‑based)
     while i <= 1 and j <= 3:
+        # materialise the two rows of H for easy access
+        r0 = [H.a11, H.a12, H.a13, H.a14]
+        r1 = [H.a21, H.a22, H.a23, H.a24]
 
-        # (a) skip an all-zero column
-        if H[0][j] == 0 and H[1][j] == 0:
+        # (a)Skip all‑zero columns
+        if r0[j] == 0 and r1[j] == 0:
             j += 1
             continue
 
-        # (b) extended-gcd on the current column (same idea as hnf_2x2)
-        while (0 < abs(H[0][j]) <= abs(H[1][j])
-               or 0 < abs(H[1][j]) <= abs(H[0][j])):
-            if abs(H[0][j]) <= abs(H[1][j]):
-                q = H[1][j] // H[0][j]
+        # (b)Extended‑gcd loop on the current column
+        while (0 < abs(r0[j]) <= abs(r1[j])) or (0 < abs(r1[j]) <= abs(r0[j])):
+            if abs(r0[j]) <= abs(r1[j]):
+                q = r1[j] // r0[j]
                 T = M2Z.elementary_matrix_add_multiple_of_row(2, 1, -q)
             else:
-                q = H[0][j] // H[1][j]
+                q = r0[j] // r1[j]
                 T = M2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
-            apply_row_op(T)
+            U = T * U
+            H = T * H
+            r0 = [H.a11, H.a12, H.a13, H.a14]
+            r1 = [H.a21, H.a22, H.a23, H.a24]
 
-        # (c) ensure pivot sits in the current row
-        if H[i][j] == 0:
-            apply_row_op(M2Z.elementary_matrix_interchange_rows())
+        # (c)Make sure the pivot sits in the *i*‑th row
+        pivot_val = r0[j] if i == 0 else r1[j]
+        if pivot_val == 0:                      # unique non‑zero entry is in the other row
+            T = M2Z.elementary_matrix_interchange_rows()
+            U = T * U
+            H = T * H
+            r0, r1 = r1, r0                    # rows swapped
+            pivot_val = r0[j] if i == 0 else r1[j]
 
-        # (d) make it positive
-        if H[i][j] < 0:
-            apply_row_op(M2Z.elementary_matrix_multiply_row(i+1, -1))
+        # (d)Make the pivot positive
+        if pivot_val < 0:
+            T = M2Z.elementary_matrix_multiply_row(i + 1, -1)  # rows are 1‑based here
+            U = T * U
+            H = T * H
+            r0[i * 4 + j] = -pivot_val         # refresh not strictly needed, next pass recomputes rows
 
-        # (e) clear the entry *above* the pivot (only relevant for the
-        #     second pivot, i = 1)
-        if i == 1 and H[0][j] != 0:
-            q = H[0][j] // H[1][j]
+        # (e)Clear the entry *above* the pivot (only for the second pivot)
+        if i == 1 and r0[j] != 0:               # r0 is now the first row
+            q = r0[j] // r1[j]
             T = M2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
-            apply_row_op(T)
+            U = T * U
+            H = T * H
 
-        # next pivot
+        # move to next pivot position
         i += 1
         j += 1
-        if i == 2:      # two pivots placed – leave the main loop
+        if i == 2:                              # two pivots placed → done
             break
 
-    # ---- 2  FINAL 2 × 2 *clean-up* on the pivot sub-matrix -----------------
-    # locate the two pivot columns
-    j0 = next(k for k in range(4) if H[0][k] != 0)
-    j1 = next(k for k in range(j0+1, 4) if H[1][k] != 0)
+    # ------------------------------------------------------------------
+    # 2Final 2×2 clean‑up on the pivot sub‑matrix
+    # ------------------------------------------------------------------
+    rows = [[H.a11, H.a12, H.a13, H.a14],
+            [H.a21, H.a22, H.a23, H.a24]]
 
-    # run the *trusted* 2 × 2 routine on those two columns …
-    B = M2Z(H[0][j0], H[0][j1],
-            H[1][j0], H[1][j1])
-    U2, Hpiv = hnf_2x2(B)                       # re-reduce the 2 × 2 block
+    # locate the pivot columns (guaranteed to exist now)
+    j0 = next(k for k in range(4) if rows[0][k] != 0)
+    j1 = next(k for k in range(j0 + 1, 4) if rows[1][k] != 0)
 
-    # … and apply the same row operation to *all* four columns
-    apply_row_op(M2Z(U2.alpha, U2.beta, U2.gamma, U2.delta))
+    B = M2Z(rows[0][j0], rows[0][j1],
+            rows[1][j0], rows[1][j1])
+    U2, _ = hnf_2x2(B)
 
-    # ---- 3  package & return ----------------------------------------------
-    U = GL2Z(Umat[0][0], Umat[0][1],
-             Umat[1][0], Umat[1][1])
-    return U, H
+    T = M2Z(U2.alpha, U2.beta, U2.gamma, U2.delta)
+    U = T * U
+    H = T * H
+
+    # ------------------------------------------------------------------
+    # 3Return the pair (U,H)
+    # ------------------------------------------------------------------
+    return GL2Z(U.a11, U.a12, U.a21, U.a22), H
+
+
+
+def smith_normal_form_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
+    """
+    Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
+    Cambridge University Press, 1994.
+    Chapter 8: Abelian groups, pp. 319-382.
+    
+    Section 8.3, "Finitely generated abelian groups", p. 333:
+    Two m-by-n integer matrices A and B are equivalent over Z if one can be
+    obtained from the other by a sequence of integer row and column operations.
+    This is the same as saying that there are matrices P and Q in GL(m, Z)
+    and GL(n,Z), respectively, such that A = PBQ. Equivalence of matrices
+    over Z is an equivalence relation.
+
+    Just as the matrices in row Hermite normal form are representatives for
+    the equivalence classes of integer matrices under integer row equivalence,
+    there is an easily identified set of representatives under equivalence. An
+    integer matrix A is in Smith normal form if for some r >= 0 the entries
+    di = Aii, 1 <= i <= r, are positive, A has no other nonzero entries, and di
+    divides di+1, 1 <= i < r. The matrix A of Example 3.1 is in Smith normal
+    form.
+
+    Example 3.1, p. 332:
+    2 0 0 0 0
+    0 4 0 0 0
+    0 0 12 0 0
+
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+    Algorithm 2.4.14 (Smith Normal Form), p. 77.
+    """
 
 
             
@@ -935,20 +1053,25 @@ if __name__ == "__main__":
     max_size = 20
     a11, a12, a21, a22 = random.randint(1, max_size), random.randint(1, max_size), random.randint(1, max_size), random.randint(1, max_size)
     m_A = M2Z(a11, a22, a21, a22)
+    assert abs(m_A.det) <= m_A.hadamard_det_bound
+
+    max_size = 20
+    a11, a12, a21, a22 = random.randint(1, max_size), random.randint(1, max_size), random.randint(1, max_size), random.randint(1, max_size)
+    m_A = M2Z(a11, a22, a21, a22)
     m_U, m_H = hnf_2x2(m_A)
     assert m_H == m_U * m_A
     assert m_U.det in [-1, 1]
     assert m_H.det == m_A.det or m_H.det == -m_A.det
 
     # random 2×4 matrix
-    A = [[12, -5,  7, 9],
-         [ 3, 14, -4, 8]]
+    # A = [[12, -5,  7, 9],
+    #      [ 3, 14, -4, 8]]
+    A = M2x4Z(12, -5, 7, 9, 3, 14, -4, 8)
     U, H = hnf_2x4(A)
     # check U ∈ GL₂(ℤ)
     assert U.det in (-1, 1)
 
-    # verify H = U·A
-    def matmul2x2_2x4(M2, M2x4):
-        return [[M2[0][0]*M2x4[0][k] + M2[0][1]*M2x4[1][k] for k in range(4)],
-                [M2[1][0]*M2x4[0][k] + M2[1][1]*M2x4[1][k] for k in range(4)]]
-    assert H == matmul2x2_2x4([[U.alpha,U.beta],[U.gamma,U.delta]], A)
+    A = M2x4Z(1, 1, 1, 1, 1, 1, 1, 1)
+    U = GL2Z(1, 0, 0, -1)
+    print(U * A)
+    

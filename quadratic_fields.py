@@ -358,8 +358,8 @@ class RealQuadraticField(abc.Container):
     def __init__(self: typing.Self, d: int) -> None:
         if not isinstance(d, int):
             raise TypeError("d must be integer")
-        if not d > 0:
-            raise ValueError("d must be > 0")
+        if not d > 1:
+            raise ValueError("d must be > 1")
         _, squarefree_part_d = prime_numbers.squarefull_and_squarefree_parts(d)
         self.d = squarefree_part_d
 
@@ -411,8 +411,7 @@ class RealQuadraticField(abc.Container):
         d = self.d
         return (Decimal(x) + Decimal(y) * Decimal(d).sqrt()).ln()
 
-    @staticmethod
-    def prime_decomposition_type(D: int, p: int) -> int:
+    def prime_decomposition_type(self, p: int) -> int:
         """
         Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
         p. 198: "Theorem 4.8.13 immediately shows how prime numbers decompose in a quadratic field"
@@ -424,8 +423,16 @@ class RealQuadraticField(abc.Container):
 
         Proposition 5.1.4, p. 224.
         """
-        return prime_numbers.kronecker_symbol(D, p)
+        if not isinstance(p, int):
+            raise TypeError(f"{p=} must be an integer.")
+        if not prime_numbers.isprime(p):
+            raise ValueError(f"{p=} must be prime.")
+        return prime_numbers.kronecker_symbol(self.D, p)
 
+
+    @property
+    def sqrtd(self: typing.Self) -> RealQuadraticNumber:
+        return RealQuadraticNumber(self.d, 0, 1)
 
     @property
     def omega(self: typing.Self) -> RealQuadraticNumber: # 𝓞_𝐐(√d) = 𝐙[ω]
@@ -627,112 +634,32 @@ class NonzeroIdeal(abc.Container):
             return True
         return False
     
-    # ------------------------------------------------------------------
-    #  Product  I·J  of two non-zero ideals  I = ⟨a , r⟩ ,  J = ⟨b , s⟩
-    # ------------------------------------------------------------------
-    def __mul__(self: typing.Self,
-                other: typing.Self) -> typing.Self:          # noqa: D401
+    @classmethod
+    def prime_ideal(cls, d: int, p: int, t_sgn: int = 1) -> typing.Self:
         """
-        Return the product ideal *IJ* as another ``NonzeroIdeal``.
+        Prime ideals  𝖕 ⊂ 𝓞_K   (rank-2 lattice with norm p or p²)
+        Prime ideal above a rational prime p in the real-quadratic field K = ℚ(√d).
 
-        *Algorithm* (robust version)
-
-        1.  Form the four obvious generators of the product
-                g₁ = a·b ,   g₂ = a·s ,   g₃ = r·b ,   g₄ = r·s .
-            Any two that are ℤ–linearly independent already generate *IJ*,
-            so we first try every pair; the first pair whose norm equals
-            ``self.norm * other.norm`` is accepted immediately – this is a
-            fast path that handles > 95 % of random inputs.:contentReference[oaicite:5]{index=5}
-
-        2.  If no pair succeeds (very rare), we fall back to an HNF based
-            selection that is *guaranteed* to find a correct pair:
-              • write the four generators in the naive integral basis
-                { 1, √d }, clear denominators, and collect the integer
-                coordinates in a 2 × 4 matrix *A*;
-              • apply the specialised `gl2z.hnf_2x4` routine to obtain
-                *H = U·A* in row-Hermite normal form; the pivot columns of
-                *H* pinpoint two of the **original** generators that span
-                the lattice; we rebuild the ideal from exactly those two
-                originals.:contentReference[oaicite:6]{index=6}
-
-        3.  A final assert double-checks that the computed ideal really has
-            the expected norm – if not, something is fundamentally wrong and
-            we raise an error.
-
-        The whole routine is pure algebra (no floating point), so it works
-        for *any* real quadratic field instanced by the surrounding code.
+        Construction follows Cohen §5.1:
+            • inert (D/p) = –1 => 𝖕 = ⟨p, √d⟩    (norm p²)
+            • ramified (D/p) =  0 => 𝖕 = ⟨p, ω⟩    (norm p)
+            • split (D/p) = +1 => 𝖕₁ = ⟨p, t – √d⟩, 𝖕₂ = ⟨p, t + √d⟩
+            where t ∈ ℤ solves  t² ≡ d (mod p)
         """
-        if not isinstance(other, NonzeroIdeal):
-            return NotImplemented
-        if self.a.d != other.a.d:                     # same quadratic field?
-            raise ValueError("Both ideals must belong to the same 𝒪_K.")
+        K = RealQuadraticField(d)
+        d0 = K.d
+        # Determine prime decomposition type: splits (+1), inert (–1), or ramified (0)
+        decomp_type = K.prime_decomposition_type(p)
+        if decomp_type == 1:  # p splits
+            t = prime_numbers.square_root_mod_p(d0, p)
+            return cls(p, RealQuadraticNumber(d0, t, t_sgn))
+        elif decomp_type == -1:  # p is inert
+            return cls(p, RealQuadraticNumber(d0, 0, 1))
+        elif decomp_type == 0:  # p is ramified
+            return cls(p, K.omega)
+        else:
+            raise ArithmeticError("Implementation of some ingredient is broken.")
 
-        # ---- 0  the four canonical generators of IJ --------------------
-        gens: list[RealQuadraticNumber] = [
-            self.a * other.a,
-            self.a * other.r,
-            self.r * other.a,
-            self.r * other.r,
-        ]
-
-        target_norm = self.norm * other.norm
-
-        # ---- 1  fast path – try every pair -----------------------------
-        for i in range(4):
-            for j in range(i + 1, 4):
-                try:
-                    cand = NonzeroIdeal(gens[i], gens[j])
-                except Exception:                      # dependent pair etc.
-                    continue
-                if cand.norm == target_norm:          # found!
-                    return cand
-
-        # ---- 2  guaranteed path – use row-HNF on the 2×4 coord matrix --
-        # (a) collect coordinates in the naive {1, √d} basis
-        lcm_den = 1
-        coords: list[tuple[int, int]] = []
-        for g in gens:
-            lcm_den = math.lcm(lcm_den, g.x.denominator, g.y.denominator)
-        for g in gens:
-            coords.append((
-                int(g.x * lcm_den),
-                int(g.y * lcm_den),
-            ))
-        A = [
-            [c[0] for c in coords],   # first row = x-coords
-            [c[1] for c in coords],   # second row = y-coords
-        ]
-
-        # (b) row-HNF
-        _, H = gl2z.hnf_2x4(A)                                        # :contentReference[oaicite:7]{index=7}
-
-        # (c) find the two pivot columns (first non-zero in each row)
-        pivot1 = next(j for j in range(4) if H[0][j] != 0)
-        pivot2 = next(j for j in range(pivot1 + 1, 4) if H[1][j] != 0)
-
-        cand = NonzeroIdeal(gens[pivot1], gens[pivot2])
-
-        # ---- 3  final sanity check -------------------------------------
-        if cand.norm != target_norm:   # should never happen
-            raise ArithmeticError("internal error in ideal multiplication")
-
-        return cand
-
-
-
-# ------------------------------------------------------------------
-#  Prime ideals  𝖕 ⊂ 𝓞_K   (rank-2 lattice with norm p or p²)
-# ------------------------------------------------------------------
-class PrimeIdeal(NonzeroIdeal):
-    """
-    Prime ideal above a rational prime p in the real-quadratic field K = ℚ(√d).
-
-    Construction follows Cohen §5.1:
-        • inert (D/p) = –1 => 𝖕 = ⟨p, √d⟩    (norm p²)
-        • ramified (D/p) =  0 => 𝖕 = ⟨p, ω⟩    (norm p)
-        • split (D/p) = +1 => 𝖕₁ = ⟨p, t – √d⟩, 𝖕₂ = ⟨p, t + √d⟩
-          where t ∈ ℤ solves  t² ≡ d (mod p)
-    """
 
 
 if __name__ == "__main__":
@@ -876,11 +803,11 @@ if __name__ == "__main__":
     assert ideal2 > ideal1
     assert not (ideal2 < ideal1)
 
-    d = 13
-    u = RealQuadraticNumber(d, 1, 0)    # 1
-    v = RealQuadraticNumber(d, 0, 1)    # √13
-    ideal1 = NonzeroIdeal(2 * u, v)         # ⟨2, √13⟩
-    ideal2 = NonzeroIdeal(u, u + v)         # ⟨1, 1 + √13⟩
-    ideal_product = ideal1 * ideal2
-    assert ideal1.norm * ideal2.norm == ideal_product.norm
-    assert ideal_product <= ideal1 and ideal_product <= ideal2
+    # d = 13
+    # u = RealQuadraticNumber(d, 1, 0)    # 1
+    # v = RealQuadraticNumber(d, 0, 1)    # √13
+    # ideal1 = NonzeroIdeal(2 * u, v)         # ⟨2, √13⟩
+    # ideal2 = NonzeroIdeal(u, u + v)         # ⟨1, 1 + √13⟩
+    # ideal_product = ideal1 * ideal2
+    # assert ideal1.norm * ideal2.norm == ideal_product.norm
+    # assert ideal_product <= ideal1 and ideal_product <= ideal2
