@@ -270,6 +270,34 @@ def solve_quadratic_congruence(a: int, n: int) -> int:
     return None
 
 
+def square_root_mod_p(d: int, p: int) -> int:
+    """Return t with t² ≡ d (mod p) when it exists (Tonelli–Shanks)."""
+    if p == 2:
+        return d % 2                                 # trivial root
+    # simple Tonelli–Shanks; assumes (d/p)=+1
+    leg = pow(d, (p - 1) // 2, p)
+    if leg != 1:
+        raise ValueError(f"{d} is not a quadratic residue mod {p}.")
+    # find q·2^s with q odd
+    s, q = 0, p - 1
+    while q % 2 == 0:
+        s += 1
+        q //= 2
+    # find z a non-square
+    z = 2
+    while pow(z, (p - 1) // 2, p) != p - 1:
+        z += 1
+    m, c, t, r = s, pow(z, q, p), pow(d, q, p), pow(d, (q + 1) // 2, p)
+    while t != 1:
+        i, tmp = 1, pow(t, 2, p)
+        while tmp != 1:
+            tmp = pow(tmp, 2, p)
+            i += 1
+        b = pow(c, 1 << (m - i - 1), p)
+        m, c, t, r = i, pow(b, 2, p), t * pow(b, 2, p) % p, r * b % p
+    return r
+
+
 
 if __name__ == "__main__":
     # Example: prime numbers

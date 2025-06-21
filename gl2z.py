@@ -6,8 +6,8 @@ from collections import abc
 from fractions import Fraction
 from numbers import Rational
 import re
-import random
 import typing
+import random
 
 import cflib
 
@@ -755,6 +755,111 @@ def hnf_2x2(A: M2Z) -> tuple[GL2Z, M2Z]:
         j += 1
 
     return GL2Z(U.a11, U.a12, U.a21, U.a22), H
+
+
+# --------------------------------------------------------------------------
+#  Row-Hermite normal form  for a 2 × 4 integer matrix
+# --------------------------------------------------------------------------
+def hnf_2x4(A: list[list[int]] | tuple[tuple[int, ...], ...]
+            ) -> tuple[GL2Z, list[list[int]]]:
+    """
+    Return U ∈ GL₂(ℤ) and H = U·A in *row* Hermite normal form (m = 2, n = 4).
+
+    The algorithm is the usual column-by-column row–reduction (Cohen §2.4,
+    Sims §8.3) carried out until two pivots are in place, **followed by a
+    final 2 × 2 clean-up step** that re-reduces the sub-matrix formed by the
+    pivot columns.  That extra Euclidean step is what was missing before – it
+    removes the spurious factor 13 in the user’s counter-example and restores
+    the divisibility/positivity conditions required of a true row-HNF.
+    """
+
+    # ---- 0  coerce input into a mutable 2 × 4 list ------------------------
+    if (isinstance(A, (list, tuple)) and len(A) == 2
+            and all(len(row) == 4 for row in A)):
+        H = [list(map(int, A[0])), list(map(int, A[1]))]
+    else:
+        raise TypeError("A must be a 2 × 4 container of integers.")
+
+    # identity matrix in M₂(ℤ)   (kept mutable so we can accumulate updates)
+    Umat = [[1, 0],
+            [0, 1]]
+
+    # --- small helper ------------------------------------------------------
+    def apply_row_op(T: M2Z) -> None:
+        """Left-multiply H by the elementary matrix T and accumulate into U."""
+        nonlocal H, Umat
+        # U ← T·U
+        Umat = [
+            [T.a11*Umat[0][0] + T.a12*Umat[1][0],
+             T.a11*Umat[0][1] + T.a12*Umat[1][1]],
+            [T.a21*Umat[0][0] + T.a22*Umat[1][0],
+             T.a21*Umat[0][1] + T.a22*Umat[1][1]],
+        ]
+        # H ← T·H
+        newH0 = [T.a11*H[0][k] + T.a12*H[1][k] for k in range(4)]
+        newH1 = [T.a21*H[0][k] + T.a22*H[1][k] for k in range(4)]
+        H = [newH0, newH1]
+
+    # ---- 1  Sims / Cohen row-reduction, column by column ------------------
+    i, j = 0, 0                       # i = current row (0-based), j = column
+    while i <= 1 and j <= 3:
+
+        # (a) skip an all-zero column
+        if H[0][j] == 0 and H[1][j] == 0:
+            j += 1
+            continue
+
+        # (b) extended-gcd on the current column (same idea as hnf_2x2)
+        while (0 < abs(H[0][j]) <= abs(H[1][j])
+               or 0 < abs(H[1][j]) <= abs(H[0][j])):
+            if abs(H[0][j]) <= abs(H[1][j]):
+                q = H[1][j] // H[0][j]
+                T = M2Z.elementary_matrix_add_multiple_of_row(2, 1, -q)
+            else:
+                q = H[0][j] // H[1][j]
+                T = M2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
+            apply_row_op(T)
+
+        # (c) ensure pivot sits in the current row
+        if H[i][j] == 0:
+            apply_row_op(M2Z.elementary_matrix_interchange_rows())
+
+        # (d) make it positive
+        if H[i][j] < 0:
+            apply_row_op(M2Z.elementary_matrix_multiply_row(i+1, -1))
+
+        # (e) clear the entry *above* the pivot (only relevant for the
+        #     second pivot, i = 1)
+        if i == 1 and H[0][j] != 0:
+            q = H[0][j] // H[1][j]
+            T = M2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
+            apply_row_op(T)
+
+        # next pivot
+        i += 1
+        j += 1
+        if i == 2:      # two pivots placed – leave the main loop
+            break
+
+    # ---- 2  FINAL 2 × 2 *clean-up* on the pivot sub-matrix -----------------
+    # locate the two pivot columns
+    j0 = next(k for k in range(4) if H[0][k] != 0)
+    j1 = next(k for k in range(j0+1, 4) if H[1][k] != 0)
+
+    # run the *trusted* 2 × 2 routine on those two columns …
+    B = M2Z(H[0][j0], H[0][j1],
+            H[1][j0], H[1][j1])
+    U2, Hpiv = hnf_2x2(B)                       # re-reduce the 2 × 2 block
+
+    # … and apply the same row operation to *all* four columns
+    apply_row_op(M2Z(U2.alpha, U2.beta, U2.gamma, U2.delta))
+
+    # ---- 3  package & return ----------------------------------------------
+    U = GL2Z(Umat[0][0], Umat[0][1],
+             Umat[1][0], Umat[1][1])
+    return U, H
+
+
             
 
 if __name__ == "__main__":
@@ -827,12 +932,23 @@ if __name__ == "__main__":
     m = M2Z(1, 0, 12, -5)
     assert I * m == m and m * I == m
 
-    A = M2Z(-13, 2, 0, 0)
-    U, H = hnf_2x2(A)
-    print(U)
-    print(H, U * A)
+    max_size = 20
+    a11, a12, a21, a22 = random.randint(1, max_size), random.randint(1, max_size), random.randint(1, max_size), random.randint(1, max_size)
+    m_A = M2Z(a11, a22, a21, a22)
+    m_U, m_H = hnf_2x2(m_A)
+    assert m_H == m_U * m_A
+    assert m_U.det in [-1, 1]
+    assert m_H.det == m_A.det or m_H.det == -m_A.det
 
-    A = M2Z(1, 1, 0, 1)
-    U, H = hnf_2x2(A)
-    print(U, H, U * A)
+    # random 2×4 matrix
+    A = [[12, -5,  7, 9],
+         [ 3, 14, -4, 8]]
+    U, H = hnf_2x4(A)
+    # check U ∈ GL₂(ℤ)
+    assert U.det in (-1, 1)
 
+    # verify H = U·A
+    def matmul2x2_2x4(M2, M2x4):
+        return [[M2[0][0]*M2x4[0][k] + M2[0][1]*M2x4[1][k] for k in range(4)],
+                [M2[1][0]*M2x4[0][k] + M2[1][1]*M2x4[1][k] for k in range(4)]]
+    assert H == matmul2x2_2x4([[U.alpha,U.beta],[U.gamma,U.delta]], A)
