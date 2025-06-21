@@ -785,8 +785,8 @@ if __name__ == "__main__":
     d = 13
     u = RealQuadraticNumber(d, 1, 0) # 1
     v = RealQuadraticNumber(d, 0, 1) # √d
-    J = NonzeroIdeal(2 * u, v)
-    assert u not in J
+    ideal = NonzeroIdeal(2 * u, v)
+    assert u not in ideal
 
     d = 17
     omega_d = RealQuadraticField(d).omega

@@ -271,7 +271,12 @@ def solve_quadratic_congruence(a: int, n: int) -> int:
 
 
 def square_root_mod_p(d: int, p: int) -> int:
-    """Return t with t² ≡ d (mod p) when it exists (Tonelli–Shanks)."""
+    """
+    Return t with t² ≡ d (mod p) when it exists.
+    
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+    Algorithm 1.5.1 (Square Root Mod p), p. 33
+    """
     if p == 2:
         return d % 2                                 # trivial root
     # simple Tonelli–Shanks; assumes (d/p)=+1

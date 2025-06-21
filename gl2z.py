@@ -102,6 +102,75 @@ class GL2Z(abc.Hashable):
     @classmethod
     def N(cls, n: int) -> typing.Self:
         return cls(1, n, 0, 1) # T ** n
+    
+    @classmethod
+    def elementary_matrix_interchange_rows(cls) -> typing.Self:
+        """
+        Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
+        Cambridge University Press, 1994.
+        Chapter 8: Abelian groups, pp. 319-382.
+        
+        Section 8.1, "Free abelian groups", p. 321:
+        There are three types of integer row operations:
+        (1) Interchange two rows.
+        (2) Multiply a row by -1.
+        (3) Add an integral multiple of one row to another row.
+
+        Section 8.2, "Elementary matrices", p. 331:
+        Proposition 2.2. Let B be an m-by-m integer matrix. The following are
+        equivalent:
+        (a) det£ = ±l.
+        (b) B is in GL(m,Z).
+        (c) B is row equivalent to the m-by-m identity matrix.
+        (d) S(B) = Zm.
+        (e) B is a product of elementary matrices.
+        """
+        return cls(0, 1, 1, 0)
+        
+    @classmethod
+    def elementary_matrix_multiply_row(cls, i: int, sgn: int) -> typing.Self:
+        if sgn not in [-1, 1]:
+            raise ValueError(f"{sgn=} must be 1 or -1.")
+        if i == 1:
+            return cls(sgn, 0, 0, 1)
+        elif i == 2:
+            return cls(1, 0, 0, sgn)
+        else:
+            raise ValueError(f"Row number {i=} must be 1 or 2.")
+        
+
+    @classmethod
+    def elementary_matrix_add_multiple_of_row(cls, target_row: int, multiplicand_row: int, c: int) -> typing.Self:
+        if target_row == 1 and multiplicand_row == 2:
+            return cls(1, c, 0, 1)
+        elif target_row == 2 and multiplicand_row == 1:
+            return cls(1, 0, c, 1)
+        else:
+            raise ValueError(f"Row numbers {target_row=} and {multiplicand_row=} must be distinct and 1 or 2.")
+    
+    @classmethod
+    def elementary_matrix_interchange_columns(cls) -> typing.Self:
+        return GL2Z(0, 1, 1, 0)
+
+    @classmethod
+    def elementary_matrix_multiply_column(cls, j: int, sgn: int) -> typing.Self:
+        if sgn not in [-1, 1]:
+            raise ValueError(f"{sgn=} must be ±1.")
+        if j == 1:
+            return GL2Z(sgn, 0, 0, 1)
+        elif j == 2:
+            return GL2Z(1, 0, 0, sgn)
+        else:
+            raise ValueError(f"Column number {j} must be 1 or 2.")
+
+    @classmethod
+    def elementary_matrix_add_multiple_of_column(cls, target_col: int, multiplicand_column: int, c: int) -> typing.Self:
+        if target_col == 1 and multiplicand_column == 2:
+            return GL2Z(1, 0, c, 1)
+        elif target_col == 2 and multiplicand_column == 1:
+            return GL2Z(1, c, 0, 1)
+        else:
+            raise ValueError("Column numbers must be distinct and either 1 or 2.")
 
 
 
@@ -640,6 +709,10 @@ class M2Z(abc.Hashable):
     def __abs__(self: typing.Self) -> int: # maximum absolute value of entries (ℓ∞ norm)
         return max(abs(entry) for entry in self)
     
+    @property
+    def gcd(self: typing.Self) -> int:
+        return math.gcd(*self)
+    
     def entry(self, row_index: int, column_index: int) -> int:
         if row_index == 1 and column_index == 1:
             return self.a11
@@ -651,51 +724,6 @@ class M2Z(abc.Hashable):
             return self.a22
         else:
             raise ValueError(f"Both {row_index=} and {column_index=} must each be 1 or 2.")
-    
-    @classmethod
-    def elementary_matrix_interchange_rows(cls) -> typing.Self:
-        """
-        Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
-        Cambridge University Press, 1994.
-        Chapter 8: Abelian groups, pp. 319-382.
-        
-        Section 8.1, "Free abelian groups", p. 321:
-        There are three types of integer row operations:
-        (1) Interchange two rows.
-        (2) Multiply a row by -1.
-        (3) Add an integral multiple of one row to another row.
-
-        Section 8.2, "Elementary matrices", p. 331:
-        Proposition 2.2. Let B be an m-by-m integer matrix. The following are
-        equivalent:
-        (a) det£ = ±l.
-        (b) B is in GL(m,Z).
-        (c) B is row equivalent to the m-by-m identity matrix.
-        (d) S(B) = Zm.
-        (e) B is a product of elementary matrices.
-        """
-        return cls(0, 1, 1, 0)
-        
-    @classmethod
-    def elementary_matrix_multiply_row(cls, i: int, sgn: int) -> typing.Self:
-        if sgn not in [-1, 1]:
-            raise ValueError(f"{sgn=} must be 1 or -1.")
-        if i == 1:
-            return cls(sgn, 0, 0, 1)
-        elif i == 2:
-            return cls(1, 0, 0, sgn)
-        else:
-            raise ValueError(f"Row number {i=} must be 1 or 2.")
-        
-
-    @classmethod
-    def elementary_matrix_add_multiple_of_row(cls, target_row: int, multiplicand_row: int, c: int) -> typing.Self:
-        if target_row == 1 and multiplicand_row == 2:
-            return cls(1, c, 0, 1)
-        elif target_row == 2 and multiplicand_row == 1:
-            return cls(1, 0, c, 1)
-        else:
-            raise ValueError(f"Row numbers {target_row=} and {multiplicand_row=} must be distinct and 1 or 2.")
         
     def try_to_GL2Q(self) -> GL2Q:
         if self.det != 0:
@@ -775,6 +803,26 @@ class M2x4Z(abc.Hashable):
         a23 = l21 * r13 + l22 * r23
         a24 = l21 * r14 + l22 * r24
         return type(self)(a11, a12, a13, a14, a21, a22, a23, a24)
+    
+    def entry(self, row_index: int, column_index: int) -> int:
+        if row_index == 1 and column_index == 1:
+            return self.a11
+        elif row_index == 1 and column_index == 2:
+            return self.a12
+        elif row_index == 1 and column_index == 3:
+            return self.a13
+        elif row_index == 1 and column_index == 4:
+            return self.a14
+        elif row_index == 2 and column_index == 1:
+            return self.a21
+        elif row_index == 2 and column_index == 2:
+            return self.a22
+        elif row_index == 2 and column_index == 3:
+            return self.a23
+        elif row_index == 2 and column_index == 4:
+            return self.a24
+        else:
+            raise ValueError(f"{row_index=} must be 1 or 2 and {column_index=} must be one of 1, 2, 3, 4.")
 
 
 
@@ -810,28 +858,28 @@ def hnf_2x2(A: M2Z) -> tuple[GL2Z, M2Z]:
                    or 0 < abs(H.entry(2, j)) <= abs(H.entry(1, j))):
                 if abs(H.entry(1, j)) <= abs(H.entry(2, j)):
                     q = H.entry(2, j) // H.entry(1, j)
-                    T = M2Z.elementary_matrix_add_multiple_of_row(2, 1, -q)
+                    T = GL2Z.elementary_matrix_add_multiple_of_row(2, 1, -q)
                 else:
                     q = H.entry(1, j) // H.entry(2, j)
-                    T = M2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
+                    T = GL2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
                 U = T * U
                 H = T * H
 
         if H.entry(i, j) == 0: # unique non-zero entry in the column is in the other row
-            T = M2Z.elementary_matrix_interchange_rows()
+            T = GL2Z.elementary_matrix_interchange_rows()
             U = T * U
             H = T * H
 
         # make the pivot positive
         if H.entry(i, j) < 0:
-            T = M2Z.elementary_matrix_multiply_row(i, -1)
+            T = GL2Z.elementary_matrix_multiply_row(i, -1)
             U = T * U
             H = T * H
 
         # clear entries above the pivot (only possible when i == 2)
         if i == 2 and H.entry(1, j) != 0:
             q = H.entry(1, j) // H.entry(i, j)
-            T = M2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
+            T = GL2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
             U = T * U
             H = T * H
 
@@ -857,93 +905,94 @@ def hnf_2x4(A: M2x4Z) -> tuple[GL2Z, M2x4Z]:
     """
 
     # ------------------------------------------------------------------
-    # 0Input sanity check
+    # 0  Type check and initial copies
     # ------------------------------------------------------------------
     if not isinstance(A, M2x4Z):
-        raise TypeError(f"{A=} must be an instance of M2x4Z.")
+        raise TypeError("hnf_2x4 expects an M2x4Z argument")
 
-    # Working copies (they are immutable → we rebind after every op)
-    U: M2Z = M2Z(1, 0, 0, 1)   # accumulator for row ops (starts as I₂)
-    H: M2x4Z = A               # matrix we progressively row‑reduce
+    U: GL2Z = GL2Z(1, 0, 0, 1)   # accumulator for row operations
+    H: M2x4Z = A                # work on a mutable alias (M2x4Z is immutable)
 
     # ------------------------------------------------------------------
-    # 1Place the two pivots (at most one per row)
+    # 1  Sims-style sweep through the columns
     # ------------------------------------------------------------------
-    i, j = 0, 0                               # current row / column (0‑based)
-    while i <= 1 and j <= 3:
-        # materialise the two rows of H for easy access
-        r0 = [H.a11, H.a12, H.a13, H.a14]
-        r1 = [H.a21, H.a22, H.a23, H.a24]
-
-        # (a)Skip all‑zero columns
-        if r0[j] == 0 and r1[j] == 0:
-            j += 1
-            continue
-
-        # (b)Extended‑gcd loop on the current column
-        while (0 < abs(r0[j]) <= abs(r1[j])) or (0 < abs(r1[j]) <= abs(r0[j])):
-            if abs(r0[j]) <= abs(r1[j]):
-                q = r1[j] // r0[j]
-                T = M2Z.elementary_matrix_add_multiple_of_row(2, 1, -q)
-            else:
-                q = r0[j] // r1[j]
-                T = M2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
-            U = T * U
-            H = T * H
-            r0 = [H.a11, H.a12, H.a13, H.a14]
-            r1 = [H.a21, H.a22, H.a23, H.a24]
-
-        # (c)Make sure the pivot sits in the *i*‑th row
-        pivot_val = r0[j] if i == 0 else r1[j]
-        if pivot_val == 0:                      # unique non‑zero entry is in the other row
-            T = M2Z.elementary_matrix_interchange_rows()
-            U = T * U
-            H = T * H
-            r0, r1 = r1, r0                    # rows swapped
-            pivot_val = r0[j] if i == 0 else r1[j]
-
-        # (d)Make the pivot positive
-        if pivot_val < 0:
-            T = M2Z.elementary_matrix_multiply_row(i + 1, -1)  # rows are 1‑based here
-            U = T * U
-            H = T * H
-            r0[i * 4 + j] = -pivot_val         # refresh not strictly needed, next pass recomputes rows
-
-        # (e)Clear the entry *above* the pivot (only for the second pivot)
-        if i == 1 and r0[j] != 0:               # r0 is now the first row
-            q = r0[j] // r1[j]
-            T = M2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
-            U = T * U
-            H = T * H
-
-        # move to next pivot position
-        i += 1
-        j += 1
-        if i == 2:                              # two pivots placed → done
+    pivot_row = 1  # current row into which we’re trying to fit a pivot
+    for col in range(1, 5):
+        if pivot_row > 2:                       # both rows done → exit loop
             break
 
+        # 1a. Move a non‑zero entry into (pivot_row, col) if necessary
+        if H.entry(pivot_row, col) == 0:
+            if pivot_row == 1 and H.entry(2, col) != 0:
+                T = GL2Z.elementary_matrix_interchange_rows()
+                H = T * H
+                U = T * U
+            else:
+                # both entries zero → skip this column
+                continue
+
+        # 1b. Clear the entry below the pivot (row 2 when pivot_row==1)
+        if pivot_row == 1 and H.entry(2, col) != 0:
+            q = H.entry(2, col) // H.entry(1, col)
+            T = GL2Z.elementary_matrix_add_multiple_of_row(2, 1, -q)
+            H = T * H
+            U = T * U
+            # second subtraction to *guarantee* zero
+            if H.entry(2, col) != 0:
+                q = H.entry(2, col) // H.entry(1, col)
+                T = GL2Z.elementary_matrix_add_multiple_of_row(2, 1, -q)
+                H = T * H
+                U = T * U
+
+        # 1c. Make the pivot positive
+        if H.entry(pivot_row, col) < 0:
+            T = GL2Z.elementary_matrix_multiply_row(pivot_row, -1)
+            H = T * H
+            U = T * U
+
+        # 1d. Clear the entry *above* the pivot when on the second row
+        if pivot_row == 2 and H.entry(1, col) != 0:
+            q = H.entry(1, col) // H.entry(2, col)
+            T = GL2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
+            H = T * H
+            U = T * U
+
+        pivot_row += 1  # move down after fixing this column
+
     # ------------------------------------------------------------------
-    # 2Final 2×2 clean‑up on the pivot sub‑matrix
+    # 2  Rank check – if second row is zero we already have HNF
     # ------------------------------------------------------------------
-    rows = [[H.a11, H.a12, H.a13, H.a14],
-            [H.a21, H.a22, H.a23, H.a24]]
+    if all(H.entry(2, c) == 0 for c in range(1, 5)):
+        # ensure its leading pivot (row 1) is positive
+        for c in range(1, 5):
+            if H.entry(1, c) != 0:
+                if H.entry(1, c) < 0:
+                    T = GL2Z.elementary_matrix_multiply_row(1, -1)
+                    H = T * H
+                    U = T * U
+                break
+        return U, H
 
-    # locate the pivot columns (guaranteed to exist now)
-    j0 = next(k for k in range(4) if rows[0][k] != 0)
-    j1 = next(k for k in range(j0 + 1, 4) if rows[1][k] != 0)
+    # ------------------------------------------------------------------
+    # 3  Rank‑2 tidy‑up: enforce divisibility between pivots via 2×2 HNF
+    # ------------------------------------------------------------------
+    first_pivot_col = next(c for c in range(1, 5) if H.entry(1, c) != 0)
+    second_pivot_col = next(c for c in range(first_pivot_col + 1, 5)
+                             if H.entry(2, c) != 0)
 
-    B = M2Z(rows[0][j0], rows[0][j1],
-            rows[1][j0], rows[1][j1])
-    U2, _ = hnf_2x2(B)
+    block = M2Z(
+        H.entry(1, first_pivot_col), H.entry(1, second_pivot_col),
+        H.entry(2, first_pivot_col), H.entry(2, second_pivot_col)
+    )
 
+    U2, _ = hnf_2x2(block)
     T = M2Z(U2.alpha, U2.beta, U2.gamma, U2.delta)
-    U = T * U
-    H = T * H
 
-    # ------------------------------------------------------------------
-    # 3Return the pair (U,H)
-    # ------------------------------------------------------------------
-    return GL2Z(U.a11, U.a12, U.a21, U.a22), H
+    H = T * H
+    U = T * U
+    return U, H
+
+
 
 
 
@@ -976,6 +1025,107 @@ def smith_normal_form_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
     Algorithm 2.4.14 (Smith Normal Form), p. 77.
     """
+
+    # ------------------------------------------------------------------
+    # 0Input sanity check
+    # ------------------------------------------------------------------
+    if not isinstance(m, M2Z):
+        raise TypeError(f"{m=} must be an instance of M2Z.")
+
+    # Working copies (mutable through rebinding)
+    H: M2Z = m
+    U: M2Z = M2Z(1, 0, 0, 1)   # left accumulator (rows)
+    V: M2Z = M2Z(1, 0, 0, 1)   # right accumulator (columns)
+
+    while True:
+        # --------------------------------------------------------------
+        # 1Ensure the pivot H[0,0] is non‑zero by swapping rows/columns
+        # --------------------------------------------------------------
+        if H.a11 == 0:
+            if H.a12 != 0:  # swap the two columns
+                T = GL2Z.elementary_matrix_interchange_columns()
+                H = H * T
+                V = V * T
+            elif H.a21 != 0:  # swap the two rows
+                T = GL2Z.elementary_matrix_interchange_rows()
+                H = T * H
+                U = T * U
+            elif H.a22 != 0:  # bottom‑right the only non‑zero
+                # swap rows then columns to bring it to (1,1)
+                T = GL2Z.elementary_matrix_interchange_rows()
+                H = T * H
+                U = T * U
+                T = GL2Z.elementary_matrix_interchange_columns()
+                H = H * T
+                V = V * T
+            else:  # zero matrix
+                break
+
+        # --------------------------------------------------------------
+        # 2Clear the sub‑diagonal entry H[1,0] via extended gcd (row ops)
+        # --------------------------------------------------------------
+        if H.a21 != 0:
+            q = H.a11 // H.a21
+            T = GL2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
+            H = T * H
+            U = T * U
+            # swap rows so that |H.a11| ≤ |H.a21| for next pass
+            T = GL2Z.elementary_matrix_interchange_rows()
+            H = T * H
+            U = T * U
+            continue  # repeat
+
+        # --------------------------------------------------------------
+        # 3Clear the super‑diagonal entry H[0,1] (column ops)
+        # --------------------------------------------------------------
+        if H.a12 != 0:
+            q = H.a11 // H.a12
+            T = GL2Z.elementary_matrix_add_multiple_of_column(1, 2, -q)  # col1 ← col1 − q·col2
+            H = H * T
+            V = V * T
+            # swap columns so that |H.a11| ≤ |H.a12|
+            T = GL2Z.elementary_matrix_interchange_columns()
+            H = H * T
+            V = V * T
+            continue  # repeat
+
+        # --------------------------------------------------------------
+        # 4We now have H = [[d, 0], [0, e]].  Adjust signs & divisibility.
+        # --------------------------------------------------------------
+        d, e = H.a11, H.a22
+
+        # make d positive
+        if d < 0:
+            T = GL2Z.elementary_matrix_multiply_row(1, -1)
+            H = T * H
+            U = T * U
+            d = -d
+
+        # make e positive
+        if e < 0:
+            T = GL2Z.elementary_matrix_multiply_column(2, -1)
+            H = H * T
+            V = V * T
+            e = -e
+
+        # enforce d | e
+        if d != 0 and e % d != 0:
+            q = e // d
+            T = GL2Z.elementary_matrix_add_multiple_of_column(2, 1, -q)
+            H = H * T
+            V = V * T
+            # loop back – this re‑introduces H.a12 ≠ 0 or revises e
+            continue
+
+        # done – H is in Smith form
+        break
+
+    # ------------------------------------------------------------------
+    # 5Return GL2Z versions of the accumulators
+    # ------------------------------------------------------------------
+    U_gl = GL2Z(U.a11, U.a12, U.a21, U.a22)
+    V_gl = GL2Z(V.a11, V.a12, V.a21, V.a22)
+    return U_gl, H, V_gl
 
 
             
@@ -1039,6 +1189,43 @@ if __name__ == "__main__":
     reduced_word = reduce_word(word)
     assert word_to_matrix(reduced_word) == word_to_matrix(word)
 
+    # ------------------------------------------------------------------
+    # ❶  Edge case – a relation that kills the word completely
+    #     PP  →  ε   (identity matrix)
+    # ------------------------------------------------------------------
+    word = "PP"
+    assert reduce_word(word) == ""                  # rewrites to empty string
+    assert word_to_matrix(word) == I               # PP = I in GL₂ℤ
+
+    # ------------------------------------------------------------------
+    # ❷  Classic conjugation identity – PRP  →  S
+    # ------------------------------------------------------------------
+    word = "PRP"
+    assert reduce_word(word) == "S"                 # single rewrite
+    assert word_to_matrix(word) == S                # same group element
+
+    # ------------------------------------------------------------------
+    # ❸  Random word: idempotence of reduce_word and matrix invariance
+    # ------------------------------------------------------------------
+    random.seed(503)                           # deterministic reproducibility
+    alphabet = list(ALPHABET)
+
+    rand_word1 = "".join(random.choices(alphabet, k=random.randint(5, 25)))
+    reduced1   = reduce_word(rand_word1)
+
+    assert reduce_word(reduced1) == reduced1        # fixed-point reached
+    assert word_to_matrix(rand_word1) == word_to_matrix(reduced1)
+
+    # ------------------------------------------------------------------
+    # ❹  Second random word: reduction never lengthens the string
+    # ------------------------------------------------------------------
+    rand_word2 = "".join(random.choices(alphabet, k=random.randint(5, 25)))
+    reduced2   = reduce_word(rand_word2)
+
+    assert len(reduced2) <= len(rand_word2)         # relations are length-non-increasing
+    assert word_to_matrix(rand_word2) == word_to_matrix(reduced2)
+
+
     m = R
     max_word_len = max_word_len_linf(m)
     word  = minimum_word_from_alphabet_dp_max_len(target_matrix=m, alphabet=['P', 'S', 'T'], max_len=max_word_len)
@@ -1063,15 +1250,78 @@ if __name__ == "__main__":
     assert m_U.det in [-1, 1]
     assert m_H.det == m_A.det or m_H.det == -m_A.det
 
-    # random 2×4 matrix
-    # A = [[12, -5,  7, 9],
-    #      [ 3, 14, -4, 8]]
-    A = M2x4Z(12, -5, 7, 9, 3, 14, -4, 8)
-    U, H = hnf_2x4(A)
-    # check U ∈ GL₂(ℤ)
-    assert U.det in (-1, 1)
+    #      [12, -5,  7, 9]
+    #      [ 3, 14, -4, 8]
+    m_A = M2x4Z(12, -5, 7, 9, 3, 14, -4, 8)
+    m_U, m_H = hnf_2x4(m_A)
+    assert m_U.det in [-1, 1]
 
-    A = M2x4Z(1, 1, 1, 1, 1, 1, 1, 1)
-    U = GL2Z(1, 0, 0, -1)
-    print(U * A)
+    m_A = M2x4Z(1, 1, 1, 1, 1, 1, 1, 1)
+    m_U, m_H = hnf_2x4(m_A)
+    assert m_H == m_U * m_A
     
+    # 1. Identity matrix – already in SNF
+    m_U, m_D, m_V = smith_normal_form_2x2(M2Z(1, 0, 0, 1))
+    assert m_D == M2Z(1, 0, 0, 1) and m_D == m_U * M2Z(1,0,0,1) * m_V
+    assert m_U.det in (-1, 1) and m_V.det in (-1, 1)
+
+    # 2. Full-rank example (|det| = 2) – divisibility d₁ | d₂
+    m = M2Z(3, 5, 7, 11)          # det = -2
+    m_U, m_D, m_V = smith_normal_form_2x2(m)
+    assert m_D == M2Z(1, 0, 0, 2)   # expected SNF
+    assert m_D == m_U * m * m_V
+
+    # 3. Rank-one example – zero appears on the second diagonal
+    m_A = M2Z(2, 4, 4, 8)           # det = 0, gcd = 2
+    m_U, m_D, m_V = smith_normal_form_2x2(m_A)
+    assert m_D == M2Z(2, 0, 0, 0)   # SNF diag(2, 0)
+    assert m_D == m_U * m_A * m_V
+
+    # ---------------------------------------------------------------------------
+    # 1.  HNF is *canonical*: left–multiplying by any unimodular matrix
+    #     must not change the HNF itself.
+    # ---------------------------------------------------------------------------
+    m_A = M2x4Z(12, -5,  7,  9,
+            3,  14, -4,  8)
+
+    for m_U in [I, P, S, T, U, V, W]:           # a small generating set of GL₂(ℤ)
+        assert hnf_2x4(m_A)[1] == hnf_2x4(m_U * m_A)[1]   # same H component every time
+
+    # ---------------------------------------------------------------------------
+    # 2.  Mixed associativity of (GL₂ℤ)×(M₂×₄ℤ) multiplication.
+    #     (U⋅V)⋅A  ==  U⋅(V⋅A)
+    # ---------------------------------------------------------------------------
+    A = M2x4Z( 2,  3,  5,  7,
+            11, 13, 17, 19)
+    U1, U2 = S, T                               # any two GL₂(ℤ) elements
+
+    assert (U1 * U2) * A == U1 * (U2 * A)
+
+    # ---------------------------------------------------------------------------
+    # 3.  Smith form of a unimodular 2×2 matrix is the identity.
+    # ---------------------------------------------------------------------------
+    g = P
+    _, g_SNF_, _ = smith_normal_form_2x2(M2Z.GL2Z_to_M2Z(g))
+    assert g_SNF_ == M2Z(1, 0, 0, 1)             # SNF must be diag(1,1)
+
+    # ---------------------------------------------------------------------------
+    # 4.  First diagonal entry of the SNF is  gcd of *all* entries.
+    # ---------------------------------------------------------------------------
+    B = M2Z( 6, 10,
+            9, 15)                             # gcd = 3
+    U, D, V = smith_normal_form_2x2(B)
+    assert D.a11 == B.gcd      # d₁  =  gcd(entries)
+
+    # ---------------------------------------------------------------------------
+    # 5.  Pivot 2×2 block produced by hnf_2x4 is already in row-HNF.
+    # ---------------------------------------------------------------------------
+    A = M2x4Z( 4,  6,  8, 10,
+            3,  5,  7,  9)
+    U_big, H_big = hnf_2x4(A)
+    # find the columns that contain the two pivots
+    c1 = next(c for c in range(1, 5) if H_big.entry(1, c) != 0)
+    c2 = next(c for c in range(c1 + 1, 5)       if H_big.entry(2, c) != 0)
+    pivot_block = M2Z(H_big.entry(1, c1), H_big.entry(1, c2),
+                    H_big.entry(2, c1), H_big.entry(2, c2))
+    _, H_block = hnf_2x2(pivot_block)
+    assert H_block == pivot_block                # no further reduction possible
