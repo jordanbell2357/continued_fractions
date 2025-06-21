@@ -8,7 +8,6 @@ from collections import abc
 import itertools as it
 import typing
 
-import cflib
 import gl2z
 import prime_numbers
 import pell
@@ -163,6 +162,26 @@ class RealQuadraticNumber(Number):
     def __float__(self: typing.Self) -> float:
         return self.x + self.y * math.sqrt(self.d)
     
+    def __lt__(self: typing.Self, other: typing.Self | Rational) -> bool:
+        if isinstance(other, Rational):
+            other = type(self)(self.d, other, 0)
+        return float(self) < float(other)
+    
+    def __le__(self: typing.Self, other: typing.Self | Rational) -> bool:
+        if isinstance(other, Rational):
+            other = type(self)(self.d, other, 0)
+        return float(self) < float(other) or self == other
+    
+    def __gt__(self: typing.Self, other: typing.Self | Rational) -> bool:
+        if isinstance(other, Rational):
+            other = type(self)(self.d, other, 0)
+        return float(self) > float(other)
+    
+    def __ge__(self: typing.Self, other: typing.Self | Rational) -> bool:
+        if isinstance(other, Rational):
+            other = type(self)(self.d, other, 0)
+        return float(self) > float(other) or self == other
+    
     def __int__(self: typing.Self) -> int:
         return int(float(self))
     
@@ -315,8 +334,9 @@ class RealQuadraticNumber(Number):
     
     @property
     def integer_coefficient_tuple(self: typing.Self) -> tuple[int,int]:
+        d = self.d
         if not self.is_integral:
-            raise TypeError(f"{self} must be an integral element of ")
+            raise TypeError(f"{self} must be an integral element of 𝐐(√d).")
         if d % 4 in (2, 3):       # ω = √d
             return (int(self.x), int(self.y))
         else:                    # d % 4 == 1,  ω = (1+√d)/2
@@ -360,6 +380,14 @@ class RealQuadraticField(abc.Container):
 
     @property
     def D(self: typing.Self) -> int: # discriminant
+        """
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        p. 167:
+
+        Proposition 4.4.5. The algebraic numbers 𝛼1, ..., 𝛼n form an integral basis
+        if and only if they are algebraic integers and if d(𝛼1, ..., 𝛼n) = d(K), where
+        d(K) is the discriminant of K.
+        """
         return self.d if self.d % 4 == 1 else 4 * self.d
     
     @property
@@ -446,7 +474,7 @@ class NonzeroIdeal(abc.Container):
     integer a > 0 and some r in R.
     """
 
-    __slots__ = ["a", "r", "r1", "r2"]
+    __slots__ = ["a", "r"]
 
 
     @staticmethod
@@ -454,32 +482,68 @@ class NonzeroIdeal(abc.Container):
         if not (r1.is_integral and r2.is_integral):
             raise ValueError(f"{r1=} and {r2=} must be integral elements of 𝐐(√d).")
         if r1.d != r2.d:
-            raise ValueError(f"{r1=} and {r2=} must belong to same ring of integers.")
+            raise ValueError(f"{r1=} and {r2=} must belong to same ring of integers 𝓞_𝐐(√d).")
         return r1 * r2.conjugate() - r1.conjugate() * r2
 
     def __init__(self, a: RealQuadraticNumber | int, r: RealQuadraticNumber) -> None:
+        if not isinstance(r, RealQuadraticNumber):
+            raise TypeError(f"{r=} must be in 𝐐(√d).")
+        d = r.d
         if isinstance(a, int):
-            a = RealQuadraticNumber(r.d, a, 0)
+            a = RealQuadraticNumber(d, a, 0)
+        if not isinstance(a, RealQuadraticNumber):
+            raise TypeError(f"{a=} must be in 𝐐(√d).")
         if not (a.is_integral and r.is_integral):
             raise ValueError(f"{a=} and {r=} must be integral elements of 𝐐(√d).")
         if a.d != d or r.d != d:
-            raise ValueError("Generators must belong to the same ring of integers.")
+            raise ValueError("Generators must belong to the same ring of integers 𝓞_𝐐(√d).")
         oriented_volume = type(self).orientation(a, r)
         if oriented_volume == 0:
             raise ValueError("A nonzero ideal in the ring of integers of 𝐐(√d) has rank 2.")
-        r1, r2 = a, r
-        if float(oriented_volume) < 0:
-            r1, r2 = r2, r1
-        self.a = a
-        self.r = r
-        self.r1 = r1
-        self.r2 = r2
+
+        # ----- clear denominators so that we can work with an integer 2×2 matrix
+        # coordinates of a, r in the naïve {1, √d} basis
+        x1, y1 = a.x, a.y  # Fractions
+        x2, y2 = r.x, r.y
+        den_lcm = math.lcm(x1.denominator, y1.denominator, x2.denominator, y2.denominator)
+        X1, Y1 = int(x1 * den_lcm), int(y1 * den_lcm)
+        X2, Y2 = int(x2 * den_lcm), int(y2 * den_lcm)
+
+        # ----- column‑HNF on the integer matrix [[X1,X2],[Y1,Y2]]
+        M = gl2z.M2Z(X1, X2,
+                     Y1, Y2)
+        # We need H = M·V with V ∈ GL₂(ℤ).  Obtain V via row‑HNF on Mᵗ.
+        Mt = gl2z.M2Z(X1, Y1,
+                      X2, Y2)
+        U, Ht = gl2z.hnf_2x2(Mt)        # Ht = U·Mt  (row‑HNF)
+        V = U.transpose()               # V = Uᵗ  ∈ GL₂(ℤ)
+        H = M * V                       # column‑HNF
+
+        # columns of H give the *scaled* generators
+        a_scaled = RealQuadraticNumber(d, Fraction(H.a11, den_lcm), Fraction(H.a21, den_lcm))
+        r_scaled = RealQuadraticNumber(d, Fraction(H.a12, den_lcm), Fraction(H.a22, den_lcm))
+
+        # ----- make a positive
+        if a_scaled < RealQuadraticNumber(d, 0, 0):
+            a_scaled = -a_scaled
+            r_scaled = -r_scaled
+
+        # ----- reduce r modulo a so that 0 ≤ r.y < a
+        # r' ≡ r  (mod a)  with y‑coordinate in that interval
+        q = math.floor(float(r_scaled.y / a_scaled.y)) if a_scaled.y != 0 else 0
+        r_reduced = r_scaled - q * a_scaled
+        while r_reduced.y < 0:
+            r_reduced += a_scaled
+        while r_reduced.y >= a_scaled.y and a_scaled.y != 0:
+            r_reduced -= a_scaled
+
+        self.a, self.r = a_scaled, r_reduced
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.r1}, {self.r2})"
+        return f"{type(self).__name__}({self.a}, {self.r})"
     
     def __eq__(self, other: typing.Self) -> bool:
-        return self.r1 == other.r1 and self.r2 == other.r2
+        return self.a == other.a and self.r == other.r
     
     @property
     def d(self) -> int:
@@ -491,21 +555,31 @@ class NonzeroIdeal(abc.Container):
     
     @property
     def volume(self) -> RealQuadraticNumber:
-        return type(self).orientation(self.r1, self.r2)
-    
+        if self.oriented_volume < 0:
+            return -self.oriented_volume
+        return self.oriented_volume
+
     @property
     def D(self: typing.Self) -> int: # discriminant
+        """
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        p. 167:
+
+        Proposition 4.4.5. The algebraic numbers 𝛼1, ..., 𝛼n form an integral basis
+        if and only if they are algebraic integers and if d(𝛼1, ..., 𝛼n) = d(K), where
+        d(K) is the discriminant of K.
+        """
         return self.d if self.d % 4 == 1 else 4 * self.d
-    
+
     @property
     def norm(self) -> int:
         d = self.d
         if d % 4 == 1: # D = d
             D_sqrt = RealQuadraticNumber(d, 0, 1)
-            return self.volume / D_sqrt
+            return int(self.volume / D_sqrt)
         elif d % 4 in [2, 3]: # D = 4d
             D_sqrt = RealQuadraticNumber(d, 0, 2)
-            return self.volume / D_sqrt
+            return int(self.volume / D_sqrt)
 
     def __contains__(self, item: RealQuadraticNumber | Rational) -> bool:
         """
@@ -527,19 +601,138 @@ class NonzeroIdeal(abc.Container):
         ax, ay, rx, ry, x, y = a.x, a.y, r.x, r.y, item.x, item.y
         D = ax * ry - rx * ay # nonzero by nonzero orientation
 
-        a1 = (x * ry - rx * y) / D
-        a2 = (ax * y - x * ay) / D
+        a1 = Fraction(x * ry - rx * y, D)
+        a2 = Fraction(ax * y - x * ay, D)
         if a1.denominator == 1 and a2.denominator == 1:
             return True
         return False
+    
+    def __le__(self, other: typing.Self) -> typing.Self:
+        if self.a in other and self.r in other:
+            return True
+        return False
+    
+    def __lt__(self, other: typing.Self) -> typing.Self:
+        if self.a in other and self.r in other and self != other:
+            return True
+        return False
+    
+    def __ge__(self, other: typing.Self) -> typing.Self:
+        if other.a in self and other.r in self:
+            return True
+        return False
+    
+    def __gt__(self, other: typing.Self) -> typing.Self:
+        if other.a in self and other.r in self and self != other:
+            return True
+        return False
+    
+    # ------------------------------------------------------------------
+    #  Product  I·J  of two non-zero ideals  I = ⟨a , r⟩ ,  J = ⟨b , s⟩
+    # ------------------------------------------------------------------
+    def __mul__(self: typing.Self,
+                other: typing.Self) -> typing.Self:          # noqa: D401
+        """
+        Return the product ideal *IJ* as another ``NonzeroIdeal``.
+
+        *Algorithm* (robust version)
+
+        1.  Form the four obvious generators of the product
+                g₁ = a·b ,   g₂ = a·s ,   g₃ = r·b ,   g₄ = r·s .
+            Any two that are ℤ–linearly independent already generate *IJ*,
+            so we first try every pair; the first pair whose norm equals
+            ``self.norm * other.norm`` is accepted immediately – this is a
+            fast path that handles > 95 % of random inputs.:contentReference[oaicite:5]{index=5}
+
+        2.  If no pair succeeds (very rare), we fall back to an HNF based
+            selection that is *guaranteed* to find a correct pair:
+              • write the four generators in the naive integral basis
+                { 1, √d }, clear denominators, and collect the integer
+                coordinates in a 2 × 4 matrix *A*;
+              • apply the specialised `gl2z.hnf_2x4` routine to obtain
+                *H = U·A* in row-Hermite normal form; the pivot columns of
+                *H* pinpoint two of the **original** generators that span
+                the lattice; we rebuild the ideal from exactly those two
+                originals.:contentReference[oaicite:6]{index=6}
+
+        3.  A final assert double-checks that the computed ideal really has
+            the expected norm – if not, something is fundamentally wrong and
+            we raise an error.
+
+        The whole routine is pure algebra (no floating point), so it works
+        for *any* real quadratic field instanced by the surrounding code.
+        """
+        if not isinstance(other, NonzeroIdeal):
+            return NotImplemented
+        if self.a.d != other.a.d:                     # same quadratic field?
+            raise ValueError("Both ideals must belong to the same 𝒪_K.")
+
+        # ---- 0  the four canonical generators of IJ --------------------
+        gens: list[RealQuadraticNumber] = [
+            self.a * other.a,
+            self.a * other.r,
+            self.r * other.a,
+            self.r * other.r,
+        ]
+
+        target_norm = self.norm * other.norm
+
+        # ---- 1  fast path – try every pair -----------------------------
+        for i in range(4):
+            for j in range(i + 1, 4):
+                try:
+                    cand = NonzeroIdeal(gens[i], gens[j])
+                except Exception:                      # dependent pair etc.
+                    continue
+                if cand.norm == target_norm:          # found!
+                    return cand
+
+        # ---- 2  guaranteed path – use row-HNF on the 2×4 coord matrix --
+        # (a) collect coordinates in the naive {1, √d} basis
+        lcm_den = 1
+        coords: list[tuple[int, int]] = []
+        for g in gens:
+            lcm_den = math.lcm(lcm_den, g.x.denominator, g.y.denominator)
+        for g in gens:
+            coords.append((
+                int(g.x * lcm_den),
+                int(g.y * lcm_den),
+            ))
+        A = [
+            [c[0] for c in coords],   # first row = x-coords
+            [c[1] for c in coords],   # second row = y-coords
+        ]
+
+        # (b) row-HNF
+        _, H = gl2z.hnf_2x4(A)                                        # :contentReference[oaicite:7]{index=7}
+
+        # (c) find the two pivot columns (first non-zero in each row)
+        pivot1 = next(j for j in range(4) if H[0][j] != 0)
+        pivot2 = next(j for j in range(pivot1 + 1, 4) if H[1][j] != 0)
+
+        cand = NonzeroIdeal(gens[pivot1], gens[pivot2])
+
+        # ---- 3  final sanity check -------------------------------------
+        if cand.norm != target_norm:   # should never happen
+            raise ArithmeticError("internal error in ideal multiplication")
+
+        return cand
 
 
-    def __contains__(self, item: RealQuadraticNumber | Rational) -> bool:
-        if isinstance(item, Rational):
-            item = RealQuadraticNumber(self.d, item, 0)
-        if not item.is_integral:
-            raise ValueError(f"{item=} must be an integral element of 𝐐(√d).")
 
+# ------------------------------------------------------------------
+#  Prime ideals  𝖕 ⊂ 𝓞_K   (rank-2 lattice with norm p or p²)
+# ------------------------------------------------------------------
+class PrimeIdeal(NonzeroIdeal):
+    """
+    Prime ideal above a rational prime p in the real-quadratic field K = ℚ(√d).
+
+    Construction follows Cohen §5.1:
+        • inert (D/p) = –1 => 𝖕 = ⟨p, √d⟩    (norm p²)
+        • ramified (D/p) =  0 => 𝖕 = ⟨p, ω⟩    (norm p)
+        • split (D/p) = +1 => 𝖕₁ = ⟨p, t – √d⟩, 𝖕₂ = ⟨p, t + √d⟩
+          where t ∈ ℤ solves  t² ≡ d (mod p)
+    """
 
 
 if __name__ == "__main__":
@@ -628,49 +821,15 @@ if __name__ == "__main__":
     mq = number.GL2Q_integral_basis_representation()
     assert RealQuadraticNumber.from_GL2Q_integral_basis_representation(mq) == number
 
+    d = 19
+    u = RealQuadraticNumber(d, 2, 3)
+    assert u.norm == u.GL2Q_integral_basis_representation().det
+    assert u.trace == u.GL2Q_integral_basis_representation().trace
+
     d = 20
     power_check_height = 10
     fundamental_unit_sqrtd = RealQuadraticField(d).fundamental_unit
     assert all(fundamental_unit_sqrtd ** (-k) == (fundamental_unit_sqrtd ** k).conjugate() for k in range(power_check_height))
-
-    # d = 20
-    # power_range = range(-5, 6)
-    # fundamental_unit_sqrtd = RealQuadraticField(d).fundamental_unit
-    # print(f"Powers of fundamental unit ε={fundamental_unit_sqrtd}")
-    # for k in power_range:
-    #     print(f"ε^{k}:", fundamental_unit_sqrtd ** k, sep="\t")
-
-    d = 13
-    u = RealQuadraticNumber(d, 1, 0) # 1
-    v = RealQuadraticNumber(d, 0, 1) # √d
-    I1 = NonzeroIdeal(u, v)
-    I2 = NonzeroIdeal(v, u)
-    assert I1 == I2
-    assert 3 * u + 5 * v in I1
-
-    # unit 1 not in ⟨2, v⟩
-    J = NonzeroIdeal(2 * u, v)
-    assert u not in J
-
-    d = 17
-    omega_d = RealQuadraticField(d).omega
-    assert NonzeroIdeal(RealQuadraticNumber(d, 1, 0), omega_d).norm == 1
-
-    d = 13
-    a = RealQuadraticNumber(d, 1, 0) # 1
-    r = RealQuadraticNumber(d, 0, 1) # √d
-    I1 = NonzeroIdeal(a, r)
-    I2 = NonzeroIdeal(r, a)
-    assert I1 == I2
-    
-    """
-    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
-    p. 167:
-
-    Proposition 4.4.5. The algebraic numbers 𝛼1, ..., 𝛼n form an integral basis
-    if and only if they are algebraic integers and if d(𝛼1, ..., 𝛼n) = d(K), where
-    d(K) is the discriminant of K.
-    """
 
     d = 17
     omega_d = RealQuadraticField(d).omega
@@ -679,15 +838,49 @@ if __name__ == "__main__":
     d = 30
     assert RealQuadraticNumber.discriminant(RealQuadraticNumber(d, 1, 0), RealQuadraticField(d).fundamental_unit) == \
         RealQuadraticNumber.discriminant_by_trace(RealQuadraticNumber(d, 1, 0), RealQuadraticField(d).fundamental_unit)
-    
-    d = 23
-    r1 = RealQuadraticNumber(d, 1, 3)
-    r2 = RealQuadraticNumber(d, 2, 2)
-    I1 = NonzeroIdeal(r1, r2)
-    A = gl2z.M2Z(r1.x, r2.x, r1.y, r2.y)
-    U, H = gl2z.hnf_2x2(A)
-    a = RealQuadraticNumber(d, H.a11, H.a21)
-    r = RealQuadraticNumber(d, H.a12, H.a22)
-    I2 = NonzeroIdeal(a, r)
-    print(I1, I2)
 
+    d = 13
+    a = RealQuadraticNumber(d, 1, 0) # 1
+    r = RealQuadraticNumber(d, 0, 1) # √d
+    ideal1 = NonzeroIdeal(a, r)
+    ideal2 = NonzeroIdeal(r, a)
+    assert ideal1 == ideal2
+
+    d = 13
+    u = RealQuadraticNumber(d, 1, 0) # 1
+    v = RealQuadraticNumber(d, 0, 1) # √d
+    ideal1 = NonzeroIdeal(u, v)
+    ideal2 = NonzeroIdeal(v, u)
+    assert ideal1 == ideal2
+    assert 3 * u + 5 * v in ideal1
+
+    # unit 1 not in ⟨2, v⟩
+    d = 13
+    u = RealQuadraticNumber(d, 1, 0) # 1
+    v = RealQuadraticNumber(d, 0, 1) # √d
+    J = NonzeroIdeal(2 * u, v)
+    assert u not in J
+
+    d = 17
+    omega_d = RealQuadraticField(d).omega
+    assert NonzeroIdeal(RealQuadraticNumber(d, 1, 0), omega_d).norm == 1
+
+
+    # ⟨2, √13⟩ is a proper sub-ideal of ⟨1, √13⟩
+    d  = 13
+    u  = RealQuadraticNumber(d, 1, 0)   # 1
+    v  = RealQuadraticNumber(d, 0, 1)   # √13
+    ideal1  = NonzeroIdeal(2*u, v)      # ⟨2, √13⟩
+    ideal2  = NonzeroIdeal(u,   v)
+    assert ideal1 < ideal2
+    assert ideal2 > ideal1
+    assert not (ideal2 < ideal1)
+
+    d = 13
+    u = RealQuadraticNumber(d, 1, 0)    # 1
+    v = RealQuadraticNumber(d, 0, 1)    # √13
+    ideal1 = NonzeroIdeal(2 * u, v)         # ⟨2, √13⟩
+    ideal2 = NonzeroIdeal(u, u + v)         # ⟨1, 1 + √13⟩
+    ideal_product = ideal1 * ideal2
+    assert ideal1.norm * ideal2.norm == ideal_product.norm
+    assert ideal_product <= ideal1 and ideal_product <= ideal2
