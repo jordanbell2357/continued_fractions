@@ -1,8 +1,8 @@
 import math
 import decimal
 from decimal import Decimal
+from fractions import Fraction
 import itertools as it
-import functools as ft
 from collections import abc
 from dataclasses import dataclass
 

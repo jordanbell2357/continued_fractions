@@ -475,6 +475,20 @@ class RealQuadraticField(abc.Container):
         return f"𝐐(√{self.d}):\tdiscriminant D={self.D}, ring of integers 𝓞_𝐐(√d)=𝐙[{omega}], fundamental unit {fundamental_unit}"
 
 
+def hilbert_theorem_90(d: int, t: Fraction) -> RealQuadraticNumber:
+    return RealQuadraticNumber(d, 1, t) / RealQuadraticNumber(d, 1, -t)
+
+def hilbert_theorem_90_inverse(alpha: RealQuadraticNumber) -> Fraction:
+    """
+    x  =  (1 + dt²) / (1 − dt²)
+    y  =  2t      / (1 − dt²)
+    """
+    x, y = alpha.x, alpha.y
+    if x == -1:
+        raise ValueError(f"{x=} must not be -1.")
+    return y / (x + 1)
+
+
 class NonzeroIdeal(abc.Container):
     """
     Nonzero ideal in the ring of integers 𝓞_K of K=𝐐(√d).
@@ -657,6 +671,70 @@ class NonzeroIdeal(abc.Container):
         return False
 
 
+    def __mul__(self: typing.Self, other: typing.Self | Rational) -> typing.Self:
+        if isinstance(other, Rational):
+            # Multiply ideal by a rational (integer/fraction) – scale generators
+            return type(self)(self.a * other, self.r * other)
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        if self.d != other.d:
+            raise ValueError("Ideals must belong to the same quadratic field to be multiplied.")
+        # Extract coordinates of generators in the naive {1, √d} basis
+        d = self.d
+        x1, y1 = self.a.x, self.a.y
+        x2, y2 = self.r.x, self.r.y
+        x3, y3 = other.a.x, other.a.y
+        x4, y4 = other.r.x, other.r.y
+        # Compute common denominator to clear all fractions
+        den_lcm = math.lcm(x1.denominator, y1.denominator, 
+                            x2.denominator, y2.denominator,
+                            x3.denominator, y3.denominator,
+                            x4.denominator, y4.denominator)
+        # Convert all coordinates to integers
+        X1, Y1 = int(x1 * den_lcm), int(y1 * den_lcm)
+        X2, Y2 = int(x2 * den_lcm), int(y2 * den_lcm)
+        X3, Y3 = int(x3 * den_lcm), int(y3 * den_lcm)
+        X4, Y4 = int(x4 * den_lcm), int(y4 * den_lcm)
+        # Form the 2×4 integer matrix of combined generators
+        M = gl2z.M2x4Z(X1, X2, X3, X4,
+                       Y1, Y2, Y3, Y4)
+        # Compute column Hermite normal form H = M * V  (rank ≤ 2)
+        U, H = gl2z.hnf_2x4(M)
+        # Identify pivot columns (with nonzero entries)
+        c1 = next(c for c in range(1, 5) if H.entry(1, c) != 0)
+        c2 = next(c for c in range(c1 + 1, 5) if H.entry(2, c) != 0)
+        # Scaled ideal generators from HNF columns (divide back by den_lcm)
+        a_scaled = RealQuadraticNumber(d, Fraction(H.entry(1, c1), den_lcm),
+                                          Fraction(H.entry(2, c1), den_lcm))
+        r_scaled = RealQuadraticNumber(d, Fraction(H.entry(1, c2), den_lcm),
+                                          Fraction(H.entry(2, c2), den_lcm))
+        # Ensure a_scaled is positive (choose canonical orientation)
+        if a_scaled < RealQuadraticNumber(d, 0, 0):
+            a_scaled = -a_scaled
+            r_scaled = -r_scaled
+        # Reduce r_scaled modulo a_scaled (adjust second generator)
+        if a_scaled.y != 0:
+            q = math.floor(float(r_scaled.y / a_scaled.y))
+        else:
+            q = 0
+        r_reduced = r_scaled - q * a_scaled
+        while r_reduced.y < 0:
+            r_reduced += a_scaled
+        while a_scaled.y != 0 and r_reduced.y >= a_scaled.y:
+            r_reduced -= a_scaled
+        # If product ideal is principal, simplify generators to standard form
+        norm_product = self.norm * other.norm
+        p = math.isqrt(norm_product)
+        if p * p == norm_product:
+            K = RealQuadraticField(d)
+            a_final = RealQuadraticNumber(d, p, 0)
+            r_final = p * K.omega
+            return type(self)(a_final, r_final)
+        # Otherwise, return the ideal with the computed generators
+        return type(self)(a_scaled, r_reduced)
+
+
+
     @classmethod
     def prime_ideal(cls, d: int, p: int, t_sgn: int = 1) -> typing.Self:
         """
@@ -799,6 +877,14 @@ if __name__ == "__main__":
     d = 30
     assert RealQuadraticNumber.discriminant(RealQuadraticNumber(d, 1, 0), RealQuadraticField(d).fundamental_unit) == \
         RealQuadraticNumber.discriminant_by_trace(RealQuadraticNumber(d, 1, 0), RealQuadraticField(d).fundamental_unit)
+    
+    d = 26
+    t = Fraction(-2, 7)
+    x = hilbert_theorem_90(d, t)
+    assert x.norm == 1
+    assert hilbert_theorem_90_inverse(x) == t
+
+    # Ideals
 
     d = 13
     a = RealQuadraticNumber(d, 1, 0) # 1
@@ -841,14 +927,15 @@ if __name__ == "__main__":
     assert m.trace == sum(eigenvalues)
     assert m.det == math.prod(eigenvalues)
 
-    # d = 13
-    # u = RealQuadraticNumber(d, 1, 0)    # 1
-    # v = RealQuadraticNumber(d, 0, 1)    # √13
-    # ideal1 = NonzeroIdeal(2 * u, v)         # ⟨2, √13⟩
-    # ideal2 = NonzeroIdeal(u, u + v)         # ⟨1, 1 + √13⟩
-    # ideal_product = ideal1 * ideal2
-    # assert ideal1.norm * ideal2.norm == ideal_product.norm
-    # assert ideal_product <= ideal1 and ideal_product <= ideal2
+    d = 13
+    u = RealQuadraticNumber(d, 1, 0)    # 1
+    v = RealQuadraticNumber(d, 0, 1)    # √13
+    ideal1 = NonzeroIdeal(2 * u, v)         # ⟨2, √13⟩
+    ideal2 = NonzeroIdeal(u, u + v)         # ⟨1, 1 + √13⟩
+    ideal_product = ideal1 * ideal2
+    print(ideal1, ideal2, ideal_product)
+    assert ideal1.norm * ideal2.norm == ideal_product.norm
+    assert ideal_product <= ideal1 and ideal_product <= ideal2
 
     # ---------------------------------------------------------------------------
     # ❶  Split prime – Q(√5), p = 11
