@@ -522,7 +522,7 @@ def classnumber_h(D: int) -> int:
     sqrtD  = math.isqrt(D)                    # ⌊√D⌋  (integer)
     forms  : list[IndefiniteBQF] = []
 
-    # ➊  Enumerate every Knapp-reduced primitive form exactly once
+    # Enumerate every Knapp-reduced primitive form exactly once
     for b in range(1, sqrtD + 1):             # 0 < b < √D  ⇒  b ≤ ⌊√D⌋
         lower = sqrtD - b                     # left inequality bound
         upper = sqrtD + b                     # right inequality bound
@@ -539,7 +539,7 @@ def classnumber_h(D: int) -> int:
                 continue
             forms.append(IndefiniteBQF(a, b, c))
 
-    # ➋  Group reduced forms into neighbour-cycles
+    # Group reduced forms into neighbour-cycles
     visited: set[IndefiniteBQF] = set()
     cycles = 0
     for f in forms:

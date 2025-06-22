@@ -264,43 +264,13 @@ def kronecker_symbol(a: int, n: int) -> int:
 
 
 def solve_quadratic_congruence(a: int, n: int) -> int:
+    """
+    Return b with b² ≡ a (mod n) when it exists.
+    """
     for b in range(n):
         if (b ** 2 - a) % n == 0:
             return b
     return None
-
-
-def square_root_mod_p(d: int, p: int) -> int:
-    """
-    Return t with t² ≡ d (mod p) when it exists.
-    
-    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
-    Algorithm 1.5.1 (Square Root Mod p), p. 33
-    """
-    if p == 2:
-        return d % 2                                 # trivial root
-    # simple Tonelli–Shanks; assumes (d/p)=+1
-    leg = pow(d, (p - 1) // 2, p)
-    if leg != 1:
-        raise ValueError(f"{d} is not a quadratic residue mod {p}.")
-    # find q·2^s with q odd
-    s, q = 0, p - 1
-    while q % 2 == 0:
-        s += 1
-        q //= 2
-    # find z a non-square
-    z = 2
-    while pow(z, (p - 1) // 2, p) != p - 1:
-        z += 1
-    m, c, t, r = s, pow(z, q, p), pow(d, q, p), pow(d, (q + 1) // 2, p)
-    while t != 1:
-        i, tmp = 1, pow(t, 2, p)
-        while tmp != 1:
-            tmp = pow(tmp, 2, p)
-            i += 1
-        b = pow(c, 1 << (m - i - 1), p)
-        m, c, t, r = i, pow(b, 2, p), t * pow(b, 2, p) % p, r * b % p
-    return r
 
 
 

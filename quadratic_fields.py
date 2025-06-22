@@ -5,7 +5,6 @@ from fractions import Fraction
 from numbers import Number
 from numbers import Rational
 from collections import abc
-import itertools as it
 import typing
 
 import gl2z
@@ -341,6 +340,28 @@ class RealQuadraticNumber(Number):
             return (int(self.x), int(self.y))
         else:                    # d % 4 == 1,  ω = (1+√d)/2
             return (int(self.x - self.y), int(2 * self.y))
+        
+
+def eigenvalues(m: gl2z.M2Z) -> tuple[RealQuadraticNumber, RealQuadraticNumber] | tuple[Fraction, Fraction]:
+    """
+    x^2 - tr(m)x + det(m) = 0
+    a = 1, b = -tr(m), c = det(m)
+    D = b ** 2 - 4ac
+    x1 = -b/2 - sqrt(D)/2
+    x2 = -b/2 + sqrt(D)/2
+    """
+    a = 1
+    b = -m.trace
+    c = m.det
+    D = b ** 2 - 4 * a * c
+    if D != math.isqrt(D) ** 2:
+        x1 = RealQuadraticNumber(D, Fraction(-b, 2), -Fraction(1, 2))
+        x2 = RealQuadraticNumber(D, Fraction(-b, 2), Fraction(1, 2))
+        return x1, x2
+    else:
+        x1 = Fraction(-b - math.isqrt(D), 2)
+        x2 = Fraction(-b + math.isqrt(D), 2)
+        return x1, x2
 
 
 class RealQuadraticField(abc.Container):
@@ -436,7 +457,8 @@ class RealQuadraticField(abc.Container):
 
     @property
     def omega(self: typing.Self) -> RealQuadraticNumber: # 𝓞_𝐐(√d) = 𝐙[ω]
-        if self.d % 4 == 1:
+        d = self.d
+        if d % 4 == 1:
             return RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2))
         elif d % 4 in [2, 3]:
             return RealQuadraticNumber(d, 0, 1)
@@ -633,33 +655,45 @@ class NonzeroIdeal(abc.Container):
         if other.a in self and other.r in self and self != other:
             return True
         return False
-    
+
+
     @classmethod
     def prime_ideal(cls, d: int, p: int, t_sgn: int = 1) -> typing.Self:
         """
-        Prime ideals  𝖕 ⊂ 𝓞_K   (rank-2 lattice with norm p or p²)
-        Prime ideal above a rational prime p in the real-quadratic field K = ℚ(√d).
+        Henri Cohen, A Course in Computational Algebraic Number Theory, Prop. 5.1.4, p. 224.
 
-        Construction follows Cohen §5.1:
-            • inert (D/p) = –1 => 𝖕 = ⟨p, √d⟩    (norm p²)
-            • ramified (D/p) =  0 => 𝖕 = ⟨p, ω⟩    (norm p)
-            • split (D/p) = +1 => 𝖕₁ = ⟨p, t – √d⟩, 𝖕₂ = ⟨p, t + √d⟩
-            where t ∈ ℤ solves  t² ≡ d (mod p)
+        Let K = Q(√D), 𝓞_K = Z[ω], with ω = (D + √D)/2.
+
+        (1) If (D/p)=0 then p ramifies and
+            pZ_K = 𝔭²,  𝔭 = ⟨p, ω⟩  (unless p=2 and D≡12 mod 16, then 𝔭=⟨2,1+ω⟩).
+        (2) If (D/p)=–1 then p is inert and
+            pZ_K itself is prime,  i.e.  (p) = ⟨p, p·ω⟩  (norm p²).
+        (3) If (D/p)=+1 then p splits and
+            pZ_K = 𝔭₁·𝔭₂,  
+            𝔭₁ = ⟨p, ω – (D + b)/2⟩,  
+            𝔭₂ = ⟨p, ω – (D – b)/2⟩,  
+            where b² ≡ D (mod 4p) and you pick the sign of b via t_sgn=±1.
         """
         K = RealQuadraticField(d)
-        d0 = K.d
-        # Determine prime decomposition type: splits (+1), inert (–1), or ramified (0)
-        decomp_type = K.prime_decomposition_type(p)
-        if decomp_type == 1:  # p splits
-            t = prime_numbers.square_root_mod_p(d0, p)
-            return cls(p, RealQuadraticNumber(d0, t, t_sgn))
-        elif decomp_type == -1:  # p is inert
-            return cls(p, RealQuadraticNumber(d0, 0, 1))
-        elif decomp_type == 0:  # p is ramified
-            return cls(p, K.omega)
-        else:
-            raise ArithmeticError("Implementation of some ingredient is broken.")
+        D = K.D
+        typ = K.prime_decomposition_type(p)
 
+        # (1) ramified
+        if typ == 0:
+            if p == 2 and D % 16 == 12:
+                return cls(p, 1 + K.omega)
+            return cls(p, K.omega)
+        # (2) inert: principal ideal (p) of norm p^2
+        elif typ == -1:
+            return cls(p, p * K.omega)
+        # (3) split
+        # solve b^2 ≡ D (mod 4p), pick ± via t_sgn
+        elif typ == 1:
+            b = prime_numbers.solve_quadratic_congruence(D, 4 * p)
+            r = K.omega - Fraction(D + t_sgn * b, 2)
+            return cls(p, r)
+        else:
+            raise ArithmeticError("Supporting ingredients are broken.")
 
 
 if __name__ == "__main__":
@@ -792,7 +826,6 @@ if __name__ == "__main__":
     omega_d = RealQuadraticField(d).omega
     assert NonzeroIdeal(RealQuadraticNumber(d, 1, 0), omega_d).norm == 1
 
-
     # ⟨2, √13⟩ is a proper sub-ideal of ⟨1, √13⟩
     d  = 13
     u  = RealQuadraticNumber(d, 1, 0)   # 1
@@ -803,6 +836,11 @@ if __name__ == "__main__":
     assert ideal2 > ideal1
     assert not (ideal2 < ideal1)
 
+    m = gl2z.M2Z(4, 1, 1, 1)
+    eigenvalues = eigenvalues(m)
+    assert m.trace == sum(eigenvalues)
+    assert m.det == math.prod(eigenvalues)
+
     # d = 13
     # u = RealQuadraticNumber(d, 1, 0)    # 1
     # v = RealQuadraticNumber(d, 0, 1)    # √13
@@ -811,3 +849,58 @@ if __name__ == "__main__":
     # ideal_product = ideal1 * ideal2
     # assert ideal1.norm * ideal2.norm == ideal_product.norm
     # assert ideal_product <= ideal1 and ideal_product <= ideal2
+
+    # ---------------------------------------------------------------------------
+    # ❶  Split prime – Q(√5), p = 11
+    #     p𝓞_K = 𝔭₁ · 𝔭₂   with 𝔭₁ ≠ 𝔭₂
+    # ---------------------------------------------------------------------------
+    d, p = 5, 11                          # 5 is quadratic residue mod 11
+    𝔭1 = NonzeroIdeal.prime_ideal(d, p,  1)   # ⟨p, p + t√d⟩
+    𝔭2 = NonzeroIdeal.prime_ideal(d, p, -1)   # conjugate prime
+    assert 𝔭1.norm == 𝔭2.norm == p
+
+    # π = 𝔭1 * 𝔭2                            # should be the (principal) ideal (p)
+    # assert π.norm == p ** 2                # N(𝔭₁𝔭₂) = N(𝔭₁)·N(𝔭₂)
+    # assert π <= 𝔭1 and π <= 𝔭2            # product ideal is contained in each factor
+    # assert RealQuadraticNumber(d, p, 0) in π   # the integer p itself lies in (p)
+
+
+    # # ---------------------------------------------------------------------------
+    # # ❷  Ramified prime – Q(√5), p = 5
+    # #     p𝓞_K = 𝔭²
+    # # ---------------------------------------------------------------------------
+    # d, p = 5, 5
+    # 𝔭  = NonzeroIdeal.prime_ideal(d, p)   # ⟨p, ω⟩  (ramified)
+
+    # π  = 𝔭 * 𝔭                            # (p)  principal
+
+    # assert 𝔭.norm == p                    # N(𝔭) = p
+    # assert π.norm == p ** 2               # N(𝔭²) = p²
+    # assert π <= 𝔭                         # 𝔭² ⊂ 𝔭
+    # assert RealQuadraticNumber(d, p, 0) in π   # p ∈ (p)
+
+
+    # ---------------------------------------------------------------------------
+    # ❸  Inert prime – Q(√5), p = 3
+    #     single prime ideal of norm p²
+    # ---------------------------------------------------------------------------
+    # d, p = 5, 3
+    # 𝔮   = NonzeroIdeal.prime_ideal(d, p)  # ⟨p, √d⟩  (inert)
+
+    # assert 𝔮.norm == p ** 2               # inert ⇒ N(𝔮) = p²
+    # assert (𝔮 * 𝔮).norm == (p ** 2) ** 2  # norm multiplicativity
+    # assert (𝔮 * 𝔮) <= 𝔮                  # product is contained in its factor
+
+
+    # ---------------------------------------------------------------------------
+    # ❹  Conjugate product in a different field – Q(√13), p = 17 (splits)
+    # ---------------------------------------------------------------------------
+    # d, p = 13, 17                         # 13 is a quadratic residue mod 17
+    # 𝔭_plus  = NonzeroIdeal.prime_ideal(d, p,  1)
+    # 𝔭_minus = NonzeroIdeal.prime_ideal(d, p, -1)
+
+    # π = 𝔭_plus * 𝔭_minus                  # should be (p)
+
+    # assert π.norm == p ** 2
+    # assert RealQuadraticNumber(d, p, 0) in π
+    # assert π <= 𝔭_plus and π <= 𝔭_minus

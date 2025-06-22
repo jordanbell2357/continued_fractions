@@ -476,14 +476,13 @@ class GL2Q(abc.Hashable):
         return other * self.inverse()
     
     def __pow__(self: typing.Self, exponent: int) -> typing.Self:
-        I = type(self)(1, 0, 0, 1)
         if exponent == 0:
-            return I
+            return type(self)(1, 0, 0, 1)
         elif exponent > 0:
-            return ft.reduce(operator.mul, (self for _ in range(exponent)), I)
+            return ft.reduce(operator.mul, (self for _ in range(exponent)), type(self)(1, 0, 0, 1))
         elif exponent < 0:
             self_inv = self.inverse()
-            return ft.reduce(operator.mul, (self_inv for _ in range(abs(exponent))), I)
+            return ft.reduce(operator.mul, (self_inv for _ in range(abs(exponent))), type(self)(1, 0, 0, 1))
     
     def __iter__(self: typing.Self) -> abc.Iterator[Fraction]:
         return iter((self.alpha, self.beta, self.gamma, self.delta))
@@ -693,7 +692,7 @@ class M2Z(abc.Hashable):
         if exponent == 0 and self.det != 0:
             return type(self)(1, 0, 0, 1)
         elif exponent == 0 and self.det == 0:
-            raise ValueError("Exponent must be positive for matrix with determinant 0.")
+            raise ValueError(f"Exponent must be positive for matrix with determinant 0: {self=}")
         elif exponent > 0:
             return ft.reduce(operator.mul, (self for _ in range(exponent)), type(self)(1, 0, 0, 1))
         elif exponent < 0:
@@ -782,6 +781,9 @@ class M2x4Z(abc.Hashable):
     
     def __len__(self: typing.Self) -> int:
         return len(type(self).__slots__)
+    
+    def __abs__(self: typing.Self) -> int: # maximum absolute value of entries (ℓ∞ norm)
+        return max(abs(entry) for entry in self)
     
     def __iter__(self: typing.Self) -> int:
         return iter((self.a11, self.a12, self.a13, self.a14, self.a21, self.a22, self.a23, self.a24))
