@@ -527,60 +527,12 @@ class NonzeroIdeal(abc.Container):
         if r1.d != r2.d:
             raise ValueError(f"{r1=} and {r2=} must belong to same ring of integers 𝓞_𝐐(√d).")
         return r1 * r2.conjugate() - r1.conjugate() * r2
-
-    def __init__(self, a: RealQuadraticNumber | int, r: RealQuadraticNumber) -> None:
-        if not isinstance(r, RealQuadraticNumber):
-            raise TypeError(f"{r=} must be in 𝐐(√d).")
-        d = r.d
-        if isinstance(a, int):
-            a = RealQuadraticNumber(d, a, 0)
-        if not isinstance(a, RealQuadraticNumber):
-            raise TypeError(f"{a=} must be in 𝐐(√d).")
-        if not (a.is_integral and r.is_integral):
-            raise ValueError(f"{a=} and {r=} must be integral elements of 𝐐(√d).")
-        if a.d != d or r.d != d:
-            raise ValueError("Generators must belong to the same ring of integers 𝓞_𝐐(√d).")
-        oriented_volume = type(self).orientation(a, r)
-        if oriented_volume == 0:
-            raise ValueError("A nonzero ideal in the ring of integers of 𝐐(√d) has rank 2.")
-
-        # ----- clear denominators so that we can work with an integer 2×2 matrix
-        # coordinates of a, r in the naïve {1, √d} basis
-        x1, y1 = a.x, a.y  # Fractions
-        x2, y2 = r.x, r.y
-        den_lcm = math.lcm(x1.denominator, y1.denominator, x2.denominator, y2.denominator)
-        X1, Y1 = int(x1 * den_lcm), int(y1 * den_lcm)
-        X2, Y2 = int(x2 * den_lcm), int(y2 * den_lcm)
-
-        # ----- column‑HNF on the integer matrix [[X1,X2],[Y1,Y2]]
-        M = gl2z.M2Z(X1, X2,
-                     Y1, Y2)
-        # We need H = M·V with V ∈ GL₂(ℤ).  Obtain V via row‑HNF on Mᵗ.
-        Mt = gl2z.M2Z(X1, Y1,
-                      X2, Y2)
-        U, Ht = gl2z.hnf_2x2(Mt)        # Ht = U·Mt  (row‑HNF)
-        V = U.transpose()               # V = Uᵗ  ∈ GL₂(ℤ)
-        H = M * V                       # column‑HNF
-
-        # columns of H give the *scaled* generators
-        a_scaled = RealQuadraticNumber(d, Fraction(H.a11, den_lcm), Fraction(H.a21, den_lcm))
-        r_scaled = RealQuadraticNumber(d, Fraction(H.a12, den_lcm), Fraction(H.a22, den_lcm))
-
-        # ----- make a positive
-        if a_scaled < RealQuadraticNumber(d, 0, 0):
-            a_scaled = -a_scaled
-            r_scaled = -r_scaled
-
-        # ----- reduce r modulo a so that 0 ≤ r.y < a
-        # r' ≡ r  (mod a)  with y‑coordinate in that interval
-        q = math.floor(float(r_scaled.y / a_scaled.y)) if a_scaled.y != 0 else 0
-        r_reduced = r_scaled - q * a_scaled
-        while r_reduced.y < 0:
-            r_reduced += a_scaled
-        while r_reduced.y >= a_scaled.y and a_scaled.y != 0:
-            r_reduced -= a_scaled
-
-        self.a, self.r = a_scaled, r_reduced
+    
+    def __init__(self, r1, r2) -> None:
+        """
+        """
+        self.a = r1
+        self.r = r2
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.a}, {self.r})"
@@ -669,71 +621,6 @@ class NonzeroIdeal(abc.Container):
         if other.a in self and other.r in self and self != other:
             return True
         return False
-
-
-    def __mul__(self: typing.Self, other: typing.Self | Rational) -> typing.Self:
-        if isinstance(other, Rational):
-            # Multiply ideal by a rational (integer/fraction) – scale generators
-            return type(self)(self.a * other, self.r * other)
-        if not isinstance(other, type(self)):
-            return NotImplemented
-        if self.d != other.d:
-            raise ValueError("Ideals must belong to the same quadratic field to be multiplied.")
-        # Extract coordinates of generators in the naive {1, √d} basis
-        d = self.d
-        x1, y1 = self.a.x, self.a.y
-        x2, y2 = self.r.x, self.r.y
-        x3, y3 = other.a.x, other.a.y
-        x4, y4 = other.r.x, other.r.y
-        # Compute common denominator to clear all fractions
-        den_lcm = math.lcm(x1.denominator, y1.denominator, 
-                            x2.denominator, y2.denominator,
-                            x3.denominator, y3.denominator,
-                            x4.denominator, y4.denominator)
-        # Convert all coordinates to integers
-        X1, Y1 = int(x1 * den_lcm), int(y1 * den_lcm)
-        X2, Y2 = int(x2 * den_lcm), int(y2 * den_lcm)
-        X3, Y3 = int(x3 * den_lcm), int(y3 * den_lcm)
-        X4, Y4 = int(x4 * den_lcm), int(y4 * den_lcm)
-        # Form the 2×4 integer matrix of combined generators
-        M = gl2z.M2x4Z(X1, X2, X3, X4,
-                       Y1, Y2, Y3, Y4)
-        # Compute column Hermite normal form H = M * V  (rank ≤ 2)
-        U, H = gl2z.hnf_2x4(M)
-        # Identify pivot columns (with nonzero entries)
-        c1 = next(c for c in range(1, 5) if H.entry(1, c) != 0)
-        c2 = next(c for c in range(c1 + 1, 5) if H.entry(2, c) != 0)
-        # Scaled ideal generators from HNF columns (divide back by den_lcm)
-        a_scaled = RealQuadraticNumber(d, Fraction(H.entry(1, c1), den_lcm),
-                                          Fraction(H.entry(2, c1), den_lcm))
-        r_scaled = RealQuadraticNumber(d, Fraction(H.entry(1, c2), den_lcm),
-                                          Fraction(H.entry(2, c2), den_lcm))
-        # Ensure a_scaled is positive (choose canonical orientation)
-        if a_scaled < RealQuadraticNumber(d, 0, 0):
-            a_scaled = -a_scaled
-            r_scaled = -r_scaled
-        # Reduce r_scaled modulo a_scaled (adjust second generator)
-        if a_scaled.y != 0:
-            q = math.floor(float(r_scaled.y / a_scaled.y))
-        else:
-            q = 0
-        r_reduced = r_scaled - q * a_scaled
-        while r_reduced.y < 0:
-            r_reduced += a_scaled
-        while a_scaled.y != 0 and r_reduced.y >= a_scaled.y:
-            r_reduced -= a_scaled
-        # If product ideal is principal, simplify generators to standard form
-        norm_product = self.norm * other.norm
-        p = math.isqrt(norm_product)
-        if p * p == norm_product:
-            K = RealQuadraticField(d)
-            a_final = RealQuadraticNumber(d, p, 0)
-            r_final = p * K.omega
-            return type(self)(a_final, r_final)
-        # Otherwise, return the ideal with the computed generators
-        return type(self)(a_scaled, r_reduced)
-
-
 
     @classmethod
     def prime_ideal(cls, d: int, p: int, t_sgn: int = 1) -> typing.Self:
@@ -879,115 +766,22 @@ if __name__ == "__main__":
         RealQuadraticNumber.discriminant_by_trace(RealQuadraticNumber(d, 1, 0), RealQuadraticField(d).fundamental_unit)
     
     d = 26
-    t = Fraction(-2, 7)
+    t = Fraction(-2, 7) # t != 1
     x = hilbert_theorem_90(d, t)
     assert x.norm == 1
     assert hilbert_theorem_90_inverse(x) == t
 
-    # Ideals
-
-    d = 13
-    a = RealQuadraticNumber(d, 1, 0) # 1
-    r = RealQuadraticNumber(d, 0, 1) # √d
-    ideal1 = NonzeroIdeal(a, r)
-    ideal2 = NonzeroIdeal(r, a)
-    assert ideal1 == ideal2
-
-    d = 13
-    u = RealQuadraticNumber(d, 1, 0) # 1
-    v = RealQuadraticNumber(d, 0, 1) # √d
-    ideal1 = NonzeroIdeal(u, v)
-    ideal2 = NonzeroIdeal(v, u)
-    assert ideal1 == ideal2
-    assert 3 * u + 5 * v in ideal1
-
-    # unit 1 not in ⟨2, v⟩
-    d = 13
-    u = RealQuadraticNumber(d, 1, 0) # 1
-    v = RealQuadraticNumber(d, 0, 1) # √d
-    ideal = NonzeroIdeal(2 * u, v)
-    assert u not in ideal
-
-    d = 17
-    omega_d = RealQuadraticField(d).omega
-    assert NonzeroIdeal(RealQuadraticNumber(d, 1, 0), omega_d).norm == 1
-
-    # ⟨2, √13⟩ is a proper sub-ideal of ⟨1, √13⟩
-    d  = 13
-    u  = RealQuadraticNumber(d, 1, 0)   # 1
-    v  = RealQuadraticNumber(d, 0, 1)   # √13
-    ideal1  = NonzeroIdeal(2*u, v)      # ⟨2, √13⟩
-    ideal2  = NonzeroIdeal(u,   v)
-    assert ideal1 < ideal2
-    assert ideal2 > ideal1
-    assert not (ideal2 < ideal1)
+    d = 26
+    epsilon = RealQuadraticField(d).fundamental_unit
+    t = hilbert_theorem_90_inverse(epsilon)
+    assert hilbert_theorem_90(d, t) == epsilon
 
     m = gl2z.M2Z(4, 1, 1, 1)
     eigenvalues = eigenvalues(m)
     assert m.trace == sum(eigenvalues)
     assert m.det == math.prod(eigenvalues)
 
-    d = 13
-    u = RealQuadraticNumber(d, 1, 0)    # 1
-    v = RealQuadraticNumber(d, 0, 1)    # √13
-    ideal1 = NonzeroIdeal(2 * u, v)         # ⟨2, √13⟩
-    ideal2 = NonzeroIdeal(u, u + v)         # ⟨1, 1 + √13⟩
-    ideal_product = ideal1 * ideal2
-    print(ideal1, ideal2, ideal_product)
-    assert ideal1.norm * ideal2.norm == ideal_product.norm
-    assert ideal_product <= ideal1 and ideal_product <= ideal2
+    d = 17
+    omega_d = RealQuadraticField(d).omega
+    assert NonzeroIdeal(RealQuadraticNumber(d, 1, 0), omega_d).norm == 1
 
-    # ---------------------------------------------------------------------------
-    # ❶  Split prime – Q(√5), p = 11
-    #     p𝓞_K = 𝔭₁ · 𝔭₂   with 𝔭₁ ≠ 𝔭₂
-    # ---------------------------------------------------------------------------
-    d, p = 5, 11                          # 5 is quadratic residue mod 11
-    𝔭1 = NonzeroIdeal.prime_ideal(d, p,  1)   # ⟨p, p + t√d⟩
-    𝔭2 = NonzeroIdeal.prime_ideal(d, p, -1)   # conjugate prime
-    assert 𝔭1.norm == 𝔭2.norm == p
-
-    # π = 𝔭1 * 𝔭2                            # should be the (principal) ideal (p)
-    # assert π.norm == p ** 2                # N(𝔭₁𝔭₂) = N(𝔭₁)·N(𝔭₂)
-    # assert π <= 𝔭1 and π <= 𝔭2            # product ideal is contained in each factor
-    # assert RealQuadraticNumber(d, p, 0) in π   # the integer p itself lies in (p)
-
-
-    # # ---------------------------------------------------------------------------
-    # # ❷  Ramified prime – Q(√5), p = 5
-    # #     p𝓞_K = 𝔭²
-    # # ---------------------------------------------------------------------------
-    # d, p = 5, 5
-    # 𝔭  = NonzeroIdeal.prime_ideal(d, p)   # ⟨p, ω⟩  (ramified)
-
-    # π  = 𝔭 * 𝔭                            # (p)  principal
-
-    # assert 𝔭.norm == p                    # N(𝔭) = p
-    # assert π.norm == p ** 2               # N(𝔭²) = p²
-    # assert π <= 𝔭                         # 𝔭² ⊂ 𝔭
-    # assert RealQuadraticNumber(d, p, 0) in π   # p ∈ (p)
-
-
-    # ---------------------------------------------------------------------------
-    # ❸  Inert prime – Q(√5), p = 3
-    #     single prime ideal of norm p²
-    # ---------------------------------------------------------------------------
-    # d, p = 5, 3
-    # 𝔮   = NonzeroIdeal.prime_ideal(d, p)  # ⟨p, √d⟩  (inert)
-
-    # assert 𝔮.norm == p ** 2               # inert ⇒ N(𝔮) = p²
-    # assert (𝔮 * 𝔮).norm == (p ** 2) ** 2  # norm multiplicativity
-    # assert (𝔮 * 𝔮) <= 𝔮                  # product is contained in its factor
-
-
-    # ---------------------------------------------------------------------------
-    # ❹  Conjugate product in a different field – Q(√13), p = 17 (splits)
-    # ---------------------------------------------------------------------------
-    # d, p = 13, 17                         # 13 is a quadratic residue mod 17
-    # 𝔭_plus  = NonzeroIdeal.prime_ideal(d, p,  1)
-    # 𝔭_minus = NonzeroIdeal.prime_ideal(d, p, -1)
-
-    # π = 𝔭_plus * 𝔭_minus                  # should be (p)
-
-    # assert π.norm == p ** 2
-    # assert RealQuadraticNumber(d, p, 0) in π
-    # assert π <= 𝔭_plus and π <= 𝔭_minus

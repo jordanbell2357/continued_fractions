@@ -994,7 +994,7 @@ def hnf_2x4(A: M2x4Z) -> tuple[GL2Z, M2x4Z]:
 
 
 
-def smith_normal_form_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
+def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
     """
     Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
     Cambridge University Press, 1994.
@@ -1259,19 +1259,19 @@ if __name__ == "__main__":
     assert m_H == m_U * m_A
     
     # 1. Identity matrix – already in SNF
-    m_U, m_D, m_V = smith_normal_form_2x2(M2Z(1, 0, 0, 1))
+    m_U, m_D, m_V = snf_2x2(M2Z(1, 0, 0, 1))
     assert m_D == M2Z(1, 0, 0, 1) and m_D == m_U * M2Z(1,0,0,1) * m_V
     assert m_U.det in (-1, 1) and m_V.det in (-1, 1)
 
     # 2. Full-rank example (|det| = 2) – divisibility d₁ | d₂
     m = M2Z(3, 5, 7, 11)          # det = -2
-    m_U, m_D, m_V = smith_normal_form_2x2(m)
+    m_U, m_D, m_V = snf_2x2(m)
     assert m_D == M2Z(1, 0, 0, 2)   # expected SNF
     assert m_D == m_U * m * m_V
 
     # 3. Rank-one example – zero appears on the second diagonal
     m_A = M2Z(2, 4, 4, 8)           # det = 0, gcd = 2
-    m_U, m_D, m_V = smith_normal_form_2x2(m_A)
+    m_U, m_D, m_V = snf_2x2(m_A)
     assert m_D == M2Z(2, 0, 0, 0)   # SNF diag(2, 0)
     assert m_D == m_U * m_A * m_V
 
@@ -1299,7 +1299,7 @@ if __name__ == "__main__":
     # 3.  Smith form of a unimodular 2×2 matrix is the identity.
     # ---------------------------------------------------------------------------
     g = P
-    _, g_SNF_, _ = smith_normal_form_2x2(M2Z.GL2Z_to_M2Z(g))
+    _, g_SNF_, _ = snf_2x2(M2Z.GL2Z_to_M2Z(g))
     assert g_SNF_ == M2Z(1, 0, 0, 1)             # SNF must be diag(1,1)
 
     # ---------------------------------------------------------------------------
@@ -1307,7 +1307,7 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------------------
     B = M2Z( 6, 10,
             9, 15)                             # gcd = 3
-    U, D, V = smith_normal_form_2x2(B)
+    U, D, V = snf_2x2(B)
     assert D.a11 == B.gcd      # d₁  =  gcd(entries)
 
     # ---------------------------------------------------------------------------

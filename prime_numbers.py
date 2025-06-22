@@ -13,7 +13,6 @@ from collections import abc
 EULER_CONSTANT_30_DIGITS = Decimal("0.577215664901532860606512090082")
 EULER_CONSTANT_FLOAT = float(EULER_CONSTANT_30_DIGITS)
 
-
 def sieve_eratosthenes_list(n: int) -> list[int]:
     if n < 2:
         return []
@@ -247,7 +246,7 @@ def legendre_symbol(a: int, p: int) -> int:
 def kronecker_symbol(a: int, n: int) -> int:
     """
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
-    Definition 1.4.8, p. 28, 
+    Definition 1.4.8, p. 28.
     """
     if n == 0:
         return 1 if a in [-1, 1] else 0
@@ -266,6 +265,11 @@ def kronecker_symbol(a: int, n: int) -> int:
 def solve_quadratic_congruence(a: int, n: int) -> int:
     """
     Return b with b² ≡ a (mod n) when it exists.
+    Running time O(n).
+    Can be made substantially more efficient for prime n = p:
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+    Shanks' Algorithm 1.5.1 (Square Root Mod p), p. 33.
+    Expected running time O(ln(p) ** 4)
     """
     for b in range(n):
         if (b ** 2 - a) % n == 0:
