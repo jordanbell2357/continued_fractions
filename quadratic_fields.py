@@ -247,69 +247,6 @@ class RealQuadraticNumber(Number):
         x = matrix.alpha
         y = matrix.gamma
         return cls(d, x, y)
-
-    def GL2Q_integral_basis_representation(self: typing.Self) -> gl2z.GL2Q:
-        d = self.d
-        x = self.x
-        y = self.y
-
-        if d % 4 in [2, 3]:
-            """
-            α = x + y√d
-            ω = √d
-            α = x + yω
-            α * 1 = x * 1 + y * ω
-            α * ω  = (x + yω) * ω = x√d + y * d = (d * y) + x√d = (d * y) * 1 + x * ω
-
-            [ x      y * d ]
-            [ y      x     ]
-            """
-            return gl2z.GL2Q(x, d * y, y, x)
-        elif d % 4 == 1:
-            """
-            α = x + y√d
-            ω = (1 + √d) / 2
-            √d = 2ω − 1
-            
-            √d * ω  
-            = √d * (1 + √d)/2  
-            = (√d + d)/2  
-            = d/2 + (1/2) * √d  
-            = d/2 + (1/2) * (2ω − 1)  
-            = d/2 + ω − 1/2  
-            = (d − 1)/2 + ω 
-
-            α * 1  
-            = x + y * √d  
-            = x + y(2ω − 1)  
-            = (x − y) + (2y) * ω  
-            = (x − y) * 1 + (2y) * ω  
-
-            α * ω  
-            = (x + y√d) * ω  
-            = xω + y(√d * ω)
-            = xω + y((d − 1)/2 + ω)
-            = (d − 1)/2 * y * 1 + (x + y) * ω
-
-            [ x - y      (d-1)/2 * y ]
-            [ 2y         x + y       ]
-            """
-            return gl2z.GL2Q(x - y, Fraction(d - 1, 2) * y, 2 * y, x + y)
-        else:
-            raise ValueError(f"{d=} must not be a multiple of 4.")
-        
-
-    @classmethod
-    def from_GL2Q_integral_basis_representation(cls, matrix: gl2z.GL2Q) -> typing.Self:
-        if matrix.gamma == 0:
-            raise ValueError(f"{matrix.gamma=} must not be 0.")
-        x = Fraction(matrix.alpha + matrix.delta, 2)
-        y = Fraction(matrix.delta - matrix.alpha, 2)
-        d = Fraction(matrix.beta, y) * 2 + 1
-        if d != int(d):
-            raise ValueError(f"{matrix} must belong to image of integral basis representation of 𝐐(√d) in GL₂(𝐐).")
-        d = int(d)
-        return cls(d, x, y)
     
     @classmethod
     def discriminant(cls, alpha1: typing.Self, alpha2: typing.Self) -> Rational:
@@ -330,16 +267,6 @@ class RealQuadraticNumber(Number):
         alpha21 = (alpha2 * alpha1).trace
         alpha22 = (alpha2 * alpha2).trace
         return alpha11 * alpha22 - alpha12 * alpha21
-    
-    @property
-    def integer_coefficient_tuple(self: typing.Self) -> tuple[int,int]:
-        d = self.d
-        if not self.is_integral:
-            raise TypeError(f"{self} must be an integral element of 𝐐(√d).")
-        if d % 4 in (2, 3):       # ω = √d
-            return (int(self.x), int(self.y))
-        else:                    # d % 4 == 1,  ω = (1+√d)/2
-            return (int(self.x - self.y), int(2 * self.y))
         
 
 def eigenvalues(m: gl2z.M2Z) -> tuple[RealQuadraticNumber, RealQuadraticNumber] | tuple[Fraction, Fraction]:
@@ -450,18 +377,15 @@ class RealQuadraticField(abc.Container):
             raise ValueError(f"{p=} must be prime.")
         return prime_numbers.kronecker_symbol(self.D, p)
 
-
     @property
     def sqrtd(self: typing.Self) -> RealQuadraticNumber:
         return RealQuadraticNumber(self.d, 0, 1)
 
     @property
-    def omega(self: typing.Self) -> RealQuadraticNumber: # 𝓞_𝐐(√d) = 𝐙[ω]
-        d = self.d
-        if d % 4 == 1:
-            return RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2))
-        elif d % 4 in [2, 3]:
-            return RealQuadraticNumber(d, 0, 1)
+    def omega(self: typing.Self) -> RealQuadraticNumber:
+        # 𝓞_𝐐(√d) = 𝐙[ω]
+        D = self.D
+        return RealQuadraticNumber(self.D, Fraction(D, 2), Fraction(1, 2))
 
     @property
     def integral_basis(self: typing.Self) -> tuple[RealQuadraticNumber, RealQuadraticNumber]:
@@ -473,6 +397,48 @@ class RealQuadraticField(abc.Container):
         omega = self.omega
         fundamental_unit = self.fundamental_unit
         return f"𝐐(√{self.d}):\tdiscriminant D={self.D}, ring of integers 𝓞_𝐐(√d)=𝐙[{omega}], fundamental unit {fundamental_unit}"
+
+
+class QuadraticIntegerRing(abc.Container):
+    """
+    Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+    Proposition 4.4.1, p. 165, for definition of discriminant using integral basis.
+    Proposition 5.1.1, p. 223, for integral basis and discriminant formula for real quadratic fields.
+
+    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+    Chapter I, Section 6, "Quadratic Number Fields and Their Units", pp. 35-38.
+    """
+
+    __slots__ = ["d"]
+
+    def __init__(self: typing.Self, d: int) -> None:
+        if not isinstance(d, int):
+            raise TypeError("d must be integer")
+        if not d > 1:
+            raise ValueError("d must be > 1")
+        _, squarefree_part_d = prime_numbers.squarefull_and_squarefree_parts(d)
+        self.d = squarefree_part_d
+
+    def __repr__(self: typing.Self) -> str:
+        return f"{type(self).__name__}({d})"
+
+    def __eq__(self: typing.Self, other: typing.Self) -> bool:
+        return self.d == other.d
+    
+    def __hash__(self: typing.Self) -> int:
+        return hash(self.d)
+    
+    def __contains__(self: typing.Self, item: RealQuadraticNumber | Rational) -> bool:
+        d = self.d
+        if isinstance(item, Rational):
+            item = RealQuadraticNumber(d, item, 0)
+        if not isinstance(item, RealQuadraticNumber):
+            raise TypeError(f"{item=} must be RealQuadraticNumber or Rational.")
+        if item.d != self.d:
+            return False
+        return item.is_integral
+
+
 
 
 def hilbert_theorem_90(d: int, t: Fraction) -> RealQuadraticNumber:
@@ -517,7 +483,7 @@ class NonzeroIdeal(abc.Container):
     integer a > 0 and some r in R.
     """
 
-    __slots__ = ["a", "r"]
+    __slots__ = ["d", "a", "b", "c"]
 
 
     @staticmethod
@@ -528,22 +494,14 @@ class NonzeroIdeal(abc.Container):
             raise ValueError(f"{r1=} and {r2=} must belong to same ring of integers 𝓞_𝐐(√d).")
         return r1 * r2.conjugate() - r1.conjugate() * r2
     
-    def __init__(self, r1, r2) -> None:
+    def __init__(self, r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> None:
         """
         """
-        self.a = r1
-        self.r = r2
+        # self.a = a
+        # self.b = b
+        # self.c = c
 
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.a}, {self.r})"
-    
-    def __eq__(self, other: typing.Self) -> bool:
-        return self.a == other.a and self.r == other.r
-    
-    @property
-    def d(self) -> int:
-        return self.r.d
-    
+
     @property
     def oriented_volume(self) -> RealQuadraticNumber:
         return type(self).orientation(self.a, self.r)
@@ -742,16 +700,6 @@ if __name__ == "__main__":
     preimage_transformed_image = RealQuadraticNumber.from_GL2Q_left_regular_representation(transformed_image)
     assert preimage_transformed_image == transformed_number
 
-    d = 13
-    number = RealQuadraticNumber(d, Fraction(11, 2), Fraction(1, 25))
-    mq = number.GL2Q_integral_basis_representation()
-    assert RealQuadraticNumber.from_GL2Q_integral_basis_representation(mq) == number
-
-    d = 19
-    u = RealQuadraticNumber(d, 2, 3)
-    assert u.norm == u.GL2Q_integral_basis_representation().det
-    assert u.trace == u.GL2Q_integral_basis_representation().trace
-
     d = 20
     power_check_height = 10
     fundamental_unit_sqrtd = RealQuadraticField(d).fundamental_unit
@@ -781,7 +729,13 @@ if __name__ == "__main__":
     assert m.trace == sum(eigenvalues)
     assert m.det == math.prod(eigenvalues)
 
-    d = 17
-    omega_d = RealQuadraticField(d).omega
-    assert NonzeroIdeal(RealQuadraticNumber(d, 1, 0), omega_d).norm == 1
+    d = 34
+    K = RealQuadraticField(d)
+    O_K = QuadraticIntegerRing(d)
+    omega_d = K.omega
+    sqrtd = K.sqrtd
+    epsilon_d = K.fundamental_unit
+    assert omega_d in O_K
+    assert sqrtd in O_K
+    assert epsilon_d in O_K
 
