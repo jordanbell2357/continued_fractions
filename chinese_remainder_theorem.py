@@ -39,7 +39,7 @@ def crt_two_moduli(congruence_tuple_1: tuple[int, int], congruence_tuple_2: tupl
 def crt(congruence_tuple_list: list[tuple[int, int]]) -> int:
     """
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
-    p. 21, Algorithm 1.3.12 (Inductive Chinese).
+    Algorithm 1.3.12 (Inductive Chinese), p. 21.
     """
     return ft.reduce(crt_two_moduli, congruence_tuple_list, (1, 1))
 

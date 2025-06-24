@@ -20,8 +20,8 @@ class GL2Z(abc.Hashable):
     __slots__ = ("alpha", "beta", "gamma", "delta")
 
     def __init__(self: typing.Self, alpha: int, beta: int, gamma: int, delta: int) -> None:
-        if not all(isinstance(x, int) for x in [alpha, beta, gamma, delta]):
-            raise TypeError("alpha, beta, gamma, delta must all be integers.")
+        if not all(x == int(x) for x in [alpha, beta, gamma, delta]):
+            raise TypeError("alpha, beta, gamma, delta must all be equal to integers.")
         det = detM2(alpha, beta, gamma, delta)
         if det not in [-1, 1]:
             raise ValueError(f"Determinant must -1 or 1: {det=}.")
@@ -54,7 +54,7 @@ class GL2Z(abc.Hashable):
         return type(self)(alpha, beta, gamma, delta)
     
     def inverse(self) -> typing.Self:
-        det = self.det # either 1 or -1
+        det = self.det # 1 or -1
         alpha = self.delta // det
         beta = -self.beta // det
         gamma = -self.gamma // det
@@ -67,14 +67,13 @@ class GL2Z(abc.Hashable):
         return self * other.inverse()
     
     def __pow__(self: typing.Self, exponent: int) -> typing.Self:
-        I = type(self)(1, 0, 0, 1)
         if exponent == 0:
-            return I
+            return type(self)(1, 0, 0, 1)
         elif exponent > 0:
-            return ft.reduce(operator.mul, (self for _ in range(exponent)), I)
+            return ft.reduce(operator.mul, (self for _ in range(exponent)), type(self)(1, 0, 0, 1))
         elif exponent < 0:
             self_inv = self.inverse()
-            return ft.reduce(operator.mul, (self_inv for _ in range(abs(exponent))), I)
+            return ft.reduce(operator.mul, (self_inv for _ in range(abs(exponent))), type(self)(1, 0, 0, 1))
     
     def __iter__(self: typing.Self) -> abc.Iterator[int]:
         return iter((self.alpha, self.beta, self.gamma, self.delta))
@@ -85,7 +84,10 @@ class GL2Z(abc.Hashable):
     def __len__(self: typing.Self) -> int:
         return len(type(self).__slots__)
     
-    def __abs__(self: typing.Self) -> int: # maximum absolute value of entries (ℓ∞ norm)
+    def __abs__(self: typing.Self) -> int:
+        """
+        Maximum absolute value of entries (ℓ∞ norm).
+        """
         return max(abs(entry) for entry in self)
     
     def transpose(self: typing.Self) -> typing.Self:
@@ -138,7 +140,6 @@ class GL2Z(abc.Hashable):
         else:
             raise ValueError(f"Row number {i=} must be 1 or 2.")
         
-
     @classmethod
     def elementary_matrix_add_multiple_of_row(cls, target_row: int, multiplicand_row: int, c: int) -> typing.Self:
         if target_row == 1 and multiplicand_row == 2:
@@ -150,27 +151,27 @@ class GL2Z(abc.Hashable):
     
     @classmethod
     def elementary_matrix_interchange_columns(cls) -> typing.Self:
-        return GL2Z(0, 1, 1, 0)
+        return cls(0, 1, 1, 0)
 
     @classmethod
     def elementary_matrix_multiply_column(cls, j: int, sgn: int) -> typing.Self:
         if sgn not in [-1, 1]:
-            raise ValueError(f"{sgn=} must be ±1.")
+            raise ValueError(f"{sgn=} must be -1 or 1.")
         if j == 1:
-            return GL2Z(sgn, 0, 0, 1)
+            return cls(sgn, 0, 0, 1)
         elif j == 2:
-            return GL2Z(1, 0, 0, sgn)
+            return cls(1, 0, 0, sgn)
         else:
-            raise ValueError(f"Column number {j} must be 1 or 2.")
+            raise ValueError(f"Column number {j=} must be 1 or 2.")
 
     @classmethod
     def elementary_matrix_add_multiple_of_column(cls, target_col: int, multiplicand_column: int, c: int) -> typing.Self:
         if target_col == 1 and multiplicand_column == 2:
-            return GL2Z(1, 0, c, 1)
+            return cls(1, 0, c, 1)
         elif target_col == 2 and multiplicand_column == 1:
-            return GL2Z(1, c, 0, 1)
+            return cls(1, c, 0, 1)
         else:
-            raise ValueError("Column numbers must be distinct and either 1 or 2.")
+            raise ValueError(f"Column numbers {target_col=} and {multiplicand_column=} must be distinct and either 1 or 2.")
 
 
 I = GL2Z(1, 0, 0, 1)
@@ -181,7 +182,6 @@ T = GL2Z(1, 1, 0, 1)
 U = GL2Z(1, -1, 0, 1) # T⁻¹
 V = GL2Z(0, -1, 1, 1) # S * T
 W = GL2Z(1, 1, -1, 0) # V⁻¹
-
 
 ALPHABET_DICT = {
     "I": I,
@@ -199,15 +199,6 @@ ALPHABET = ALPHABET_DICT.keys()
 REVERSE_ALPHABET_DICT = {v: k for k, v in ALPHABET_DICT.items()}
 
 MATRIX_ALPHABET = REVERSE_ALPHABET_DICT.keys()
-
-"""
-Wilhelm Magnus, Abraham Karrass, Donald Solitar,
-Combinatorial group theory: Presentations of Groups in Terms of Generators and Relations,
-second revised edition, Dover Publications, 1976.
-Section 1.4, Problem 24, pp. 46-47.
-Section 3.2, Theorem 3.2, p. 131.
-Section 3.5, Corollary N4, p. 169.
-"""
 
 RELATIONS_GL2Z = {
     # length 1 word
@@ -240,9 +231,17 @@ RELATIONS_GL2Z_REGEX = re.compile('|'.join(sorted(RELATIONS_GL2Z, key=len, rever
 
 
 def rewrite_word(word: str) -> str:
-    """Apply one relation from left, if possible."""
+    """
+    Apply one relation from left, if possible.
+    
+    Wilhelm Magnus, Abraham Karrass, Donald Solitar,
+    Combinatorial group theory: Presentations of Groups in Terms of Generators and Relations,
+    second revised edition, Dover Publications, 1976.
+    Section 1.4, Problem 24, pp. 46-47.
+    Section 3.2, Theorem 3.2, p. 131.
+    Section 3.5, Corollary N4, p. 169.
+    """
     return RELATIONS_GL2Z_REGEX.sub(lambda m: RELATIONS_GL2Z[m.group()], word, count=1)
-
 
 def reduce_word(word: str) -> str:
     """Repeatedly apply rewrite_once until fixed point reached."""
@@ -252,14 +251,12 @@ def reduce_word(word: str) -> str:
             return word
         word = new_word
 
-
 def minimum_matrix_list_from_matrix_alphabet_it(target_matrix: GL2Z, matrix_alphabet: list[GL2Z]) -> GL2Z:
     for word_length in it.count():
         matrix_word_iterator = it.product(matrix_alphabet, repeat=word_length)
         for matrix_word in matrix_word_iterator:
             if math.prod(matrix_word, start=I) == target_matrix:
                 return list(matrix_word)
-
 
 def minimum_word_from_alphabet_dp(target_matrix: GL2Z, alphabet: list[str]) -> str:
     product_dict = {(): I}
@@ -274,7 +271,6 @@ def minimum_word_from_alphabet_dp(target_matrix: GL2Z, alphabet: list[str]) -> s
             product_dict[word] = matrix_product
             if matrix_product == target_matrix:
                 return word
-            
 
 def minimum_word_from_alphabet_dp_max_len(target_matrix: GL2Z, alphabet: list[str], max_len: int) -> str:
     product_dict = {(): I}
@@ -289,7 +285,6 @@ def minimum_word_from_alphabet_dp_max_len(target_matrix: GL2Z, alphabet: list[st
             product_dict[word] = matrix_product
             if matrix_product == target_matrix:
                 return word
-            
 
 def word_to_matrix_list(word: str) -> list[GL2Z]:
     if not all(letter in ALPHABET for letter in word):
@@ -312,14 +307,13 @@ def matrix_list_to_word(matrix_list: list[GL2Z]) -> str:
         word += REVERSE_ALPHABET_DICT[matrix]
     return word
 
-
 def max_word_len_linf(m: GL2Z) -> int:
     """
     Search radius for words in {P,S,T} equal to m. 
     Uses the ℓ∞ norm bound L = 3·⌈log_ϕ ‖core‖∞⌉ + 2, plus 1 if a single leading P is required.
     """
 
-    EXTREME_AND_MEAN_RATIO = (1 + math.sqrt(5)) / 2
+    EXTREME_AND_MEAN_RATIO = (1 + math.sqrt(5)) / 2 # ϕ
 
     prepend_P_flag = m.det == -1
 
@@ -452,7 +446,7 @@ class GL2Q(abc.Hashable):
         gamma = other.gamma * self.alpha + other.delta * self.gamma
         delta = other.gamma * self.beta + other.delta * self.delta
         return type(self)(alpha, beta, gamma, delta)
-    
+
     def inverse(self) -> typing.Self:
         det = self.det
         alpha = Fraction(self.delta, det)
@@ -460,21 +454,21 @@ class GL2Q(abc.Hashable):
         gamma = Fraction(-self.gamma, det)
         delta = Fraction(self.alpha, det)
         return type(self)(alpha, beta, gamma, delta)
-    
+
     def __truediv__(self: typing.Self, other: typing.Self) -> typing.Self:
         if isinstance(other, GL2Z):
             other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
         if not isinstance(other, GL2Q):
             return NotImplemented
         return self * other.inverse()
-    
+
     def __rtruediv__(self: typing.Self, other: typing.Self) -> typing.Self:
         if isinstance(other, GL2Z):
             other = type(self)(other.alpha, other.beta, other.gamma, other.delta)
         if not isinstance(other, GL2Q):
             return NotImplemented
         return other * self.inverse()
-    
+
     def __pow__(self: typing.Self, exponent: int) -> typing.Self:
         if exponent == 0:
             return type(self)(1, 0, 0, 1)
@@ -483,32 +477,32 @@ class GL2Q(abc.Hashable):
         elif exponent < 0:
             self_inv = self.inverse()
             return ft.reduce(operator.mul, (self_inv for _ in range(abs(exponent))), type(self)(1, 0, 0, 1))
-    
+
     def __iter__(self: typing.Self) -> abc.Iterator[Fraction]:
         return iter((self.alpha, self.beta, self.gamma, self.delta))
-    
+
     def __getitem__(self: typing.Self, index: int) -> Fraction:
         return (*self, )[index]
-    
+
     def __len__(self: typing.Self) -> int:
         return len(type(self).__slots__)
-    
+
     def transpose(self: typing.Self) -> typing.Self:
         return type(self)(self.alpha, self.gamma, self.beta, self.delta)
-    
+
     @property
     def det(self: typing.Self) -> Fraction:
         return detM2(*self)
-    
+
     @property
     def trace(self: typing.Self) -> Fraction:
         return self.alpha + self.delta
-    
+
     def transpose_action_GL2Z(self, matrix: GL2Z) -> typing.Self:
         g = type(self)(*matrix)
         h = self
         return g.transpose() * h * g
-    
+
     def action_GL2Z_on_real_quadratic_field_image(self, matrix: GL2Z) -> typing.Self:
         """
         Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
@@ -550,22 +544,23 @@ class GL2Q(abc.Hashable):
         if y == 0:
             raise ValueError("y must be nonzero to uniquely determine d from L(s).")
         d = Fraction(dy, y) # d == int(d)
-
         alpha, beta, gamma, delta = matrix.alpha, matrix.beta, matrix.gamma, matrix.delta
-
         # L(a·s + b)
         # a·s + b = (a*x + b) + (a*y)·√d
         x_numerator = alpha * x + beta
         y_numerator = alpha * y
         result_numerator = type(self)(x_numerator, d * y_numerator, y_numerator, x_numerator)
-
         # L(c·s + d):
         # c·s + d = (c*x + d0) + (c*y)·√d
         x_denominator = gamma * x + delta
         y_denominator = gamma * y
         result_denominator = type(self)(x_denominator, d * y_denominator, y_denominator, x_denominator)
-
         return result_numerator * result_denominator.inverse()
+    
+    def try_to_GL2Z(self) -> GL2Z:
+        if all(x == int(x) for x in self) and self.det in [-1, 1]:
+            return GL2Z(*self)
+        return None
 
 
 class M2Z(abc.Hashable):
@@ -724,8 +719,7 @@ class M2Z(abc.Hashable):
     def try_to_GL2Q(self) -> GL2Q:
         if self.det != 0:
             return GL2Q(self.a11, self.a12, self.a21, self.a22)
-        else:
-            return None
+        return None
     
     @property
     def hadamard_det_bound(self) -> float:
