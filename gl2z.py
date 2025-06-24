@@ -861,7 +861,6 @@ def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
                 V = V * T
             else:  # zero matrix
                 break
-
         # --------------------------------------------------------------
         # 2Clear the sub‑diagonal entry H[1,0] via extended gcd (row ops)
         # --------------------------------------------------------------
@@ -875,7 +874,6 @@ def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
             H = T * H
             U = T * U
             continue  # repeat
-
         # --------------------------------------------------------------
         # 3Clear the super‑diagonal entry H[0,1] (column ops)
         # --------------------------------------------------------------
@@ -889,26 +887,22 @@ def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
             H = H * T
             V = V * T
             continue  # repeat
-
         # --------------------------------------------------------------
         # 4We now have H = [[d, 0], [0, e]].  Adjust signs & divisibility.
         # --------------------------------------------------------------
         d, e = H.a11, H.a22
-
         # make d positive
         if d < 0:
             T = GL2Z.elementary_matrix_multiply_row(1, -1)
             H = T * H
             U = T * U
             d = -d
-
         # make e positive
         if e < 0:
             T = GL2Z.elementary_matrix_multiply_column(2, -1)
             H = H * T
             V = V * T
             e = -e
-
         # enforce d | e
         if d != 0 and e % d != 0:
             q = e // d
@@ -917,19 +911,15 @@ def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
             V = V * T
             # loop back – this re‑introduces H.a12 ≠ 0 or revises e
             continue
-
         # done – H is in Smith form
         break
-
     # ------------------------------------------------------------------
     # 5Return GL2Z versions of the accumulators
     # ------------------------------------------------------------------
     U_gl = GL2Z(U.a11, U.a12, U.a21, U.a22)
     V_gl = GL2Z(V.a11, V.a12, V.a21, V.a22)
     return U_gl, H, V_gl
-
-
-            
+     
 
 if __name__ == "__main__":
     assert P ** (-1) == P
@@ -1082,8 +1072,6 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------------------
     # 4.  First diagonal entry of the SNF is  gcd of *all* entries.
     # ---------------------------------------------------------------------------
-    B = M2Z( 6, 10,
-            9, 15)                             # gcd = 3
+    B = M2Z(6, 10, 9, 15)                             # gcd = 3
     U, D, V = snf_2x2(B)
     assert D.a11 == B.gcd      # d₁  =  gcd(entries)
-
