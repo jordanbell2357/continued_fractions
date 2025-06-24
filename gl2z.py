@@ -740,91 +740,6 @@ class M2Z(abc.Hashable):
         return cls(m.alpha, m.beta, m.gamma, m.delta)
 
 
-class M2x4Z(abc.Hashable):
-    """
-    2x4 matrices with entries in 𝐙.
-    """
-
-    __slots__ = ("a11", "a12", "a13", "a14", "a21", "a22", "a23", "a24")
-
-    def __init__(self, a11: int, a12: int, a13: int, a14: int, a21: int, a22: int, a23: int, a24: int) -> None:
-        if not all(a == int(a) for a in [a11, a12, a13, a14, a21, a22, a23, a24]):
-            raise TypeError(f"{a11=}, {a12=}, {a13=}, {a14=}, {a21=}, {a22=}, {a23=}, {a24=} must all be integers.")
-        self.a11 = int(a11)
-        self.a12 = int(a12)
-        self.a13 = int(a13)
-        self.a14 = int(a14)
-        self.a21 = int(a21)
-        self.a22 = int(a22)
-        self.a23 = int(a23)
-        self.a24 = int(a24)
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.a11}, {self.a12}, {self.a13}, {self.a14}, {self.a21}, {self.a22}, {self.a23}, {self.a24})"
-    
-    def __eq__(self, other: typing.Self) -> typing.Self:
-        if not isinstance(other, type(self)):
-            return NotImplemented
-        return all(getattr(self, a) == getattr(other, a) for a in type(self).__slots__)
-    
-    def __hash__(self) -> int:
-        return hash((self.a11, self.a12, self.a13, self.a14, self.a21, self.a22, self.a23, self.a24))
-
-    def __neg__(self: typing.Self) -> typing.Self:
-        return type(self)(-self.a11, -self.a12, -self.a13, -self.a14, -self.a21, -self.a22, -self.a23, -self.a24)
-    
-    def __contains__(self: typing.Self, other: int) -> bool:
-        return any(other == entry for entry in self)
-    
-    def __getitem__(self: typing.Self, index: int) -> int:
-        return (*self, )[index]
-    
-    def __len__(self: typing.Self) -> int:
-        return len(type(self).__slots__)
-    
-    def __abs__(self: typing.Self) -> int: # maximum absolute value of entries (ℓ∞ norm)
-        return max(abs(entry) for entry in self)
-    
-    def __iter__(self: typing.Self) -> int:
-        return iter((self.a11, self.a12, self.a13, self.a14, self.a21, self.a22, self.a23, self.a24))
-    
-    def __rmul__(self: typing.Self, other: M2Z | GL2Z) -> typing.Self:
-        if isinstance(other, GL2Z):
-            other = M2Z.GL2Z_to_M2Z(other)
-        l11, l12, l21, l22 = other
-        r11, r12, r13, r14, r21, r22, r23, r24 = self
-        a11 = l11 * r11 + l12 * r21
-        a12 = l11 * r12 + l12 * r22
-        a13 = l11 * r13 + l12 * r23
-        a14 = l11 * r14 + l12 * r24
-        a21 = l21 * r11 + l22 * r21
-        a22 = l21 * r12 + l22 * r22
-        a23 = l21 * r13 + l22 * r23
-        a24 = l21 * r14 + l22 * r24
-        return type(self)(a11, a12, a13, a14, a21, a22, a23, a24)
-    
-    def entry(self, row_index: int, column_index: int) -> int:
-        if row_index == 1 and column_index == 1:
-            return self.a11
-        elif row_index == 1 and column_index == 2:
-            return self.a12
-        elif row_index == 1 and column_index == 3:
-            return self.a13
-        elif row_index == 1 and column_index == 4:
-            return self.a14
-        elif row_index == 2 and column_index == 1:
-            return self.a21
-        elif row_index == 2 and column_index == 2:
-            return self.a22
-        elif row_index == 2 and column_index == 3:
-            return self.a23
-        elif row_index == 2 and column_index == 4:
-            return self.a24
-        else:
-            raise ValueError(f"{row_index=} must be 1 or 2 and {column_index=} must be one of 1, 2, 3, 4.")
-
-
-
 def hnf_2x2(A: M2Z) -> tuple[GL2Z, M2Z]:
     """
     Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
@@ -886,112 +801,6 @@ def hnf_2x2(A: M2Z) -> tuple[GL2Z, M2Z]:
         j += 1
 
     return GL2Z(U.a11, U.a12, U.a21, U.a22), H
-
-
-def hnf_2x4(A: M2x4Z) -> tuple[GL2Z, M2x4Z]:
-    """Row Hermite normal form for a 2×4 integer matrix.
-
-    Given A ∈ M2x4Z this returns a pair (U, H) with
-
-    * U ∈ GL2Z (determinant ±1),
-    * H ∈ M2x4Z in row Hermite normal form,
-      
-    such that H=U * A.
-
-    The implementation is a direct 2×4 instantiation of Sims'
-    *ROW_REDUCE* procedure (Computation with Finitely Presented Groups,
-    §8).
-    """
-
-    # ------------------------------------------------------------------
-    # 0  Type check and initial copies
-    # ------------------------------------------------------------------
-    if not isinstance(A, M2x4Z):
-        raise TypeError("hnf_2x4 expects an M2x4Z argument")
-
-    U = GL2Z(1, 0, 0, 1)   # accumulator for row operations
-    H = A                # work on a mutable alias (M2x4Z is immutable)
-
-    # ------------------------------------------------------------------
-    # 1  Sims-style sweep through the columns
-    # ------------------------------------------------------------------
-    pivot_row = 1  # current row into which we’re trying to fit a pivot
-    for col in range(1, 5):
-        if pivot_row > 2:                       # both rows done → exit loop
-            break
-
-        # 1a. Move a non‑zero entry into (pivot_row, col) if necessary
-        if H.entry(pivot_row, col) == 0:
-            if pivot_row == 1 and H.entry(2, col) != 0:
-                T = GL2Z.elementary_matrix_interchange_rows()
-                H = T * H
-                U = T * U
-            else:
-                # both entries zero → skip this column
-                continue
-
-        # 1b. Clear the entry below the pivot (row 2 when pivot_row==1)
-        if pivot_row == 1 and H.entry(2, col) != 0:
-            q = H.entry(2, col) // H.entry(1, col)
-            T = GL2Z.elementary_matrix_add_multiple_of_row(2, 1, -q)
-            H = T * H
-            U = T * U
-            # second subtraction to *guarantee* zero
-            if H.entry(2, col) != 0:
-                q = H.entry(2, col) // H.entry(1, col)
-                T = GL2Z.elementary_matrix_add_multiple_of_row(2, 1, -q)
-                H = T * H
-                U = T * U
-
-        # 1c. Make the pivot positive
-        if H.entry(pivot_row, col) < 0:
-            T = GL2Z.elementary_matrix_multiply_row(pivot_row, -1)
-            H = T * H
-            U = T * U
-
-        # 1d. Clear the entry *above* the pivot when on the second row
-        if pivot_row == 2 and H.entry(1, col) != 0:
-            q = H.entry(1, col) // H.entry(2, col)
-            T = GL2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
-            H = T * H
-            U = T * U
-
-        pivot_row += 1  # move down after fixing this column
-
-    # ------------------------------------------------------------------
-    # 2  Rank check – if second row is zero we already have HNF
-    # ------------------------------------------------------------------
-    if all(H.entry(2, c) == 0 for c in range(1, 5)):
-        # ensure its leading pivot (row 1) is positive
-        for c in range(1, 5):
-            if H.entry(1, c) != 0:
-                if H.entry(1, c) < 0:
-                    T = GL2Z.elementary_matrix_multiply_row(1, -1)
-                    H = T * H
-                    U = T * U
-                break
-        return U, H
-
-    # ------------------------------------------------------------------
-    # 3  Rank‑2 tidy‑up: enforce divisibility between pivots via 2×2 HNF
-    # ------------------------------------------------------------------
-    first_pivot_col = next(c for c in range(1, 5) if H.entry(1, c) != 0)
-    second_pivot_col = next(c for c in range(first_pivot_col + 1, 5) if H.entry(2, c) != 0)
-
-    block = M2Z(
-        H.entry(1, first_pivot_col), H.entry(1, second_pivot_col),
-        H.entry(2, first_pivot_col), H.entry(2, second_pivot_col)
-    )
-
-    U2, _ = hnf_2x2(block)
-    T = M2Z(U2.alpha, U2.beta, U2.gamma, U2.delta)
-
-    H = T * H
-    U = T * U
-    return U, H
-
-
-
 
 
 def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
@@ -1248,15 +1057,7 @@ if __name__ == "__main__":
     assert m_U.det in [-1, 1]
     assert m_H.det == m_A.det or m_H.det == -m_A.det
 
-    #      [12, -5,  7, 9]
-    #      [ 3, 14, -4, 8]
-    m_A = M2x4Z(12, -5, 7, 9, 3, 14, -4, 8)
-    m_U, m_H = hnf_2x4(m_A)
-    assert m_U.det in [-1, 1]
 
-    m_A = M2x4Z(1, 1, 1, 1, 1, 1, 1, 1)
-    m_U, m_H = hnf_2x4(m_A)
-    assert m_H == m_U * m_A
     
     # 1. Identity matrix – already in SNF
     m_U, m_D, m_V = snf_2x2(M2Z(1, 0, 0, 1))
@@ -1275,25 +1076,7 @@ if __name__ == "__main__":
     assert m_D == M2Z(2, 0, 0, 0)   # SNF diag(2, 0)
     assert m_D == m_U * m_A * m_V
 
-    # ---------------------------------------------------------------------------
-    # 1.  HNF is *canonical*: left–multiplying by any unimodular matrix
-    #     must not change the HNF itself.
-    # ---------------------------------------------------------------------------
-    m_A = M2x4Z(12, -5,  7,  9,
-            3,  14, -4,  8)
 
-    for m_U in [I, P, S, T, U, V, W]:           # a small generating set of GL₂(ℤ)
-        assert hnf_2x4(m_A)[1] == hnf_2x4(m_U * m_A)[1]   # same H component every time
-
-    # ---------------------------------------------------------------------------
-    # 2.  Mixed associativity of (GL₂ℤ)×(M₂×₄ℤ) multiplication.
-    #     (U⋅V)⋅A  ==  U⋅(V⋅A)
-    # ---------------------------------------------------------------------------
-    A = M2x4Z( 2,  3,  5,  7,
-            11, 13, 17, 19)
-    U1, U2 = S, T                               # any two GL₂(ℤ) elements
-
-    assert (U1 * U2) * A == U1 * (U2 * A)
 
     # ---------------------------------------------------------------------------
     # 3.  Smith form of a unimodular 2×2 matrix is the identity.
@@ -1310,16 +1093,3 @@ if __name__ == "__main__":
     U, D, V = snf_2x2(B)
     assert D.a11 == B.gcd      # d₁  =  gcd(entries)
 
-    # ---------------------------------------------------------------------------
-    # 5.  Pivot 2×2 block produced by hnf_2x4 is already in row-HNF.
-    # ---------------------------------------------------------------------------
-    A = M2x4Z( 4,  6,  8, 10,
-            3,  5,  7,  9)
-    U_big, H_big = hnf_2x4(A)
-    # find the columns that contain the two pivots
-    c1 = next(c for c in range(1, 5) if H_big.entry(1, c) != 0)
-    c2 = next(c for c in range(c1 + 1, 5)       if H_big.entry(2, c) != 0)
-    pivot_block = M2Z(H_big.entry(1, c1), H_big.entry(1, c2),
-                    H_big.entry(2, c1), H_big.entry(2, c2))
-    _, H_block = hnf_2x2(pivot_block)
-    assert H_block == pivot_block                # no further reduction possible

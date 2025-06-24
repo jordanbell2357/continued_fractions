@@ -483,7 +483,7 @@ class NonzeroIdeal(abc.Container):
     integer a > 0 and some r in R.
     """
 
-    __slots__ = ["d", "a", "b", "c"]
+    __slots__ = ["d", "a", "r"]
 
 
     @staticmethod
@@ -493,14 +493,14 @@ class NonzeroIdeal(abc.Container):
         if r1.d != r2.d:
             raise ValueError(f"{r1=} and {r2=} must belong to same ring of integers 𝓞_𝐐(√d).")
         return r1 * r2.conjugate() - r1.conjugate() * r2
-    
-    def __init__(self, r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> None:
-        """
-        """
-        # self.a = a
-        # self.b = b
-        # self.c = c
 
+    
+    def __init__(self, d: int, r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> None:
+        """
+        """
+        self.d = d
+        self.a = r1
+        self.r = r2
 
     @property
     def oriented_volume(self) -> RealQuadraticNumber:
