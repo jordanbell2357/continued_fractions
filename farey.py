@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections import abc
 from fractions import Fraction
 import decimal
 from decimal import Decimal
@@ -41,11 +41,9 @@ def totient(n: int) -> int:
     return sum(math.gcd(n, k) == 1 for k in range(1, n + 1))
 
 
-def farey_generator(n: int) -> Generator[Fraction]:
+def farey_generator(n: int) -> abc.Generator[Fraction]:
     a, b, c, d = 0, 1, 1, n
-
     yield Fraction(a, b)
-
     while 0 <= c <= n:
         k = (n + b) // d
         a, b, c, d = c, d, k * c - a, k * d - b
@@ -67,7 +65,7 @@ def next_farey_list(farey_list_order_n: list[Fraction]) -> list[Fraction]:
     return farey_list_order_n_plus_one
 
 
-def next_farey_generator(farey_generator_order_n: Generator[Fraction]) -> Generator[Fraction]:
+def next_farey_generator(farey_generator_order_n: abc.Generator[Fraction]) -> abc.Generator[Fraction]:
     a_iter, b_iter = it.tee(farey_generator_order_n)
     next(b_iter, None)
     farey_generator_order_n_plus_one = it.chain(*[(iter([a, reduced_fraction_mediant(a, b)]) if b is not None and reduced_fraction_mediant(a, b).denominator <= n + 1 else iter([a]))
@@ -117,29 +115,49 @@ def mertens_function(n: int) -> int:
     return round(exponential_sum.real)    
 
 
-class Farey:
-    def __init__(self, n: int) -> None:
+class Farey(abc.Sequence):
+    """
+    Allen Hatcher, Topology of Numbers, American Mathematical Society, 2022.
+    Chapter 1, The Farey Diagram, pp. 20ff.
+    """
+
+    def __init__(self: typing.Self, n: int) -> None:
         self.n = n
         self.farey_list = farey_list(self.n)
-        self.num_terms = len(self.farey_list)
-        exponential_sum = -1 + sum(cmath.exp(complex(0, 2 * math.pi * a)) for a in self.farey_list)
-        self.mertens_function = round(exponential_sum.real)
     
-    def __repr__(self) -> str:
+    def __repr__(self: typing.Self) -> str:
         return f"{type(self).__name__}(n={self.n})"
     
-    def __eq__(self, other: typing.Self) -> bool:
+    def __eq__(self: typing.Self, other: typing.Self) -> bool:
+        if not isinstance(other, type(self)):
+            raise ValueError(f"{self} and {other} must both be Farey sequences.")
         return self.n == other.n
     
-    def __lt__(self, other: typing.Self) -> bool:
+    def __lt__(self: typing.Self, other: typing.Self) -> bool:
         return self.n < other.n
     
-    # __iter__ implements __contains__ but we choose to implement __contains__ independently
-    def __contains__(self, item: Fraction) -> bool:
+    def __gt__(self: typing.Self, other: typing.Self) -> bool:
+        return self.n > other.n
+    
+    def __contains__(self: typing.Self, item: Fraction) -> bool:
         return check_ordered_list_membership(self.farey_list, item)
     
-    def __iter__(self):
+    def __getitem__(self: typing.Self, index: int) -> Fraction:
+        return self.farey_list[index]
+    
+    def __len__(self: typing.Self) -> int:
+        return len(self.farey_list)
+    
+    def __iter__(self: typing.Self) -> abc.Iterable[Fraction]:
         return iter(self.farey_list)
+    
+    @property
+    def exponential_sum(self: typing.Self) -> complex:
+            return -1 + sum(cmath.exp(complex(0, 2 * math.pi * a)) for a in self.farey_list)
+    
+    @property
+    def mertens_function(self: typing.Self) -> float:
+        return round(self.exponential_sum.real)
 
 
 if __name__ == "__main__":
@@ -148,21 +166,6 @@ if __name__ == "__main__":
     k = 4
     target_fraction = Fraction(2, 17)
     decimal.getcontext().prec = precision
-
-    start_time = time.perf_counter()
-    fraction_sum = float(farey_abs_diff_sum_fraction(n))
-    end_time = time.perf_counter()
-    print("Exact value", fraction_sum, "Time", end_time - start_time)
-
-    start_time = time.perf_counter()
-    decimal_sum = float(farey_abs_diff_sum_decimal(n, precision))
-    end_time = time.perf_counter()
-    print("Decimal approximation", decimal_sum, "Time", end_time - start_time, "Approximation error", decimal_sum - fraction_sum)
-
-    start_time = time.perf_counter()
-    float_sum = farey_abs_diff_sum_float(n)
-    end_time = time.perf_counter()
-    print("Float approximation", float_sum, "Time", end_time - start_time, "Approximation error", float_sum - fraction_sum)
 
     farey_generator_order_n = farey_generator(n)
     farey_generator_order_n_plus_one = next_farey_generator(farey_generator_order_n)
@@ -203,6 +206,21 @@ if __name__ == "__main__":
     n = 23
     f = Farey(n)
     assert f.mertens_function == prime_numbers.mertens(n)
+
+    # start_time = time.perf_counter()
+    # fraction_sum = float(farey_abs_diff_sum_fraction(n))
+    # end_time = time.perf_counter()
+    # print("Exact value", fraction_sum, "Time", end_time - start_time)
+
+    # start_time = time.perf_counter()
+    # decimal_sum = float(farey_abs_diff_sum_decimal(n, precision))
+    # end_time = time.perf_counter()
+    # print("Decimal approximation", decimal_sum, "Time", end_time - start_time, "Approximation error", decimal_sum - fraction_sum)
+
+    # start_time = time.perf_counter()
+    # float_sum = farey_abs_diff_sum_float(n)
+    # end_time = time.perf_counter()
+    # print("Float approximation", float_sum, "Time", end_time - start_time, "Approximation error", float_sum - fraction_sum)
 
 
 
