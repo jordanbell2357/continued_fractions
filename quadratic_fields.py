@@ -222,11 +222,15 @@ class RealQuadraticNumber(Number):
         """
         return RationalQuadraticPolynomial(1, -2 * self.x, (self * self.conjugate()).x)
     
-    def lft_GL2Z(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self: # linear fractional transformation
+    def lft_GL2Z(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self:
+        """
+        Linear fractional transformation.
+        """
         return (matrix.alpha * self + matrix.beta) / (matrix.gamma * self + matrix.delta)
     
-    def GL2Q_left_regular_representation(self: typing.Self) -> gl2z.GL2Q: # Left regular representation of 𝐐(√d) in GL₂(𝐐)
+    def GL2Q_left_regular_representation(self: typing.Self) -> gl2z.GL2Q:
         """
+        Left regular representation of 𝐐(√d) in GL₂(𝐐).
         Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
         § 4.2.3 "The Matrix (or Regular) Representation of an Algebraic Number", p. 160.
         """
@@ -289,6 +293,162 @@ def eigenvalues(m: gl2z.M2Z) -> tuple[RealQuadraticNumber, RealQuadraticNumber] 
         x1 = Fraction(-b - math.isqrt(D), 2)
         x2 = Fraction(-b + math.isqrt(D), 2)
         return x1, x2
+    
+
+class RealQuadraticCompositum:
+    """
+    Let K be the compositum of 𝐐(√d) for all d>1 squarefree,
+    the smallest subfield of the algebraic numbers that contains all 𝐐(√d).
+    Equivalently, K is the smallest subfield of the algebraic numbers that
+    contains the square roots of all positive elements in 𝐐.
+    """
+
+    def __init__(self, rational_part: Fraction, surd_dict: dict[int, RealQuadraticNumber]) -> None:
+        self.rational_part = rational_part
+        self.surd_dict = surd_dict
+
+    @classmethod
+    def from_fractions(cls, rational_part: Fraction, surd_tuple_list: list[tuple[Fraction, Fraction]]) -> typing.Self:
+        surd_dict = {}
+        for coefficient_fraction, radicand_fraction in surd_tuple_list:
+            p, q = radicand_fraction.numerator, radicand_fraction.denominator
+            p_squarefull, p_squarefree = prime_numbers.squarefull_and_squarefree_parts(p)
+            q_squarefull, q_squarefree = prime_numbers.squarefull_and_squarefree_parts(q)
+            coefficient_fraction *= Fraction(math.isqrt(p_squarefull), math.isqrt(q_squarefull))
+            # sqrt(p/q) = sqrt(pq) / sqrt(qq) = sqrt(pq) / q = 1/q * sqrt(pq)
+            d = p_squarefree * q_squarefree
+            surd = RealQuadraticNumber(d, 0, coefficient_fraction * Fraction(1, q_squarefree))
+            surd_dict[d] = surd
+        return cls(rational_part, surd_dict)
+    
+    def make_surd_tuple_list(self) -> list[tuple[Fraction, Fraction]]:
+        surd_tuple_list = []
+        for d, surd in self.surd_dict.items():
+            surd_tuple_list.append((surd.y, Fraction(surd.d)))
+        return surd_tuple_list
+        
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.rational_part}, {self.surd_dict})"
+    
+    def __str__(self) -> str:
+        rational_part_str = f"{self.rational_part}"
+        surd_part_str = ""
+        for _, surd in self.surd_dict.items():
+            surd_part_str += f" + {surd}"
+        return rational_part_str + surd_part_str
+    
+    def __add__(self, other: typing.Self | Rational) -> typing.Self:
+        if isinstance(other, Rational):
+            other = type(self)(Fraction(other), {})
+        rational_part = self.rational_part + other.rational_part
+        surd_dict1, surd_dict2 = self.surd_dict, other.surd_dict
+        surd_dict = {}
+        for k in set(surd_dict1.keys()).intersection(set(surd_dict2.keys())):
+            surd_dict[k] = surd_dict1[k] + surd_dict2[k]
+        for k in set(surd_dict1.keys()).difference(set(surd_dict2.keys())):
+            surd_dict[k] = surd_dict1[k]
+        for k in set(surd_dict2.keys()).difference(set(surd_dict1.keys())):
+            surd_dict[k] = surd_dict2[k]
+        return type(self)(rational_part, surd_dict)
+    
+    __radd__ = __add__
+
+    def __sub__(self, other: typing.Self | Rational) -> typing.Self:
+        if isinstance(other, Rational):
+            other = type(self)(Fraction(other), {})
+        rational_part = self.rational_part - other.rational_part
+        surd_dict1, surd_dict2 = self.surd_dict, other.surd_dict
+        surd_dict = {}
+        for k in set(surd_dict1.keys()).intersection(set(surd_dict2.keys())):
+            surd_dict[k] = surd_dict1[k] - surd_dict2[k]
+        for k in set(surd_dict1.keys()).difference(set(surd_dict2.keys())):
+            surd_dict[k] = surd_dict1[k]
+        for k in set(surd_dict2.keys()).difference(set(surd_dict1.keys())):
+            surd_dict[k] = -surd_dict2[k]
+        return type(self)(rational_part, surd_dict)
+    
+    def __rsub__(self, other: typing.Self | Rational) -> typing.Self:
+        if isinstance(other, Rational):
+            other = type(self)(Fraction(other), {})
+        rational_part = other.rational_part - self.rational_part
+        surd_dict1, surd_dict2 = other.surd_dict, self.surd_dict
+        surd_dict = {}
+        for k in set(surd_dict1.keys()).intersection(set(surd_dict2.keys())):
+            surd_dict[k] = surd_dict1[k] - surd_dict2[k]
+        for k in set(surd_dict1.keys()).difference(set(surd_dict2.keys())):
+            surd_dict[k] = surd_dict1[k]
+        for k in set(surd_dict2.keys()).difference(set(surd_dict1.keys())):
+            surd_dict[k] = -surd_dict2[k]
+        return type(self)(rational_part, surd_dict)
+
+    def __mul__(self, other: typing.Self | Rational) -> typing.Self:
+        """
+        (a₀ + Σ cᵢ√sᵢ) · (b₀ + Σ dⱼ√tⱼ)
+
+            = a₀b₀                                           (rational)
+            + a₀ Σ dⱼ√tⱼ  +  b₀ Σ cᵢ√sᵢ                      (rational×surd)
+            + ΣΣ cᵢdⱼ√(sᵢtⱼ)                                 (surd×surd)
+
+        • Perfect-square radicands coming from √(sᵢtⱼ) are folded
+        into the rational part instead of calling `from_fractions`.
+        • Every individual term is turned into a tiny
+        `RealQuadraticCompositum` via `from_fractions` (or plain
+        rational) and added; the class’s own `__add__`
+        automatically merges like-surd terms.
+        """
+        # Promote a rational multiplier to a compositum element
+        if isinstance(other, Rational):
+            other = type(self)(Fraction(other), {})
+
+        # 1. start with the pure rational product
+        prod = type(self)(self.rational_part * other.rational_part, {})
+
+        # helper to decide if q is a perfect square (q ≥ 0 and integer)
+        def _is_square(q: int) -> bool:
+            return math.isqrt(q) ** 2 == q
+
+        # turn the dictionary versions into (coeff, radicand) lists
+        surds_1 = self.make_surd_tuple_list()     # [(cᵢ, sᵢ), …]
+        surds_2 = other.make_surd_tuple_list()    # [(dⱼ, tⱼ), …]
+
+        # 2. rational × surd  (a₀ Σ dⱼ√tⱼ)
+        for coeff, rad in surds_2:
+            if coeff:         # skip zero terms early
+                prod += type(self).from_fractions(
+                    Fraction(0), [(self.rational_part * coeff, rad)]
+                )
+
+        # 3. surd × rational  (b₀ Σ cᵢ√sᵢ)
+        for coeff, rad in surds_1:
+            if coeff:
+                prod += type(self).from_fractions(
+                    Fraction(0), [(other.rational_part * coeff, rad)]
+                )
+
+        # 4. surd × surd  (all pairs, not just zip!)
+        for c1, r1 in surds_1:
+            if not c1:
+                continue
+            for c2, r2 in surds_2:
+                if not c2:
+                    continue
+
+                coeff = c1 * c2
+                rad   = r1 * r2      # product of the two radicands
+
+                # If √rad is rational, fold it into the rational part
+                num, den = rad.numerator, rad.denominator
+                if _is_square(num) and _is_square(den):
+                    sqrt_rad = Fraction(math.isqrt(num), math.isqrt(den))
+                    prod += type(self)(coeff * sqrt_rad, {})
+                else:
+                    prod += type(self).from_fractions(Fraction(0), [(coeff, rad)])
+
+        return prod
+    
+    __rmul__ = __mul__
+
+
 
 
 class RealQuadraticField(abc.Container):
@@ -397,6 +557,7 @@ class RealQuadraticField(abc.Container):
         omega = self.omega
         fundamental_unit = self.fundamental_unit
         return f"𝐐(√{self.d}):\tdiscriminant D={self.D}, ring of integers 𝓞_𝐐(√d)=𝐙[{omega}], fundamental unit {fundamental_unit}"
+    
 
 
 class QuadraticIntegerRing(abc.Container):
@@ -437,8 +598,6 @@ class QuadraticIntegerRing(abc.Container):
         if item.d != self.d:
             return False
         return item.is_integral
-
-
 
 
 def hilbert_theorem_90(d: int, t: Fraction) -> RealQuadraticNumber:
@@ -738,4 +897,3 @@ if __name__ == "__main__":
     assert omega_d in O_K
     assert sqrtd in O_K
     assert epsilon_d in O_K
-

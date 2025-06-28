@@ -1,5 +1,6 @@
 from collections import abc
 from fractions import Fraction
+from numbers import Rational
 import decimal
 from decimal import Decimal
 import bisect
@@ -8,10 +9,11 @@ import functools as ft
 import operator
 import math
 import cmath
-import time
 import typing
+import time
 
 import prime_numbers
+import gl2z
 
 
 def find_ordered_list_index(ordered_list: list[typing.Any], target_item: typing.Any) -> int:
@@ -30,16 +32,13 @@ def check_ordered_list_membership(ordered_list: list[typing.Any], target_item: t
     else:
         return True
 
-
 def reduced_fraction_mediant(x: Fraction, y: Fraction) -> Fraction:
     numerator = x.numerator + y.numerator
     denominator = x.denominator + y.denominator
     return Fraction(numerator, denominator)
 
-
 def totient(n: int) -> int:
     return sum(math.gcd(n, k) == 1 for k in range(1, n + 1))
-
 
 def farey_generator(n: int) -> abc.Generator[Fraction]:
     a, b, c, d = 0, 1, 1, n
@@ -49,10 +48,8 @@ def farey_generator(n: int) -> abc.Generator[Fraction]:
         a, b, c, d = c, d, k * c - a, k * d - b
         yield Fraction(a, b)
 
-
 def farey_list(n: int) -> list[Fraction]:
     return list(farey_generator(n))
-
 
 def next_farey_list(farey_list_order_n: list[Fraction]) -> list[Fraction]:
     a_iter, b_iter = it.tee(farey_list_order_n)
@@ -64,14 +61,12 @@ def next_farey_list(farey_list_order_n: list[Fraction]) -> list[Fraction]:
         [])
     return farey_list_order_n_plus_one
 
-
 def next_farey_generator(farey_generator_order_n: abc.Generator[Fraction]) -> abc.Generator[Fraction]:
     a_iter, b_iter = it.tee(farey_generator_order_n)
     next(b_iter, None)
     farey_generator_order_n_plus_one = it.chain(*[(iter([a, reduced_fraction_mediant(a, b)]) if b is not None and reduced_fraction_mediant(a, b).denominator <= n + 1 else iter([a]))
          for a, b in it.zip_longest(a_iter, b_iter)])
     return farey_generator_order_n_plus_one
-
 
 def find_farey_index(n: int, target_fraction: Fraction) -> int:
     farey_generator_order_n = farey_generator(n)
@@ -80,19 +75,16 @@ def find_farey_index(n: int, target_fraction: Fraction) -> int:
             return k
     return None
 
-
 def farey_diff(n: int, k: int) -> Fraction:
     farey_list_order_n = farey_list(n)
     l = len(farey_list_order_n)
     farey_fraction = farey_list_order_n[k]
     return farey_fraction - Fraction(k, l)
 
-
 def farey_abs_diff_sum_fraction(n: int) -> Fraction:
     farey_list_order_n = farey_list(n)
     l = len(farey_list_order_n)
     return sum(abs(f - Fraction(k, l)) for k, f in enumerate(farey_list_order_n))
-
 
 def farey_abs_diff_sum_decimal(n: int, precision: int = 10) -> Decimal:
     decimal.getcontext().prec = precision
@@ -102,12 +94,10 @@ def farey_abs_diff_sum_decimal(n: int, precision: int = 10) -> Decimal:
                       for k, f in enumerate(farey_list_order_n))
     return sum_decimal
 
-
 def farey_abs_diff_sum_float(n: int) -> float:
     farey_list_order_n = farey_list(n)
     l = len(farey_list_order_n)
     return math.fsum(abs(f - k / l) for k, f in enumerate(farey_list_order_n))
-
 
 def mertens_function(n: int) -> int:
     farey_list_order_n = farey_list(n)
@@ -118,7 +108,7 @@ def mertens_function(n: int) -> int:
 class Farey(abc.Sequence):
     """
     Allen Hatcher, Topology of Numbers, American Mathematical Society, 2022.
-    Chapter 1, The Farey Diagram, pp. 20ff.
+    Section 1.2, Farey Series, pp. 27-33.
     """
 
     def __init__(self: typing.Self, n: int) -> None:
@@ -139,7 +129,11 @@ class Farey(abc.Sequence):
     def __gt__(self: typing.Self, other: typing.Self) -> bool:
         return self.n > other.n
     
-    def __contains__(self: typing.Self, item: Fraction) -> bool:
+    def __contains__(self: typing.Self, item: Rational) -> bool:
+        if isinstance(item, int):
+            item = Fraction(item)
+        if not isinstance(item, Fraction):
+            raise TypeError(f"{item=} must be Rational.")
         return check_ordered_list_membership(self.farey_list, item)
     
     def __getitem__(self: typing.Self, index: int) -> Fraction:
@@ -160,7 +154,85 @@ class Farey(abc.Sequence):
         return round(self.exponential_sum.real)
 
 
+class FordCircle(abc.Container):
+    """
+    Ford circles.
+    """
+
+    def __init__(self, rational_number: Rational) -> None:
+        if isinstance(rational_number, Rational):
+            rational_number = Fraction(rational_number)
+        else:
+            raise TypeError(f"{rational_number=} must be Rational.")
+        self.reduced_fraction = rational_number
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.reduced_fraction})"
+
+    @property
+    def a(self) -> Fraction:
+        return Fraction(self.reduced_fraction.numerator, self.reduced_fraction.denominator)
+    
+    @property
+    def b(self) -> Fraction:
+        return Fraction(1, 2 * self.reduced_fraction.denominator ** 2)
+    
+    @property
+    def r(self) -> Fraction:
+        return Fraction(1, 2 * self.reduced_fraction.denominator ** 2)
+    
+    def __str__(self) -> str:
+        return f"FordCircle: Center ({self.a}, {self.b}) and radius {self.r}."
+    
+    def __contains__(self, item: tuple[Rational, Rational]):
+        """
+        Check for rational  points on circle.
+        """
+        x, y = item[0], item[1]
+        a, b, r = self.a, self.b, self.r
+        return (x - a) ** 2 + (y - b) ** 2 == r ** 2
+    
+    @classmethod
+    def are_tangent(cls, circle1: typing.Self, circle2: typing.Self) -> bool:
+        a, b = circle1.reduced_fraction.numerator, circle1.reduced_fraction.denominator
+        c, d = circle2.reduced_fraction.numerator, circle2.reduced_fraction.denominator
+        return (a * d - b * c) ** 2 == 1
+    
+    @classmethod
+    def try_find_point_of_tangency(cls, circle1: typing.Self, circle2: typing.Self) -> tuple[Fraction, Fraction]:
+        """
+        """
+        
+    
+    def lft_GL2Z(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self:
+        """
+        Linear fractional transformation.
+        """ 
+        source_fraction = self.reduced_fraction
+        alpha, beta, gamma, delta = matrix.alpha, matrix.beta, matrix.gamma, matrix.delta
+        target_fraction = (alpha * source_fraction + beta) / (gamma * source_fraction + delta)
+        return type(self)(target_fraction)
+
+
+
 if __name__ == "__main__":
+    circle1 = FordCircle(Fraction(1, 2))
+    circle2 = FordCircle(Fraction(2, 3))
+    assert FordCircle.are_tangent(circle1, circle2) == True
+
+    circle1 = FordCircle(Fraction(1, 2))
+    m = gl2z.GL2Z(3, 2, 2, 1)
+    circle2 = circle1.lft_GL2Z(m)
+    print(circle1, circle2)
+
+
+    n = 23
+    offset = 9
+    fraction1, fraction0, fraction2 = farey_list(n)[offset: offset + 3]
+    print(FordCircle(fraction1), FordCircle(fraction0), FordCircle(fraction2))
+
+
+
     precision = 20
     n = 13
     k = 4
