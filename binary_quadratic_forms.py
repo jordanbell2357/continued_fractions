@@ -372,49 +372,35 @@ class IndefiniteBQF(abc.Hashable):
     
 
     @classmethod
-    def compose(cls, f1: typing.Self, f2: typing.Self) -> typing.Self:
+    def compose(cls, bqf1: typing.Self, bqf2: typing.Self) -> typing.Self:
         """
-        Return the *reduced* composition of two **reduced** primitive
-        indefinite forms with the *same* positive, non-square discriminant.
+        Return the reduced composition of two reduced primitive
+        indefinite forms with the same positive discriminant.
 
-        The implementation follows Cohen, *A Course in Computational
-        Algebraic Number Theory* (Alg. 5.6.8) and keeps all coefficients
-        ≤ √D during the whole computation.
-
-        Parameters
-        ----------
-        f1, f2 : IndefiniteBQF
-            Reduced primitive forms with identical discriminant D.
-
-        Returns
-        -------
-        IndefiniteBQF
-            The reduced form representing the product of the two classes.
-
-        Raises
-        ------
-        ValueError
-            If the discriminants differ or either form is not reduced.
+        Cohen, A Course in Computational Algebraic Number Theory
+        Algorithm 5.6.8
+        
+        Keeps all coefficients ≤ √D during the whole computation.
         """
-        if f1.D != f2.D:
+        if bqf1.D != bqf2.D:
             raise ValueError("Discriminants must match.")
-        if not (f1.is_reduced and f2.is_reduced):
+        if not (bqf1.is_reduced and bqf2.is_reduced):
             raise ValueError("Both inputs must be reduced forms.")
 
-        a1, b1, c1 = f1
-        a2, b2, c2 = f2
-        D          = f1.D                         # common discriminant
+        a1, b1, _ = bqf1
+        a2, b2, _ = bqf2
+        D = bqf1.D # common discriminant
 
         # Step 1. g = gcd(a₁, a₂, (b₁+b₂)/2)
-        r  = (b1 + b2) // 2                       # always an integer
-        g  = math.gcd(a1, math.gcd(a2, r))
+        r  = (b1 + b2) // 2 # b1, b2 have same parity
+        g  = math.gcd(a1, a2, r)
 
-        # Step 2. Scale down the inputs by g
-        a1_, a2_, r_ = a1 // g, a2 // g, r // g   # pairwise coprime
+        # Step 2. Divide the inputs by g
+        a1_, a2_, r_ = a1 // g, a2 // g, r // g # pairwise coprime
 
         # Step 3. Solve  a1_·s + a2_·t = r_  via Bézout
         eea = cflib.EEA(a1_, a2_)                 # a1_·x + a2_·y = 1
-        s0, t0 = eea.bezout_x, eea.bezout_y
+        s0, _ = eea.bezout_x, eea.bezout_y
 
         s  = (s0 * r_) % a2_                      # 0 ≤ s < a2_
         t  = (r_ - s * a1_) // a2_                # ensures equality
@@ -429,7 +415,7 @@ class IndefiniteBQF(abc.Hashable):
 
         composed = cls(a3, b3, c3)
 
-        # Step 5.  Final reduction (≤ 2 iterations in practice)
+        # Step 5.  Final reduction (≤ 2 iterations)
         reduced = composed.reduced()
 
         # Step 6.  Canonical choice: ensure a > 0
