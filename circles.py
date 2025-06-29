@@ -6,26 +6,29 @@ from dataclasses import dataclass
 from collections import abc
 import typing
 
-import prime_numbers
+import quadratic_fields
 
 
 
 @dataclass
 class Point:
-    x: Number
-    y: Number
+    x: quadratic_fields.RealQuadraticCompositum
+    y: quadratic_fields.RealQuadraticCompositum
+
+    def __str__(self) -> str:
+        return f"({self.x}, {self.y})"
 
 
 @dataclass
 class Circle:
-    a: Number
-    b: Number
-    r: Number
+    a: Rational
+    b: Rational
+    r: Rational
 
 
 def power_of_point_wrt_circle(point_P: Point, circle_O: Circle) -> Number:
-    dist_P_O = math.dist((point_P.x, point_P.y), (circle_O.a, circle_O.b))
-    return dist_P_O ** 2 - circle_O.r ** 2
+    dist_P_O_squared = (point_P.x - circle_O.a) ** 2 + (point_P.y - circle_O.b) ** 2
+    return dist_P_O_squared - circle_O.r ** 2
 
 
 class RadicalLine(abc.Container):
@@ -54,7 +57,7 @@ def intersect_circles(c1: Circle, c2: Circle,) -> tuple[Point, Point]:
     d_c1_c2_squared = a_delta * a_delta + b_delta * b_delta
     if d_c1_c2_squared == 0: # concentric
         return None
-    d_c1_c2 = math.sqrt(d_c1_c2_squared)
+    d_c1_c2 = quadratic_fields.RealQuadraticCompositum.sqrt_rational(d_c1_c2_squared)
 
     # Step 2 – distance d₁ of foot D from C₁
     d_foot_c1 = (d_c1_c2_squared + r1 * r1 - r2 * r2) / (2 * d_c1_c2)
@@ -63,7 +66,7 @@ def intersect_circles(c1: Circle, c2: Circle,) -> tuple[Point, Point]:
     h_squared = r1 * r1 - d_foot_c1 * d_foot_c1
     if h_squared < 0: # no intersection in reals
         return None
-    h = math.sqrt(h_squared)
+    h = quadratic_fields.RealQuadraticCompositum.sqrt_rational(h_squared)
 
     # Coordinates
     ux, uy = a_delta / d_c1_c2, b_delta / d_c1_c2 # û
@@ -81,7 +84,23 @@ def intersect_circles(c1: Circle, c2: Circle,) -> tuple[Point, Point]:
 # Quick examples
 # -------------------------------------------------------------------------
 if __name__ == "__main__":
-    print("Two-point:", intersect_circles(Circle(0, 0, 5), Circle(4, 0, 3)))
-    print("Tangent :", intersect_circles(Circle(0, 0, 5), Circle(10, 0, 5)))
+    x1 = quadratic_fields.RealQuadraticCompositum(1, {frozenset([2]): quadratic_fields.PureQuadraticSurd(2, 3)})   # 1 + 3√2
+    x2 = quadratic_fields.RealQuadraticCompositum(1, {frozenset([3]): quadratic_fields.PureQuadraticSurd(3, 5)})   # 1 + 5√3
+    p1 = Point(x1, x2)
+    c1 = Circle(2, 3, 4)
+    c2 = Circle(1, -1, 6)
+    print(power_of_point_wrt_circle(p1, c1))
+
+    p1, p2 = intersect_circles(Circle(0, 0, 5), Circle(4, 0, 3))
+    print(p1, p2)
+    print("Two-point:", *intersect_circles(Circle(Fraction(3, 2), Fraction(-7, 3), 5), Circle(4, 0, 3)))
+    print("Two-point :", *intersect_circles(Circle(0, 0, 1), Circle(0, 1, 1)))
+    print("Tangent :", *intersect_circles(Circle(0, 0, 5), Circle(10, 0, 5)))
+    print("Tangent :", *intersect_circles(Circle(0, 0, Fraction(1, 2)), Circle(1, 0, Fraction(1, 2))))
     print("Disjoint:", intersect_circles(Circle(0, 0, 2), Circle(10, 0, 2)))
+    c1, c2 = Circle(0, 0, Fraction(1, 2)), Circle(1, 0, Fraction(1, 2))
+    p = intersect_circles(c1, c2)[0]
+    print(p in RadicalLine(c1, c2))
+
+
 
