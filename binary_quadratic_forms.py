@@ -565,18 +565,6 @@ if __name__ == "__main__":
     bqf_transformed = bqf.GL2Z_action(m)
     assert bqf_transformed.D == bqf.D
 
-    m = gl2z.S
-    bqf = IndefiniteBQF(1, 0, -14)
-    bqf_transformed = bqf.GL2Z_action(m)
-    bqf_transformed_image = bqf_transformed.in_GL2Q()
-    bqf_image = bqf.in_GL2Q()
-    bqf_image_transformed = bqf_image.transpose_action_GL2Z(m)
-    assert bqf_image_transformed  ==  bqf_transformed_image
-
-    m = gl2z.P
-    bqf = IndefiniteBQF(1, 0, -14)
-    bqf_image = bqf.in_GL2Q()    
-    assert bqf.D == -bqf_image.det
 
     bqf = IndefiniteBQF(1, 0, -14)
     bqf_transformed = bqf.GL2Z_action(gl2z.S)
@@ -641,3 +629,16 @@ if __name__ == "__main__":
     # for D in range(100):
     #     if IndefiniteBQF.is_fundamental_discriminant(D):
     #         print(f"h({D})", "=", classnumber_h(D), sep="\t")
+
+
+    bqf = IndefiniteBQF(1, 0, -14)
+    bqf_image = bqf.in_GL2Q()    
+    assert bqf.D == -bqf_image.det
+
+    m = gl2z.S
+    bqf = IndefiniteBQF(1, 0, -14)
+    bqf_transformed = bqf.GL2Z_action(m)
+    bqf_transformed_image = bqf_transformed.in_GL2Q()
+    bqf_image = bqf.in_GL2Q()
+    bqf_image_transformed = bqf_image.transpose_action_GL2Z(m)
+    assert bqf_image_transformed  ==  bqf_transformed_image
