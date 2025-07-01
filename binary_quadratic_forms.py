@@ -2,6 +2,7 @@ import math
 from fractions import Fraction
 from numbers import Rational
 from collections import abc
+import itertools as it
 import typing
 
 import cflib
@@ -423,6 +424,13 @@ class IndefiniteBQF(abc.Hashable):
             reduced = reduced.reduced_right_neighbor()
 
         return reduced
+    
+    def image_mod_D(self: typing.Self) -> set[int]:
+        D = self.D
+        domain_DxD = it.product(range(D), repeat=2)
+        image_set = {self.evaluate(x, y) % D for x, y in domain_DxD}
+        return image_set
+
 
 
 
@@ -538,8 +546,15 @@ def classnumber_h(D: int) -> int:
             g = g.reduced_right_neighbor()
             if g == f:
                 break
-
     return cycles
+
+
+
+class Genus:
+    """
+    Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
+    """
+
 
 
 if __name__ == "__main__":
@@ -642,3 +657,10 @@ if __name__ == "__main__":
     bqf_image = bqf.in_GL2Q()
     bqf_image_transformed = bqf_image.transpose_action_GL2Z(m)
     assert bqf_image_transformed  ==  bqf_transformed_image
+
+
+    bqf1 = IndefiniteBQF(1, 3, -2)   # D = 17, reduced
+    bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
+    # same genus
+    assert bqf1.image_mod_D() == bqf2.image_mod_D()
+
