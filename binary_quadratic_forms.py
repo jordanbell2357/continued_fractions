@@ -664,5 +664,9 @@ if __name__ == "__main__":
     bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
     # same genus
     assert bqf1.image_mod_D() == bqf2.image_mod_D()
+
+    bqf1 = IndefiniteBQF(1, 3, -2)   # D = 17, reduced
+    bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
+    assert len(bqf1.image_mod_D()) == prime_numbers.euler_totient(bqf1.D) // 2
     print(bqf1.image_mod_D())
 

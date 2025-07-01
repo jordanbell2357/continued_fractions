@@ -377,3 +377,4 @@ if __name__ == "__main__":
 
     n = 28
     assert len(invertible_mod_n(n)) == euler_totient(n)
+
