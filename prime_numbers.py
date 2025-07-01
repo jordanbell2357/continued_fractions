@@ -136,6 +136,9 @@ def liouville(n: int) -> int:
     return (-1) ** prime_big_omega(n)
 
 
+def invertible_mod_n(n: int) -> list[int]:
+    return [k for k in range(n) if math.gcd(n, k) == 1]
+
 def make_factor_list(n: int) -> list[int]:
     prime_factor_counter = make_prime_factor_counter(n)
     exponent_range_list = [range(prime_factor_counter[p] + 1) for p in prime_factor_counter]
@@ -371,3 +374,6 @@ if __name__ == "__main__":
     assert all(dirichlet_convolution(lambda _: 1, lambda _: 1, k) == number_of_divisors(k) for k in range(1, n + 1))
 
     assert all(dirichlet_convolution(lambda x: x, lambda _: 1, k) == sum_of_divisors(k) for k in range(1, n + 1))
+
+    n = 28
+    assert len(invertible_mod_n(n)) == euler_totient(n)
