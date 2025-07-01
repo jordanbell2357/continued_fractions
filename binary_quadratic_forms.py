@@ -429,7 +429,8 @@ class IndefiniteBQF(abc.Hashable):
         D = self.D
         domain_DxD = it.product(range(D), repeat=2)
         image_set = {self.evaluate(x, y) % D for x, y in domain_DxD}
-        return image_set
+        image_set_relatively_prime = {k for k in image_set if math.gcd(D, k) == 1}
+        return image_set_relatively_prime
 
 
 
@@ -663,4 +664,5 @@ if __name__ == "__main__":
     bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
     # same genus
     assert bqf1.image_mod_D() == bqf2.image_mod_D()
+    print(bqf1.image_mod_D())
 
