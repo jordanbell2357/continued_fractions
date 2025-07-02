@@ -240,15 +240,17 @@ class IndefiniteBQF(abc.Hashable):
 
 
     def is_fundamental_discriminant(D: int) -> bool:
-        squarefull_D, squarefree_D = prime_numbers.squarefull_and_squarefree_parts(D)
-        if squarefull_D == 1 and D % 4 == 1:
+        """
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        Definition 5.1.2, p. 224.
+        """
+        if prime_numbers.is_squarefree(D) and D % 4 == 1:
             return True
         elif D % 4 == 0:
             m = D // 4
-            if m % 4 in [2, 3]:
+            if prime_numbers.is_squarefree(m) and m % 4 in [2, 3]:
                 return True
         return False
-
 
     @property
     def to_fundamental_discriminant(self) -> int:
@@ -469,6 +471,14 @@ class IndefiniteBQF(abc.Hashable):
         Chapter I, Section 5, "Genera", pp. 31-34.
         """
         return prime_numbers.euler_totient(self.D) // len(self.image_mod_D())
+    
+
+    @property
+    def genus_group_order_by_divisors(self) -> int:
+        s = prime_numbers.prime_little_omega(self.D)
+        if D % 4 == 1 or D % 8 == 4:
+            s += 1
+        return 2 ** (s - 1)
         
 
 class ProperEquivalenceClass(abc.Container):
@@ -613,7 +623,6 @@ if __name__ == "__main__":
     bqf_transformed = bqf.GL2Z_action(m)
     assert bqf_transformed.D == bqf.D
 
-
     bqf = IndefiniteBQF(1, 0, -14)
     bqf_transformed = bqf.GL2Z_action(gl2z.S)
     assert bqf_transformed.a == bqf.c and bqf_transformed.b == - bqf.b and bqf_transformed.c == bqf.a
@@ -675,32 +684,42 @@ if __name__ == "__main__":
     bqf_image_transformed = bqf_image.transpose_action_GL2Z(m)
     assert bqf_image_transformed  ==  bqf_transformed_image
 
-    # D = 17, same genus
-    bqf1 = IndefiniteBQF(1, 3, -2)   # D = 17, reduced
-    bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
-    assert bqf1.image_mod_D() == bqf2.image_mod_D()
-
-    bqf1 = IndefiniteBQF(1, 3, -2)   # D = 17, reduced
-    bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
-    assert len(bqf1.image_mod_D()) == prime_numbers.euler_totient(bqf1.D) // 2
-    assert bqf1.genus_group_order == 2
-
-    bqf = IndefiniteBQF(1, 4, -8)
-    D = bqf.to_fundamental_discriminant
-    principal_bqf = IndefiniteBQF.principal_bqf_for_fundamental_discriminant(D)
-    principal_bqf.genus_group_order == bqf1.genus_group_order
-
     bqf = IndefiniteBQF(2, 8, -5)
     C = ProperEquivalenceClass(bqf)
     assert bqf in C
 
-    bqf1 = IndefiniteBQF(1, 3, -2)   # D = 17, reduced
-    bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
+    # D = 17, reduced
+    bqf1 = IndefiniteBQF(1, 3, -2)
+    bqf2 = IndefiniteBQF(2, 1, -2)
     bqf_composed = IndefiniteBQF.compose(bqf1, bqf2)
     C1 = ProperEquivalenceClass(bqf1)
     C2 = ProperEquivalenceClass(bqf2)
     assert C1 * C2 == ProperEquivalenceClass(bqf_composed)
 
-    # for D in range(100):
+    # D = 205
+    bqf1 = IndefiniteBQF(1, 13, -9)
+    bqf2 = IndefiniteBQF(-1, -13, 9)
+    bqf3 = IndefiniteBQF(3, 13, -3)
+    bqf4 = IndefiniteBQF(-3, 13, 3)
+    assert bqf1.image_mod_D() == bqf2.image_mod_D()
+    assert bqf3.image_mod_D() == bqf4.image_mod_D()
+    assert bqf1.image_mod_D() != bqf3.image_mod_D()
+    print(bqf4.genus_group_order)
+
+    # D = 17, reduced, same genus
+    bqf1 = IndefiniteBQF(1, 3, -2)
+    bqf2 = IndefiniteBQF(2, 1, -2)
+    assert bqf1.image_mod_D() == bqf2.image_mod_D()
+
+    # D = 17, reduced
+    bqf1 = IndefiniteBQF(1, 3, -2)
+    bqf2 = IndefiniteBQF(2, 1, -2)
+    assert len(bqf1.image_mod_D()) == prime_numbers.euler_totient(bqf1.D) // 2
+    assert bqf1.genus_group_order == 2
+    assert bqf1.genus_group_order == bqf1.genus_group_order_by_divisors
+
+    # for D in range(2, 40):
     #     if IndefiniteBQF.is_fundamental_discriminant(D):
-    #         print(f"h({D})", "=", classnumber_h(D), sep="\t")
+    #         print(f"D={D}", classnumber_h(D), end="\t")
+    #         print(IndefiniteBQF.principal_bqf_for_fundamental_discriminant(D).genus_group_order_by_divisors, end="\t")
+    #         print(IndefiniteBQF.principal_bqf_for_fundamental_discriminant(D).genus_group_order)
