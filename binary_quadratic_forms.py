@@ -51,8 +51,11 @@ class IndefiniteBQF(abc.Hashable):
     def __repr__(self: typing.Self) -> str:
         return f"{type(self).__name__}({self.a}, {self.b}, {self.c})"
 
-    @property # discriminant
+    @property
     def D(self: typing.Self) -> int:
+        """
+        Discriminant.
+        """
         return self.b ** 2 - 4 * self.a * self.c
 
     def __eq__(self: typing.Self, other: typing.Self) -> bool:
@@ -66,7 +69,7 @@ class IndefiniteBQF(abc.Hashable):
     
     def __str__(self) -> str:
         return f"{self.a}x²\t{self.b:+}xy\t{self.c:+}y².\tD={self.D}"
-    
+
     def GL2Z_action(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self:
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
@@ -199,13 +202,16 @@ class IndefiniteBQF(abc.Hashable):
     @property
     def real_quadratic_number_associate(self: typing.Self) -> quadratic_fields.RealQuadraticNumber:
         return quadratic_fields.RealQuadraticNumber(self.D, Fraction(-self.b, 2 * abs(self.a)), Fraction(1, 2 * abs(self.a)))
-    
+
+
     def integral_quadratic_polynomial_associate(self: typing.Self) -> quadratic_fields.IntegralQuadraticPolynomial:
         return self.real_quadratic_number_associate.minimal_polynomial()
 
+
     def evaluate(self: typing.Self, x: Rational | quadratic_fields.RealQuadraticNumber, y: Rational | quadratic_fields.RealQuadraticNumber) -> int:
         return self.a * x ** 2 + self.b * x * y + self.c * y **2
-    
+
+
     def equivalent_bqf_to_evaluate(self, x0: int, y0: int) -> typing.Self:
         if math.gcd(x0, y0) != 1:
             raise ValueError(f"{x0=}, {y0=} must be relatively prime.")
@@ -217,7 +223,8 @@ class IndefiniteBQF(abc.Hashable):
         m = gl2z.GL2Z(a, b, c, d)
         bqf = self.GL2Z_action(m)
         return bqf
-    
+
+
     @staticmethod
     def exponent_list_to_word(exponent_list: list[int]) -> list[str]:
         word_list = []
@@ -226,19 +233,23 @@ class IndefiniteBQF(abc.Hashable):
             word = "S" + "T" * m
             word_list.append(word)
         return "".join(word_list)
-    
+
+
     def in_GL2Q(self) -> gl2z.GL2Q:
         return gl2z.GL2Q(2 * self.a, self.b, self.b, 2 * self.c)
 
+
     def is_fundamental_discriminant(D: int) -> bool:
         squarefull_D, squarefree_D = prime_numbers.squarefull_and_squarefree_parts(D)
-        while squarefull_D % 4 == 0:
-            squarefull_D = squarefull_D // 4
-        if squarefull_D == 1:
-            if squarefree_D % 2 == 1 or squarefree_D % 16 in [8, 12]:
+        if squarefull_D == 1 and D % 4 == 1:
+            return True
+        elif D % 4 == 0:
+            m = D // 4
+            if m % 4 in [2, 3]:
                 return True
         return False
-    
+
+
     @property
     def to_fundamental_discriminant(self) -> int:
         """
@@ -249,15 +260,13 @@ class IndefiniteBQF(abc.Hashable):
         """
         D = self.D
         _, q = prime_numbers.squarefull_and_squarefree_parts(D)
-        if D % 2 == 0:
-            f = q
-        else:
+        if D % 2 == 1:
+            return q
+        else: # D % 2 == 0
             if q % 4 == 1:
-                f = q
+                return q
             elif q % 4 in [2, 3]:
-                f = 4 * q
-        return f
-
+                return 4 * q
 
     
     @classmethod
@@ -304,6 +313,7 @@ class IndefiniteBQF(abc.Hashable):
             return [bqf1]
         return [bqf1, bqf2]
 
+
     def reduced_left_neighbor(self: typing.Self) -> typing.Self:
         if not self.is_reduced:
             raise ValueError(f"{self=!r} must be reduced.")
@@ -323,7 +333,7 @@ class IndefiniteBQF(abc.Hashable):
     def reduced_right_neighbor(self: typing.Self) -> typing.Self:
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms",
+        Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
         
         p. 21:
         Two forms (a, b, c) and (a', b', c') of discriminant D > 0 will be said to be
@@ -451,9 +461,15 @@ class IndefiniteBQF(abc.Hashable):
         image_set = {self.evaluate(x, y) % D for x, y in domain_DxD}
         image_set_relatively_prime = {k for k in image_set if math.gcd(D, k) == 1}
         return image_set_relatively_prime
-
-
-
+    
+    @property
+    def genus_group_order(self) -> int:
+        """
+        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+        Chapter I, Section 5, "Genera", pp. 31-34.
+        """
+        return prime_numbers.euler_totient(self.D) // len(self.image_mod_D())
+        
 
 class ProperEquivalenceClass(abc.Container):
     def __init__(self, bqf: IndefiniteBQF) -> None:
@@ -499,19 +515,19 @@ class ProperEquivalenceClass(abc.Container):
         if self.D != other.D:
             raise ValueError(f"{self} and {other} must be associated with the same discriminant.")
         return self * other.inverse()
-    
+
 
 def classnumber_h(D: int) -> int:
     """
-    Number of proper equivalence classes of primitive *indefinite*
-    binary quadratic forms of fundamental discriminant ``D > 0``.
+    Number of proper equivalence classes of primitive indefinite
+    binary quadratic forms of fundamental discriminant D > 0.
 
-    The routine enumerates **all Knapp-reduced** forms
+    The routine enumerates all reduced forms
 
         (a, b, c)   with
             0 < b < √D                  and
             √D − b < 2|a| < √D + b      and
-            4ac = b² − D ,  gcd(a,b,c)=1 ,
+            4ac = b² − D,   gcd(a,b,c)=1
 
     then partitions them into cycles under the right-neighbour map,
     each cycle corresponding to one proper class.
@@ -530,6 +546,10 @@ def classnumber_h(D: int) -> int:
     ------
     ValueError
         If D is not a positive fundamental discriminant.
+
+    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+    Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
+    Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
     """
     if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
         raise ValueError(f"{D} must be a positive fundamental discriminant.")
@@ -568,8 +588,6 @@ def classnumber_h(D: int) -> int:
             if g == f:
                 break
     return cycles
-
-
 
 
 if __name__ == "__main__":
@@ -645,6 +663,33 @@ if __name__ == "__main__":
     assert bqf_equivalent.evaluate(1, 0) == bqf_equivalent.a
     assert bqf_equivalent.evaluate(1, 0) == bqf_reduced.evaluate(x0, y0)
 
+    bqf = IndefiniteBQF(1, 0, -14)
+    bqf_image = bqf.in_GL2Q()    
+    assert bqf.D == -bqf_image.det
+
+    m = gl2z.S
+    bqf = IndefiniteBQF(1, 0, -14)
+    bqf_transformed = bqf.GL2Z_action(m)
+    bqf_transformed_image = bqf_transformed.in_GL2Q()
+    bqf_image = bqf.in_GL2Q()
+    bqf_image_transformed = bqf_image.transpose_action_GL2Z(m)
+    assert bqf_image_transformed  ==  bqf_transformed_image
+
+    # D = 17, same genus
+    bqf1 = IndefiniteBQF(1, 3, -2)   # D = 17, reduced
+    bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
+    assert bqf1.image_mod_D() == bqf2.image_mod_D()
+
+    bqf1 = IndefiniteBQF(1, 3, -2)   # D = 17, reduced
+    bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
+    assert len(bqf1.image_mod_D()) == prime_numbers.euler_totient(bqf1.D) // 2
+    assert bqf1.genus_group_order == 2
+
+    bqf = IndefiniteBQF(1, 4, -8)
+    D = bqf.to_fundamental_discriminant
+    principal_bqf = IndefiniteBQF.principal_bqf_for_fundamental_discriminant(D)
+    principal_bqf.genus_group_order == bqf1.genus_group_order
+
     bqf = IndefiniteBQF(2, 8, -5)
     C = ProperEquivalenceClass(bqf)
     assert bqf in C
@@ -659,39 +704,3 @@ if __name__ == "__main__":
     # for D in range(100):
     #     if IndefiniteBQF.is_fundamental_discriminant(D):
     #         print(f"h({D})", "=", classnumber_h(D), sep="\t")
-
-
-    bqf = IndefiniteBQF(1, 0, -14)
-    bqf_image = bqf.in_GL2Q()    
-    assert bqf.D == -bqf_image.det
-
-    m = gl2z.S
-    bqf = IndefiniteBQF(1, 0, -14)
-    bqf_transformed = bqf.GL2Z_action(m)
-    bqf_transformed_image = bqf_transformed.in_GL2Q()
-    bqf_image = bqf.in_GL2Q()
-    bqf_image_transformed = bqf_image.transpose_action_GL2Z(m)
-    assert bqf_image_transformed  ==  bqf_transformed_image
-
-
-    bqf1 = IndefiniteBQF(1, 3, -2)   # D = 17, reduced
-    bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
-    # same genus
-    assert bqf1.image_mod_D() == bqf2.image_mod_D()
-
-    bqf1 = IndefiniteBQF(1, 3, -2)   # D = 17, reduced
-    bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
-    assert len(bqf1.image_mod_D()) == prime_numbers.euler_totient(bqf1.D) // 2
-
-    bqf1 = IndefiniteBQF(1, 4, -8)
-    bqf2 = IndefiniteBQF(-1, 4, 8)
-    bqf3 = IndefiniteBQF(3, 3, -5)
-    bqf4 = IndefiniteBQF(-3, 3, 5)
-    print(bqf1.D, bqf2.D, bqf3.D, bqf4.D)
-    bqf1_reduced = bqf1.reduced()
-    print(IndefiniteBQF.is_fundamental_discriminant(bqf1.D))
-
-    print(IndefiniteBQF.is_fundamental_discriminant(bqf1_reduced.to_fundamental_discriminant))
-
-    for d in range(30):
-        print(d, IndefiniteBQF.is_fundamental_discriminant(d))
