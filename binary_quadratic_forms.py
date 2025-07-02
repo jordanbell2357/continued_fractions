@@ -230,15 +230,35 @@ class IndefiniteBQF(abc.Hashable):
     def in_GL2Q(self) -> gl2z.GL2Q:
         return gl2z.GL2Q(2 * self.a, self.b, self.b, 2 * self.c)
 
-    @staticmethod # D is a fundamental discriminant <=> there exists bqf such that bqf.D == D
     def is_fundamental_discriminant(D: int) -> bool:
-        if D % 4 == 1 and prime_numbers.is_squarefree(D):
-            return True
-        elif D % 4 == 0:
-            d = D // 4
-            if d % 4 in [2, 3] and prime_numbers.is_squarefree(d):
+        squarefull_D, squarefree_D = prime_numbers.squarefull_and_squarefree_parts(D)
+        while squarefull_D % 4 == 0:
+            squarefull_D = squarefull_D // 4
+        if squarefull_D == 1:
+            if squarefree_D % 2 == 1 or squarefree_D % 16 in [8, 12]:
                 return True
         return False
+    
+    @property
+    def to_fundamental_discriminant(self) -> int:
+        """
+        Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
+        Chapter 12, "Binary Quadratic Forms", p. 322.
+        Theorem 11.1. Each discriminant d is uniquely expressible as f * m ** 2 where f is a
+        fundamental discriminant.
+        """
+        D = self.D
+        _, q = prime_numbers.squarefull_and_squarefree_parts(D)
+        if D % 2 == 0:
+            f = q
+        else:
+            if q % 4 == 1:
+                f = q
+            elif q % 4 in [2, 3]:
+                f = 4 * q
+        return f
+
+
     
     @classmethod
     def principal_bqf_for_fundamental_discriminant(cls, D: int) -> typing.Self:
@@ -551,12 +571,6 @@ def classnumber_h(D: int) -> int:
 
 
 
-class Genus:
-    """
-    Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
-    """
-
-
 
 if __name__ == "__main__":
     bqf = IndefiniteBQF(2, 0, -5) # primitive indefinite BQF
@@ -668,5 +682,16 @@ if __name__ == "__main__":
     bqf1 = IndefiniteBQF(1, 3, -2)   # D = 17, reduced
     bqf2 = IndefiniteBQF(2, 1, -2)   # D = 17, reduced
     assert len(bqf1.image_mod_D()) == prime_numbers.euler_totient(bqf1.D) // 2
-    print(bqf1.image_mod_D())
 
+    bqf1 = IndefiniteBQF(1, 4, -8)
+    bqf2 = IndefiniteBQF(-1, 4, 8)
+    bqf3 = IndefiniteBQF(3, 3, -5)
+    bqf4 = IndefiniteBQF(-3, 3, 5)
+    print(bqf1.D, bqf2.D, bqf3.D, bqf4.D)
+    bqf1_reduced = bqf1.reduced()
+    print(IndefiniteBQF.is_fundamental_discriminant(bqf1.D))
+
+    print(IndefiniteBQF.is_fundamental_discriminant(bqf1_reduced.to_fundamental_discriminant))
+
+    for d in range(30):
+        print(d, IndefiniteBQF.is_fundamental_discriminant(d))
