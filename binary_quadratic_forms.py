@@ -7,6 +7,7 @@ import typing
 
 import cflib
 import gl2z
+import pell
 import quadratic_fields
 import prime_numbers
 
@@ -91,6 +92,38 @@ class IndefiniteBQF(abc.Hashable):
         B = 2 * a * alpha * beta + b * alpha * delta + b * beta * gamma + 2 * c * gamma * delta
         C = a * beta ** 2 + b * beta * delta + c * delta ** 2
         return type(self)(A, B, C)
+    
+
+    def stabilizer_GL2Z(self) -> gl2z.GL2Z:
+        """
+        Duncan A. Buel
+        Binary Quadratic Forms: Classical Theory and Modern Computations 
+        Springer
+        1989
+
+        Section 3.2 Automorphs, Pell's Equation, p. 31
+
+        We recall that an
+        automorph of a binary quadratic form is a nontrivial transformation
+        (1.1) of determinant +1 under which the form is equivalent to itself. 
+
+        Theorem 3.9. If Δ is any discriminant of binary quadratic forms,
+        then there exists a solution (x, y) to the Pell equation
+        x² -Δy² = 4. (3.2)
+        There is a one-to-one correspondence between automorphs of (definite
+        or indefinite) forms (a, b, c) of discriminant Δ and solutions of the
+        Pell equation (3.2).
+
+        https://mathoverflow.net/questions/344562/infinite-cyclic-subgroups-of-textsl-2-mathbbz
+        """
+
+        a, b, c = self
+        D = self.D
+        x, y = pell.solve_pell_equation(D)
+        t = 2 * x
+        u = 2 * y
+        g = gl2z.GL2Z((t + b * u) // 2, -c * u, a * u, (t - b * u) // 2)
+        return g
 
 
     @property
@@ -476,9 +509,10 @@ class IndefiniteBQF(abc.Hashable):
     @property
     def genus_group_order_by_divisors(self) -> int:
         s = prime_numbers.prime_little_omega(self.D)
-        if D % 4 == 1 or D % 8 == 4:
+        if D % 4 == 1 or D % 8 == 0:
             s += 1
         return 2 ** (s - 1)
+
         
 
 class ProperEquivalenceClass(abc.Container):
@@ -602,7 +636,6 @@ def classnumber_h(D: int) -> int:
 
 if __name__ == "__main__":
     bqf = IndefiniteBQF(2, 0, -5) # primitive indefinite BQF
-
     assert bqf.is_reduced and (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1) or \
         not bqf.is_reduced and not (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1)
 
@@ -696,6 +729,10 @@ if __name__ == "__main__":
     C2 = ProperEquivalenceClass(bqf2)
     assert C1 * C2 == ProperEquivalenceClass(bqf_composed)
 
+    bqf = IndefiniteBQF(1, 0, -14)
+    g = bqf.stabilizer_GL2Z()
+    assert bqf.GL2Z_action(g) == bqf
+
     # D = 205
     bqf1 = IndefiniteBQF(1, 13, -9)
     bqf2 = IndefiniteBQF(-1, -13, 9)
@@ -718,8 +755,6 @@ if __name__ == "__main__":
     assert bqf1.genus_group_order == 2
     assert bqf1.genus_group_order == bqf1.genus_group_order_by_divisors
 
-    # for D in range(2, 40):
-    #     if IndefiniteBQF.is_fundamental_discriminant(D):
-    #         print(f"D={D}", classnumber_h(D), end="\t")
-    #         print(IndefiniteBQF.principal_bqf_for_fundamental_discriminant(D).genus_group_order_by_divisors, end="\t")
-    #         print(IndefiniteBQF.principal_bqf_for_fundamental_discriminant(D).genus_group_order)
+    for D in range(2, 400):
+        if IndefiniteBQF.is_fundamental_discriminant(D):
+            IndefiniteBQF.principal_bqf_for_fundamental_discriminant(D).genus_group_order == 2 * classnumber_h(D)

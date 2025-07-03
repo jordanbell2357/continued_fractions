@@ -133,6 +133,9 @@ def periodic_cf_generator(periodic_cf: PeriodicCF) -> abc.Generator[int]:
 
 
 def solve_pell_equation(d: int) -> tuple[int, int]:
+    """
+    x^2 - dy^2 = 1
+    """
     periodic_cf = sqrt_periodic_cf(d)
     initial_part, periodic_part = periodic_cf.initial_part, periodic_cf.periodic_part
     r = len(periodic_part)
@@ -247,10 +250,19 @@ if __name__ == "__main__":
 
     # Example
     coefficients = (7, -8, -4)
-
     a, b, c = coefficients
     D = b ** 2 - 4 * a * c
     P = -b
     Q = 2 * a
     assert is_real_reduced_surd(P, Q, D) == True
     assert periodic_cf_to_integral_quadratic_polynomial(integral_quadratic_polynomial_to_periodic_cf(*coefficients)) == coefficients
+
+    # Example
+    d = 5
+    print(f"Pell equation x² - {d}y² = 4 has the following fundamental solution:")
+    x, y = solve_pell_equation(d)
+    x *= 2
+    y *= 2
+    assert x ** 2 - d * y ** 2 == 4
+
+
