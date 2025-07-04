@@ -29,6 +29,9 @@ class IndefiniteBQF(abc.Hashable):
     Chapter I, Section 5, "Genera", pp. 31-34.
     Chapter I, Section 6, "Quadratic Number Fields and Their Units", pp. 35-38.
     Chapter I, Section 7, "Relationship of Quadratic Forms to Ideals", pp. 38-50.
+
+    J.W.S. Cassels, An Introduction to the Geometry of Numbers, Springer, 1971
+    Section II.4. Indefinite quadratic forms, pp. 35-45.
     """
 
     __slots__ = ["a", "b", "c"]
@@ -64,9 +67,12 @@ class IndefiniteBQF(abc.Hashable):
     
     def __hash__(self: typing.Self) -> int:
         return hash((self.a, self.b, self.c))
-    
+
     def __iter__(self: typing.Self) -> abc.Iterator:
         return iter([self.a, self.b, self.c])
+    
+    def __abs__(self: typing.Self) -> int:
+        return max(abs(x) for x in self)
     
     def __str__(self) -> str:
         return f"{self.a}x²\t{self.b:+}xy\t{self.c:+}y².\tD={self.D}"
@@ -242,10 +248,10 @@ class IndefiniteBQF(abc.Hashable):
 
 
     def evaluate(self: typing.Self, x: Rational | quadratic_fields.RealQuadraticNumber, y: Rational | quadratic_fields.RealQuadraticNumber) -> int:
-        return self.a * x ** 2 + self.b * x * y + self.c * y **2
+        return self.a * x ** 2 + self.b * x * y + self.c * y ** 2
 
 
-    def equivalent_bqf_to_evaluate(self, x0: int, y0: int) -> typing.Self:
+    def equivalent_bqf_to_evaluate(self: typing.Self, x0: int, y0: int) -> typing.Self:
         if math.gcd(x0, y0) != 1:
             raise ValueError(f"{x0=}, {y0=} must be relatively prime.")
         eea = cflib.EEA(x0, y0)
@@ -277,6 +283,8 @@ class IndefiniteBQF(abc.Hashable):
         Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
         Definition 5.1.2, p. 224.
         """
+        if D == 1:
+            return False
         if prime_numbers.is_squarefree(D) and D % 4 == 1:
             return True
         elif D % 4 == 0:
@@ -284,6 +292,7 @@ class IndefiniteBQF(abc.Hashable):
             if prime_numbers.is_squarefree(m) and m % 4 in [2, 3]:
                 return True
         return False
+
 
     @property
     def to_fundamental_discriminant(self) -> int:
@@ -319,6 +328,7 @@ class IndefiniteBQF(abc.Hashable):
             b = 0
             c = -d
             return cls(a, b, c)
+
 
     @classmethod
     def primitively_represent_odd_prime(cls, D: int, p: int) -> list[typing.Self]:
@@ -418,6 +428,7 @@ class IndefiniteBQF(abc.Hashable):
             reduced_bqf_count += 1
         return reduced_bqf_count
 
+
     def primitively_represent(self, m: int) -> tuple[int, int, int]:
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
@@ -489,7 +500,7 @@ class IndefiniteBQF(abc.Hashable):
             reduced = reduced.reduced_right_neighbor()
 
         return reduced
-    
+
     def image_mod_D(self: typing.Self) -> set[int]:
         D = self.D
         domain_DxD = it.product(range(D), repeat=2)
@@ -497,23 +508,55 @@ class IndefiniteBQF(abc.Hashable):
         image_set_relatively_prime = {k for k in image_set if math.gcd(D, k) == 1}
         return image_set_relatively_prime
     
-    @property
-    def genus_group_order(self) -> int:
+    def min_abs_image(self: typing.Self) -> set[int]:
         """
-        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-        Chapter I, Section 5, "Genera", pp. 31-34.
+        m(f)=inf|f(x,y)|,  x,y∈Z²,  (x,y)≠(0,0)
         """
-        return prime_numbers.euler_totient(self.D) // len(self.image_mod_D())
+        D = self.D
+        domain_DxD = it.product(range(-math.isqrt(D) - 1, math.isqrt(D) + 1), repeat=2)
+        abs_image_set = {abs(self.evaluate(x, y)) for x, y in domain_DxD}
+        abs_image_set.remove(0)
+        return min(abs_image_set)
     
-
-    @property
-    def genus_group_order_by_divisors(self) -> int:
-        s = prime_numbers.prime_little_omega(self.D)
-        if D % 4 == 1 or D % 8 == 0:
-            s += 1
-        return 2 ** (s - 1)
-
+    def min_abs_image_by_reduction(self: typing.Self) -> int:
+        """
+        Lagrange–Dickson bound method
+        --------------------------------
+        Computes
         
+            m(f) = min { |f(x,y)| : |f(x,y)| != 0, x,y in Z } 
+        
+        without any lattice search:
+
+        1.  Reduce this form to one reduced representative g.
+        2.  Walk once around the right-neighbour cycle of g, keeping
+            track of the smallest |a| that occurs.
+        3.  That minimum |a| equals m(f).
+
+        Every integer n with |n| < √D / 2 that is represented by the
+        class appears as the leading coefficient of some reduced form in
+        the cycle (see, e.g., Dickson *Intro. to the Theory of Numbers*,
+        Th. 85).  Hence the least |a| in the cycle is exactly m(f).
+
+        Returns
+        -------
+        int
+            The minimum non-zero absolute value represented by the BQF.
+        """
+        # Step 1: one reduction
+        g = self.reduced()
+
+        # Step 2: walk the cycle, take the smallest |a|
+        min_abs = abs(g.a)
+        neighbour = g.reduced_right_neighbor()
+        while neighbour != g:
+            min_abs = min(min_abs, abs(neighbour.a))
+            if min_abs == 1:      # early exit – cannot do better
+                break
+            neighbour = neighbour.reduced_right_neighbor()
+
+        return min_abs
+
 
 class ProperEquivalenceClass(abc.Container):
     def __init__(self, bqf: IndefiniteBQF) -> None:
@@ -634,6 +677,26 @@ def classnumber_h(D: int) -> int:
     return cycles
 
 
+def genus_group_order(D: int) -> int:
+    """
+    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+    Chapter I, Section 5, "Genera", pp. 31-34.
+    """
+    if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
+        raise ValueError(f"{D} must be a positive fundamental discriminant.")
+    bqf = IndefiniteBQF.principal_bqf_for_fundamental_discriminant(D)
+    return prime_numbers.euler_totient(D) // len(bqf.image_mod_D())
+
+
+def genus_group_order_by_divisors(D: int) -> int:
+    if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
+        raise ValueError(f"{D} must be a positive fundamental discriminant.")
+    s = prime_numbers.prime_little_omega(D)
+    if D % 4 == 1 or D % 8 == 0:
+        s += 1
+    return 2 ** (s - 1)
+
+
 if __name__ == "__main__":
     bqf = IndefiniteBQF(2, 0, -5) # primitive indefinite BQF
     assert bqf.is_reduced and (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1) or \
@@ -706,7 +769,7 @@ if __name__ == "__main__":
     assert bqf_equivalent.evaluate(1, 0) == bqf_reduced.evaluate(x0, y0)
 
     bqf = IndefiniteBQF(1, 0, -14)
-    bqf_image = bqf.in_GL2Q()    
+    bqf_image = bqf.in_GL2Q()
     assert bqf.D == -bqf_image.det
 
     m = gl2z.S
@@ -741,7 +804,6 @@ if __name__ == "__main__":
     assert bqf1.image_mod_D() == bqf2.image_mod_D()
     assert bqf3.image_mod_D() == bqf4.image_mod_D()
     assert bqf1.image_mod_D() != bqf3.image_mod_D()
-    print(bqf4.genus_group_order)
 
     # D = 17, reduced, same genus
     bqf1 = IndefiniteBQF(1, 3, -2)
@@ -752,9 +814,13 @@ if __name__ == "__main__":
     bqf1 = IndefiniteBQF(1, 3, -2)
     bqf2 = IndefiniteBQF(2, 1, -2)
     assert len(bqf1.image_mod_D()) == prime_numbers.euler_totient(bqf1.D) // 2
-    assert bqf1.genus_group_order == 2
-    assert bqf1.genus_group_order == bqf1.genus_group_order_by_divisors
+    assert genus_group_order(17) == 2
+    assert genus_group_order_by_divisors(17) == 2
 
-    for D in range(2, 400):
+    for D in range(200):
         if IndefiniteBQF.is_fundamental_discriminant(D):
-            IndefiniteBQF.principal_bqf_for_fundamental_discriminant(D).genus_group_order == 2 * classnumber_h(D)
+            genus_group_order(D) == 2 * classnumber_h(D)
+
+    bqf = IndefiniteBQF(1, 0, -14)
+    print(bqf.min_abs_image())
+    print(bqf.min_abs_image_by_reduction())
