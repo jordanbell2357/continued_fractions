@@ -1,6 +1,7 @@
 import math
 from fractions import Fraction
 from numbers import Rational
+from collections import Counter
 from collections import abc
 import itertools as it
 import typing
@@ -30,8 +31,11 @@ class IndefiniteBQF(abc.Hashable):
     Chapter I, Section 6, "Quadratic Number Fields and Their Units", pp. 35-38.
     Chapter I, Section 7, "Relationship of Quadratic Forms to Ideals", pp. 38-50.
 
-    J.W.S. Cassels, An Introduction to the Geometry of Numbers, Springer, 1971
-    Section II.4. Indefinite quadratic forms, pp. 35-45.
+    Primes of the Form 𝑥²+𝑛𝑦²: Fermat, Class Field Theory, and Complex Multiplication. Third Edition with Solutions
+    David A. Cox, with contributions by Roger Lipsett
+    AMS Chelsea Publishing: An Imprint of the American Mathematical Society, 2022
+    § 1.2.A, "Lagrange, Legendre and Quadratic Forms", pp. 20-22
+    § 1.2.C, "Elementary Genus Theory", pp. 27-31
     """
 
     __slots__ = ["a", "b", "c"]
@@ -312,17 +316,17 @@ class IndefiniteBQF(abc.Hashable):
             elif q % 4 in [2, 3]:
                 return 4 * q
 
-    
+
     @classmethod
-    def principal_bqf_for_fundamental_discriminant(cls, D: int) -> typing.Self:
-        if not cls.is_fundamental_discriminant(D):
-            raise ValueError(f"{D=} must be a fundamental discriminant.")
+    def principal_bqf_for_discriminant(cls, D: int) -> typing.Self:
+        if D % 4 not in [0, 1]:
+            raise ValueError(f"{D=} must be a discriminant.")
         if D % 4 == 1:
             a = 1
             b = 1
             c = (1 - D) // 4
             return cls(a, b, c)
-        else: # D % 4 == 0 since D is a fundamental discriminant
+        else: # D % 4 == 0 since D is a discriminant
             d = D // 4
             a = 1
             b = 0
@@ -419,7 +423,7 @@ class IndefiniteBQF(abc.Hashable):
         if not cls.is_fundamental_discriminant(D):
             raise ValueError(f"{D=} must be a fundamental discriminant.")
         reduced_bqf_count = 0
-        bqf = cls.principal_bqf_for_fundamental_discriminant(D)
+        bqf = cls.principal_bqf_for_discriminant(D)
         reduced_bqf, _ = bqf.reduced_with_exponent_list()
         reduced_bqf_count += 1
         right_neighbor = reduced_bqf.reduced_right_neighbor()
@@ -520,28 +524,16 @@ class IndefiniteBQF(abc.Hashable):
     
     def min_abs_image_by_reduction(self: typing.Self) -> int:
         """
-        Lagrange–Dickson bound method
-        --------------------------------
-        Computes
-        
-            m(f) = min { |f(x,y)| : |f(x,y)| != 0, x,y in Z } 
-        
-        without any lattice search:
+        m(f) = min { |f(x,y)| : |f(x,y)| != 0, x,y in Z }
 
-        1.  Reduce this form to one reduced representative g.
-        2.  Walk once around the right-neighbour cycle of g, keeping
-            track of the smallest |a| that occurs.
-        3.  That minimum |a| equals m(f).
+        Johannes Buchmann and Ulrich Vollmer
+        Binary Quadratic Forms: An Algorithmic Approach
+        Springer, 2007
 
-        Every integer n with |n| < √D / 2 that is represented by the
-        class appears as the leading coefficient of some reduced form in
-        the cycle (see, e.g., Dickson *Intro. to the Theory of Numbers*,
-        Th. 85).  Hence the least |a| in the cycle is exactly m(f).
-
-        Returns
-        -------
-        int
-            The minimum non-zero absolute value represented by the BQF.
+        p. 139
+        Corollary 6.16.2. The minimum of an integral indefinite irreducible form f
+        is the absolute smallest integer that appears as an a in a form (a, b, c) in the
+        proper cycle of f.
         """
         # Step 1: one reduction
         g = self.reduced()
@@ -556,6 +548,30 @@ class IndefiniteBQF(abc.Hashable):
             neighbour = neighbour.reduced_right_neighbor()
 
         return min_abs
+
+    @staticmethod
+    def conductor(D: int) -> int:
+        """
+        Johannes Buchmann and Ulrich Vollmer
+        Binary Quadratic Forms: An Algorithmic Approach
+        Springer, 2007
+
+        Definition 3.3.2, p. 37:
+        The conductor of a discriminant ∆ is the largest positive integer f such
+        that ∆/f^2 is a discriminant. We denote it by f(∆).
+        """
+        factor_D = prime_numbers.make_prime_factor_counter(D)
+        factor_f = Counter()
+        for p, v in factor_D.items():
+            if p == 2:
+                if D // 2 ** v % 4 == 1:
+                    factor_f[2] = (v - v % 2) // 2
+                elif D // 2 ** v % 4 == 3:
+                    factor_f[2] = (v - v % 2 - 2) // 2
+            else:
+                factor_f[p] = (v - v % 2) // 2
+        f = math.prod(p ** v for p, v in factor_f.items())
+        return f
 
 
 class ProperEquivalenceClass(abc.Container):
@@ -684,7 +700,7 @@ def genus_group_order(D: int) -> int:
     """
     if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
         raise ValueError(f"{D} must be a positive fundamental discriminant.")
-    bqf = IndefiniteBQF.principal_bqf_for_fundamental_discriminant(D)
+    bqf = IndefiniteBQF.principal_bqf_for_discriminant(D)
     return prime_numbers.euler_totient(D) // len(bqf.image_mod_D())
 
 
@@ -692,7 +708,7 @@ def genus_group_order_by_divisors(D: int) -> int:
     if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
         raise ValueError(f"{D} must be a positive fundamental discriminant.")
     s = prime_numbers.prime_little_omega(D)
-    if D % 4 == 1 or D % 8 == 0:
+    if D % 4 == 1 or D % 8 in [0, 4]:
         s += 1
     return 2 ** (s - 1)
 
@@ -796,6 +812,9 @@ if __name__ == "__main__":
     g = bqf.stabilizer_GL2Z()
     assert bqf.GL2Z_action(g) == bqf
 
+    bqf = IndefiniteBQF(1, 0, -14)
+    assert bqf.min_abs_image() == bqf.min_abs_image_by_reduction()
+
     # D = 205
     bqf1 = IndefiniteBQF(1, 13, -9)
     bqf2 = IndefiniteBQF(-1, -13, 9)
@@ -810,17 +829,19 @@ if __name__ == "__main__":
     bqf2 = IndefiniteBQF(2, 1, -2)
     assert bqf1.image_mod_D() == bqf2.image_mod_D()
 
-    # D = 17, reduced
-    bqf1 = IndefiniteBQF(1, 3, -2)
-    bqf2 = IndefiniteBQF(2, 1, -2)
-    assert len(bqf1.image_mod_D()) == prime_numbers.euler_totient(bqf1.D) // 2
-    assert genus_group_order(17) == 2
-    assert genus_group_order_by_divisors(17) == 2
-
     for D in range(200):
         if IndefiniteBQF.is_fundamental_discriminant(D):
-            genus_group_order(D) == 2 * classnumber_h(D)
+            assert genus_group_order(D) == genus_group_order_by_divisors(D)
 
-    bqf = IndefiniteBQF(1, 0, -14)
-    print(bqf.min_abs_image())
-    print(bqf.min_abs_image_by_reduction())
+    bqf = IndefiniteBQF(1, 0, -5)
+    print(bqf)
+    print(IndefiniteBQF.conductor(bqf.D))
+
+    bqf = IndefiniteBQF.principal_bqf_for_discriminant(45)
+    print(bqf)
+    print(IndefiniteBQF.conductor(bqf.D))
+    fundamental_D = bqf.to_fundamental_discriminant
+    print(fundamental_D)
+    bqf2 = IndefiniteBQF.principal_bqf_for_discriminant(fundamental_D)
+    print(IndefiniteBQF.conductor(fundamental_D))
+    print(bqf2)

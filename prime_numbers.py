@@ -269,7 +269,7 @@ def solve_quadratic_congruence(a: int, n: int) -> int:
     """
     Return b with b² ≡ a (mod n) when it exists.
     Running time O(n).
-    Can be made substantially more efficient for prime n = p:
+    For prime n = p:
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
     Algorithm 1.5.1 (Square Root Mod p), p. 33. (Tonelli-Shanks algorithm)
     Expected running time O(ln(p) ** 4)
