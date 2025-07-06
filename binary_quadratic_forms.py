@@ -504,6 +504,19 @@ class IndefiniteBQF(abc.Hashable):
             reduced = reduced.reduced_right_neighbor()
 
         return reduced
+    
+    def inverse(self: typing.Self) -> typing.Self:
+        """
+        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+        Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
+
+        Theorem 1.12, pp. 27-28.
+        (c) Under the product operation in (b), the set of proper equivalence classes
+        of primitive forms of discriminant D is a finite abelian group. The identity is the
+        class of (1, 0, −D/4) if D ≡ 0 mod 4 and is the class of (1, 1, −(D − 1)/4) if
+        D ≡ 1 mod 4. The group inverse of the class of (a, b, c) is the class of (a, −b, c).   
+        """
+        return type(self)(self.a, -self.b, self.c)
 
     def image_mod_D(self: typing.Self) -> set[int]:
         D = self.D
@@ -561,67 +574,119 @@ class IndefiniteBQF(abc.Hashable):
         The conductor of a discriminant ∆ is the largest positive integer f such
         that ∆/f^2 is a discriminant. We denote it by f(∆).
         """
-
         D = self.D
         factor_D = prime_numbers.make_prime_factor_counter(D)
-        factor_f = Counter()
+        factor_f  = Counter()
+
         for p, v in factor_D.items():
             if p == 2:
-                if D // 2 ** v % 4 == 1:
-                    factor_f[2] = (v - v % 2) // 2
-                elif D // 2 ** v % 4 == 3:
-                    factor_f[2] = (v - v % 2 - 2) // 2
+                # ----------- subtle 2-adic cases -------------------------
+                t = D // (2 ** v)               # t ≡ 1 or 3 (mod 4)
+                if t % 4 == 1:                  # Case 1
+                    if v % 2 == 0:              #   v even
+                        e = v // 2
+                    else:                       #   v odd
+                        e = 0 if v < 3 else (v - 3) // 2
+                else:                           # t % 4 == 3   (Case 2)
+                    e = (v - v % 2 - 2) // 2
+                if e > 0:
+                    factor_f[2] = e
             else:
-                factor_f[p] = (v - v % 2) // 2
-        f = math.prod(p ** v for p, v in factor_f.items())
-        return f
+                # ----------- odd primes: floor(v/2) ----------------------
+                if v >= 2:
+                    factor_f[p] = v // 2
 
+        f = math.prod(p ** e for p, e in factor_f.items())
+        return f if f > 0 else 1
 
-class ProperEquivalenceClass(abc.Container):
-    def __init__(self, bqf: IndefiniteBQF) -> None:
-        reduced_bqf, _ = bqf.reduced_with_exponent_list()
-        self.bqf = reduced_bqf
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.bqf})"
-
-    def __eq__(self, other: typing.Self) -> typing.Self:
-        return self.bqf == other.bqf
     
-    def __hash__(self) -> int:
-        return hash(self.bqf)
     
-    def __contains__(self, item: IndefiniteBQF) -> bool:
-        return IndefiniteBQF.are_equivalent(self.bqf, item)
+    def lift(self, f: int) -> typing.Self:
+        """
+        Return a *primitive* form whose discriminant is f²·D.
 
-    @property
-    def D(self) -> int:
-        return self.bqf.D
+        Strategy
+        --------
+        Two standard lifts are possible:
 
-    @classmethod
-    def identity_class(cls, D: int) -> typing.Self:
-        if not IndefiniteBQF.is_fundamental_discriminant(D):
-            raise ValueError(f"{D=} must be a fundamental discriminant.")
-        if D % 4 == 0:
-            bqf = IndefiniteBQF(1, 0, -D // 4)
-            return cls(bqf)
-        elif D % 4 == 1:
-            bqf = IndefiniteBQF(1, 1, -(D - 1) // 4)
-            return cls(bqf)
-        
-    def inverse(self) -> typing.Self:
-        bqf_inverse = IndefiniteBQF(self.bqf.a, -self.bqf.b, self.bqf.c)
-        return type(self)(bqf_inverse)
+        *  y ↦ f·y  →  (a,  f·b,  f²·c)
+        *  x ↦ f·x  →  (f²·a,  f·b,   c)
+
+        Exactly one of them is guaranteed to stay primitive
+        (because a primitive triple (a,b,c) cannot have *both*
+        a and c divisible by f² when f>1).  We try the first
+        orientation; if `gcd`>1 we switch to the second.
+
+        Parameters
+        ----------
+        f : positive integer  (the desired conductor multiplier)
+
+        Raises
+        ------
+        ValueError
+            if *f* ≤ 0 or if neither orientation yields a primitive form.
+        """
+        if not isinstance(f, int) or f <= 0:
+            raise ValueError(f"{f=} must be a positive integer.")
+
+        if f == 1:                    # nothing to do
+            return self
+
+        a, b, c = self.a, self.b, self.c
+
+        # orientation 1 : y  ->  f·y
+        a1, b1, c1 = a, b * f, c * f * f
+        if math.gcd(a1, b1, c1) == 1:
+            return type(self)(a1, b1, c1)
+
+        # orientation 2 : x  ->  f·x
+        a2, b2, c2 = a * f * f, b * f, c
+        if math.gcd(a2, b2, c2) == 1:
+            return type(self)(a2, b2, c2)
+
+        raise ValueError(f"lift by {f=} does not preserve primitivity.")
+
+
+    def descend(self) -> typing.Self:
+        """
+        Use elementary GL₂(ℤ) shears to drop the conductor f of the
+        discriminant  Δ = f²·Δ₀  to obtain a primitive form of the
+        fundamental discriminant Δ₀.
+
+        The procedure tries, for n = 0,…,f−1:
+
+        1.  Right shear  Tⁿ = (1 n; 0 1):
+                succeeds if  c' ≡ 0 (mod f²).
+            We then return (a , b'/f , c'/f²).
+
+        2.  Left  shear  Uⁿ = (1 0; n 1):
+                succeeds if  a' ≡ 0 (mod f²).
+            We then return (a'/f² , b'/f , c ).
+
+        Either branch is guaranteed to work by elementary genus theory.
+        """
+        f = self.conductor
+        if f == 1:                         # already fundamental
+            return self
+        f2 = f * f
+
+        # -------- orientation 1 : look for  c' divisible by f² -------------
+        for n in range(f):
+            g  = gl2z.GL2Z.N(n)            # (1 n; 0 1)
+            F1 = self.GL2Z_action(g)       # coefficients (a , b', c')
+            if F1.b % f == 0 and F1.c % f2 == 0:
+                return type(self)(F1.a, F1.b // f, F1.c // f2)
+
+        # -------- orientation 2 : look for  a' divisible by f² -------------
+        for n in range(f):
+            g  = gl2z.GL2Z(1, 0, n, 1)     # (1 0; n 1)
+            F2 = self.GL2Z_action(g)       # coefficients (a', b', c )
+            if F2.b % f == 0 and F2.a % f2 == 0:
+                return type(self)(F2.a // f2, F2.b // f, F2.c)
+
+        # If both loops fail (should never happen):
+        raise ArithmeticError("Descent failed: no suitable GL₂(ℤ) shear found.")
     
-    def __mul__(self, other: typing.Self) -> typing.Self:
-        bqf_composed = IndefiniteBQF.compose(self.bqf, other.bqf)
-        return type(self)(bqf_composed)
-
-    def __truediv__(self, other: typing.Self) -> typing.Self:
-        if self.D != other.D:
-            raise ValueError(f"{self} and {other} must be associated with the same discriminant.")
-        return self * other.inverse()
-
 
 def classnumber_h(D: int) -> int:
     """
@@ -716,6 +781,83 @@ def genus_group_order_by_divisors(D: int) -> int:
     return 2 ** (s - 1)
 
 
+class ProperEquivalenceClass(abc.Container):
+    def __init__(self, bqf: IndefiniteBQF) -> None:
+        reduced_bqf, _ = bqf.reduced_with_exponent_list()
+        self.bqf = reduced_bqf
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.bqf})"
+
+    def __eq__(self, other: typing.Self) -> typing.Self:
+        return self.bqf == other.bqf
+    
+    def __hash__(self) -> int:
+        return hash(self.bqf)
+    
+    def __contains__(self, item: IndefiniteBQF) -> bool:
+        return IndefiniteBQF.are_equivalent(self.bqf, item)
+
+    @property
+    def D(self) -> int:
+        return self.bqf.D
+
+    @classmethod
+    def identity(cls, D: int) -> typing.Self:
+        if not D % 4 in [0, 1]:
+            raise ValueError(f"{D=} must be a discriminant.")
+        if D % 4 == 0:
+            bqf = IndefiniteBQF(1, 0, -D // 4)
+            return cls(bqf)
+        elif D % 4 == 1:
+            bqf = IndefiniteBQF(1, 1, -(D - 1) // 4)
+            return cls(bqf)
+        
+    def inverse(self) -> typing.Self:
+        bqf_inverse = self.bqf.inverse()
+        return type(self)(bqf_inverse)
+    
+    def __mul__(self, other: typing.Self) -> typing.Self:
+        bqf_composed = IndefiniteBQF.compose(self.bqf, other.bqf)
+        return type(self)(bqf_composed)
+    
+    def __rmul__(self, other: typing.Self) -> typing.Self:
+        bqf_composed = IndefiniteBQF.compose(other.bqf, self.bqf)
+        return type(self)(bqf_composed)
+
+    def __truediv__(self, other: typing.Self) -> typing.Self:
+        if self.D != other.D:
+            raise ValueError(f"{self} and {other} must be associated with the same discriminant.")
+        return self * other.inverse()
+    
+    def __rtruediv__(self, other: typing.Self) -> typing.Self:
+        if self.D != other.D:
+            raise ValueError(f"{self} and {other} must be associated with the same discriminant.")
+        return other * self.inverse()
+    
+    @classmethod
+    def genus(cls, D: int) -> typing.Self:
+        """
+        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+        Chapter I, Section 5, "Genera", pp. 31-34.
+        p. 33:
+        Theorem 1.14. For a fundamental discriminant D, the principal genus P of
+        primitive integer forms is a subgroup of the form class group H, and the cosets
+        of P are the various genera. Thus the set G of genera is exactly the set of cosets
+        H/P and inherits a group structure from class multiplication. The subgroup P
+        coincides with the subgroup of squares in H, and consequently every nontrivial
+        element of G has order 2.
+        REMARKS. The group G is called the genus group of discriminant D. The
+        hypothesis that D is fundamental is needed only for the conclusion that every
+        member of P is a square in H. Since every nontrivial element of G has order
+        2 when D is fundamental, application of the Fundamental Theorem of Finitely
+        Generated Abelian Groups or use of vector-space theory over a 2-element field
+        shows that G is the direct sum of cyclic groups of order 2; in particular, the order
+        of G is a power of 2. Problems 25–29 at the end of the chapter show that the
+        order of G is 2g, where g + 1 is the number of distinct prime factors of D.
+        """
+
+
 if __name__ == "__main__":
     bqf = IndefiniteBQF(2, 0, -5) # primitive indefinite BQF
     assert bqf.is_reduced and (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1) or \
@@ -799,18 +941,6 @@ if __name__ == "__main__":
     bqf_image_transformed = bqf_image.transpose_action_GL2Z(m)
     assert bqf_image_transformed  ==  bqf_transformed_image
 
-    bqf = IndefiniteBQF(2, 8, -5)
-    C = ProperEquivalenceClass(bqf)
-    assert bqf in C
-
-    # D = 17, reduced
-    bqf1 = IndefiniteBQF(1, 3, -2)
-    bqf2 = IndefiniteBQF(2, 1, -2)
-    bqf_composed = IndefiniteBQF.compose(bqf1, bqf2)
-    C1 = ProperEquivalenceClass(bqf1)
-    C2 = ProperEquivalenceClass(bqf2)
-    assert C1 * C2 == ProperEquivalenceClass(bqf_composed)
-
     bqf = IndefiniteBQF(1, 0, -14)
     g = bqf.stabilizer_GL2Z()
     assert bqf.GL2Z_action(g) == bqf
@@ -836,10 +966,56 @@ if __name__ == "__main__":
         if IndefiniteBQF.is_fundamental_discriminant(D):
             assert genus_group_order(D) == genus_group_order_by_divisors(D)
 
-
     bqf1 = IndefiniteBQF.principal_bqf_for_discriminant(45)
     fundamental_D = bqf1.to_fundamental_discriminant
     bqf2 = IndefiniteBQF.principal_bqf_for_discriminant(fundamental_D)
     assert bqf2.conductor == 1
     assert bqf2.D == bqf1.D // bqf1.conductor ** 2
 
+    # 1.  Round-trip sanity:  descend ∘ lift ≡ identity  (checks both directions)
+    F0 = IndefiniteBQF.principal_bqf_for_discriminant(5)       # fundamental Δ0=5
+    F1 = F0.lift(3)                                            # Δ = 3²·5 = 45
+    assert IndefiniteBQF.are_equivalent(F1.descend(), F0)      # proper-equivalence test
+
+    # 2.  Discriminant-vs-conductor consistency after a lift
+    assert F1.D == 9 * F0.D                                    # Δ scales by f²
+    assert F1.conductor == 3                                   # f(Δ)=3 after the lift
+    assert math.gcd(F1.a, F1.b, F1.c) == 1                     # primitivity preserved
+
+    # 3.  Fundamentalization:  a non-fundamental form descends to conductor 1
+    G  = IndefiniteBQF.principal_bqf_for_discriminant(20)      # Δ=20, conductor f=2
+    H  = G.descend()                                           # should drop to Δ0=5
+    assert G.conductor == 2 and H.conductor == 1               # before / after check
+    assert H.D == G.D // (G.conductor ** 2)                    # Δ0 = Δ/f²
+
+
+    # 4.  Even discriminant with f = 2  (checks descent after a 4-factor)
+    G2 = IndefiniteBQF.principal_bqf_for_discriminant(32)      # (1,0,−8)  Δ = 32
+    assert IndefiniteBQF.are_equivalent(G2.descend(),
+                                        IndefiniteBQF.principal_bqf_for_discriminant(8))   # Δ₀ = 8
+
+    # 5.  Round-trip with a composite conductor 6 = 2·3
+    F0  = IndefiniteBQF.principal_bqf_for_discriminant(13)     # fundamental  Δ₀ = 13
+    L   = F0.lift(6)                                           # Δ = 6²·13 = 468 (orientation chosen automatically)
+    assert L.conductor == 6 and L.D == 36 * F0.D
+    assert IndefiniteBQF.are_equivalent(L.descend(), F0)       # back to fundamental form
+
+    # 6.  A lift that *must* fail (a and c already share the prime factor 2)
+    F_bad = IndefiniteBQF(2, 1, -2)    # primitive, Δ = 17 (fundamental)
+    try:
+        F_bad.lift(2)
+        assert False, "Expected ValueError for non-primitive lift."
+    except ValueError:      # correct behaviour
+        pass
+
+    bqf = IndefiniteBQF(2, 8, -5)
+    C = ProperEquivalenceClass(bqf)
+    assert bqf in C
+
+    # D = 17, reduced
+    bqf1 = IndefiniteBQF(1, 3, -2)
+    bqf2 = IndefiniteBQF(2, 1, -2)
+    bqf_composed = IndefiniteBQF.compose(bqf1, bqf2)
+    C1 = ProperEquivalenceClass(bqf1)
+    C2 = ProperEquivalenceClass(bqf2)
+    assert C1 * C2 == ProperEquivalenceClass(bqf_composed)
