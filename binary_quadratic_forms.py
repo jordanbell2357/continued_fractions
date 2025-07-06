@@ -549,8 +549,9 @@ class IndefiniteBQF(abc.Hashable):
 
         return min_abs
 
-    @staticmethod
-    def conductor(D: int) -> int:
+
+    @property
+    def conductor(self) -> int:
         """
         Johannes Buchmann and Ulrich Vollmer
         Binary Quadratic Forms: An Algorithmic Approach
@@ -560,6 +561,8 @@ class IndefiniteBQF(abc.Hashable):
         The conductor of a discriminant ∆ is the largest positive integer f such
         that ∆/f^2 is a discriminant. We denote it by f(∆).
         """
+
+        D = self.D
         factor_D = prime_numbers.make_prime_factor_counter(D)
         factor_f = Counter()
         for p, v in factor_D.items():
@@ -833,15 +836,10 @@ if __name__ == "__main__":
         if IndefiniteBQF.is_fundamental_discriminant(D):
             assert genus_group_order(D) == genus_group_order_by_divisors(D)
 
-    bqf = IndefiniteBQF(1, 0, -5)
-    print(bqf)
-    print(IndefiniteBQF.conductor(bqf.D))
 
-    bqf = IndefiniteBQF.principal_bqf_for_discriminant(45)
-    print(bqf)
-    print(IndefiniteBQF.conductor(bqf.D))
-    fundamental_D = bqf.to_fundamental_discriminant
-    print(fundamental_D)
+    bqf1 = IndefiniteBQF.principal_bqf_for_discriminant(45)
+    fundamental_D = bqf1.to_fundamental_discriminant
     bqf2 = IndefiniteBQF.principal_bqf_for_discriminant(fundamental_D)
-    print(IndefiniteBQF.conductor(fundamental_D))
-    print(bqf2)
+    assert bqf2.conductor == 1
+    assert bqf2.D == bqf1.D // bqf1.conductor ** 2
+
