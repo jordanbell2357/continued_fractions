@@ -392,6 +392,8 @@ class IndefiniteBQF(abc.Hashable):
 
         p. 22:
         Theorem 1.8. Fix a positive nonsquare discriminant D.
+        (a) Each form of discriminant D is properly equivalent to some reduced form
+        of discriminant D.
         (b) Each reduced form of discriminant D is a neighbor on the left of one and
         only one reduced form of discriminant D and is a neighbor on the right of one
         and only one reduced form of discriminant D.
@@ -479,6 +481,11 @@ class IndefiniteBQF(abc.Hashable):
         # Step 2. Divide the inputs by g
         a1_, a2_, r_ = a1 // g, a2 // g, r // g # pairwise coprime
 
+        d = math.gcd(a1_, a2_)
+        if d > 1:
+            a1_, a2_, r_ = a1_ // d, a2_ // d, r_ // d
+            g *= d
+
         # Step 3. Solve  a1_·s + a2_·t = r_  via Bézout
         eea = cflib.EEA(a1_, a2_)                 # a1_·x + a2_·y = 1
         s0, _ = eea.bezout_x, eea.bezout_y
@@ -487,7 +494,7 @@ class IndefiniteBQF(abc.Hashable):
         t  = (r_ - s * a1_) // a2_                # ensures equality
 
         # Step 4. Compose
-        a3 = a1_ * a2_ + s * t * g
+        a3 = g * a1_ * a2_ - s * t
         b3 = b1 + 2 * a1 * s
         # Keep b₃ within (−a₃, a₃] to ease the final reduction
         b3 = (b3 + a3) % (2 * a3) - a3
@@ -499,12 +506,13 @@ class IndefiniteBQF(abc.Hashable):
         # Step 5.  Final reduction (≤ 2 iterations)
         reduced = composed.reduced()
 
-        # Step 6.  Canonical choice: ensure a > 0
-        if reduced.a < 0:
-            reduced = reduced.reduced_right_neighbor()
+        # # Step 6.  Canonical choice: ensure a > 0
+        # if reduced.a < 0:
+        #     reduced = reduced.reduced_right_neighbor()
 
         return reduced
-    
+
+
     def inverse(self: typing.Self) -> typing.Self:
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
@@ -518,13 +526,15 @@ class IndefiniteBQF(abc.Hashable):
         """
         return type(self)(self.a, -self.b, self.c)
 
+
     def image_mod_D(self: typing.Self) -> set[int]:
         D = self.D
         domain_DxD = it.product(range(D), repeat=2)
         image_set = {self.evaluate(x, y) % D for x, y in domain_DxD}
         image_set_relatively_prime = {k for k in image_set if math.gcd(D, k) == 1}
         return image_set_relatively_prime
-    
+
+
     def min_abs_image(self: typing.Self) -> set[int]:
         """
         m(f)=inf|f(x,y)|,  x,y∈Z²,  (x,y)≠(0,0)
@@ -534,7 +544,8 @@ class IndefiniteBQF(abc.Hashable):
         abs_image_set = {abs(self.evaluate(x, y)) for x, y in domain_DxD}
         abs_image_set.remove(0)
         return min(abs_image_set)
-    
+
+
     def min_abs_image_by_reduction(self: typing.Self) -> int:
         """
         m(f) = min { |f(x,y)| : |f(x,y)| != 0, x,y in Z }
@@ -599,8 +610,7 @@ class IndefiniteBQF(abc.Hashable):
         f = math.prod(p ** e for p, e in factor_f.items())
         return f if f > 0 else 1
 
-    
-    
+
     def lift(self, f: int) -> typing.Self:
         """
         Return a *primitive* form whose discriminant is f²·D.
@@ -686,7 +696,7 @@ class IndefiniteBQF(abc.Hashable):
 
         # If both loops fail (should never happen):
         raise ArithmeticError("Descent failed: no suitable GL₂(ℤ) shear found.")
-    
+
 
 def classnumber_h(D: int) -> int:
     """
@@ -765,6 +775,22 @@ def genus_group_order(D: int) -> int:
     """
     Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
     Chapter I, Section 5, "Genera", pp. 31-34.
+
+    p. 33:
+    Theorem 1.14. For a fundamental discriminant D, the principal genus P of
+    primitive integer forms is a subgroup of the form class group H, and the cosets
+    of P are the various genera. Thus the set G of genera is exactly the set of cosets
+    H/P and inherits a group structure from class multiplication. The subgroup P
+    coincides with the subgroup of squares in H, and consequently every nontrivial
+    element of G has order 2.
+    REMARKS. The group G is called the genus group of discriminant D. The
+    hypothesis that D is fundamental is needed only for the conclusion that every
+    member of P is a square in H. Since every nontrivial element of G has order
+    2 when D is fundamental, application of the Fundamental Theorem of Finitely
+    Generated Abelian Groups or use of vector-space theory over a 2-element field
+    shows that G is the direct sum of cyclic groups of order 2; in particular, the order
+    of G is a power of 2. Problems 25–29 at the end of the chapter show that the
+    order of G is 2g, where g + 1 is the number of distinct prime factors of D.
     """
     if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
         raise ValueError(f"{D} must be a positive fundamental discriminant.")
@@ -836,26 +862,26 @@ class ProperEquivalenceClass(abc.Container):
         return other * self.inverse()
     
     @classmethod
-    def genus(cls, D: int) -> typing.Self:
-        """
-        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-        Chapter I, Section 5, "Genera", pp. 31-34.
-        p. 33:
-        Theorem 1.14. For a fundamental discriminant D, the principal genus P of
-        primitive integer forms is a subgroup of the form class group H, and the cosets
-        of P are the various genera. Thus the set G of genera is exactly the set of cosets
-        H/P and inherits a group structure from class multiplication. The subgroup P
-        coincides with the subgroup of squares in H, and consequently every nontrivial
-        element of G has order 2.
-        REMARKS. The group G is called the genus group of discriminant D. The
-        hypothesis that D is fundamental is needed only for the conclusion that every
-        member of P is a square in H. Since every nontrivial element of G has order
-        2 when D is fundamental, application of the Fundamental Theorem of Finitely
-        Generated Abelian Groups or use of vector-space theory over a 2-element field
-        shows that G is the direct sum of cyclic groups of order 2; in particular, the order
-        of G is a power of 2. Problems 25–29 at the end of the chapter show that the
-        order of G is 2g, where g + 1 is the number of distinct prime factors of D.
-        """
+    def class_group(cls, D: int) -> list[typing.Self]:
+        H = [] # class group
+        bqf0 = IndefiniteBQF.principal_bqf_for_discriminant(D)
+        f = bqf0.reduced() # first reduced form in its cycle
+        g = f
+        while True:
+            H.append(ProperEquivalenceClass(g))
+            g = g.reduced_right_neighbor() # step once around the cycle
+            if g == f:
+                break
+        return H
+    
+    @classmethod
+    def genus_group(cls, D: int) -> list[typing.Self]:
+        G = {}
+        H = cls.class_group(D)
+        for C in H:
+            key = frozenset(C.bqf.image_mod_D())
+            G.setdefault(key, []).append(C) # setdefault returns default value, mutable list
+        return G
 
 
 if __name__ == "__main__":
@@ -1005,7 +1031,7 @@ if __name__ == "__main__":
     try:
         F_bad.lift(2)
         assert False, "Expected ValueError for non-primitive lift."
-    except ValueError:      # correct behaviour
+    except ValueError: # correct behaviour
         pass
 
     bqf = IndefiniteBQF(2, 8, -5)
@@ -1019,3 +1045,16 @@ if __name__ == "__main__":
     C1 = ProperEquivalenceClass(bqf1)
     C2 = ProperEquivalenceClass(bqf2)
     assert C1 * C2 == ProperEquivalenceClass(bqf_composed)
+
+    D = 105
+    H = ProperEquivalenceClass.class_group(D)
+    G = ProperEquivalenceClass.genus_group(D)
+
+    P = ProperEquivalenceClass.identity(D) # (1,0,−D/4) or (1,1,−(D−1)/4)
+    principal_genus_key = frozenset(P.bqf.image_mod_D())
+    principal_forms     = G[principal_genus_key]
+
+    squares = {C * C for C in H} # class squaring is composition
+    print(set(principal_forms))
+    print(squares)
+    print(set(principal_forms) == squares)
