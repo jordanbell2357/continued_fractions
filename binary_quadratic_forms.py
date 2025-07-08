@@ -31,6 +31,10 @@ class IndefiniteBQF(abc.Hashable):
     Chapter I, Section 6, "Quadratic Number Fields and Their Units", pp. 35-38.
     Chapter I, Section 7, "Relationship of Quadratic Forms to Ideals", pp. 38-50.
 
+    Daniel E. Flath, Introduction to Number Theory, Wiley, 1989.
+
+    Franz Halter-Koch, Quadratic Irrationals: An Introduction to Classical Number Theory, CRC Press, 2013.
+
     Primes of the Form 𝑥²+𝑛𝑦²: Fermat, Class Field Theory, and Complex Multiplication. Third Edition with Solutions
     David A. Cox, with contributions by Roger Lipsett
     AMS Chelsea Publishing: An Imprint of the American Mathematical Society, 2022
@@ -106,10 +110,8 @@ class IndefiniteBQF(abc.Hashable):
 
     def stabilizer_GL2Z(self) -> gl2z.GL2Z:
         """
-        Duncan A. Buel
-        Binary Quadratic Forms: Classical Theory and Modern Computations 
-        Springer
-        1989
+        Duncan A. Buel, Binary Quadratic Forms: Classical Theory and Modern Computations 
+        Springer, 1989
 
         Section 3.2 Automorphs, Pell's Equation, p. 31
 
@@ -364,22 +366,6 @@ class IndefiniteBQF(abc.Hashable):
 
 
     def reduced_left_neighbor(self: typing.Self) -> typing.Self:
-        if not self.is_reduced:
-            raise ValueError(f"{self=!r} must be reduced.")
-        D = self.D
-        c = self.a
-        for b0 in range(math.isqrt(D) - 2 * abs(c) + 1, math.isqrt(D) + 1):
-            if (self.b + b0) % (2 * c) == 0:
-                b = b0
-                break
-        else:
-            # impossible for a reduced form: if this occurs there is error in implementation
-            raise ArithmeticError(f"Could not find a valid left-neighbor for {self=!r}.")
-        a = (b**2 - D) // (4 * c)
-        return type(self)(a, b, c)
-
-
-    def reduced_right_neighbor(self: typing.Self) -> typing.Self:
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
         Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
@@ -404,6 +390,23 @@ class IndefiniteBQF(abc.Hashable):
         (d) Two reduced forms of discriminant D are properly equivalent if and only
         if they lie in the same cycle in the sense of (c).
         """
+
+        if not self.is_reduced:
+            raise ValueError(f"{self=!r} must be reduced.")
+        D = self.D
+        c = self.a
+        for b0 in range(math.isqrt(D) - 2 * abs(c) + 1, math.isqrt(D) + 1):
+            if (self.b + b0) % (2 * c) == 0:
+                b = b0
+                break
+        else:
+            # impossible for a reduced form: if this occurs there is error in implementation
+            raise ArithmeticError(f"Could not find a valid left-neighbor for {self=!r}.")
+        a = (b**2 - D) // (4 * c)
+        return type(self)(a, b, c)
+
+
+    def reduced_right_neighbor(self: typing.Self) -> typing.Self:
         if not self.is_reduced:
             raise ValueError(f"{self=!r} must be reduced.")
         D = self.D
@@ -452,65 +455,6 @@ class IndefiniteBQF(abc.Hashable):
         y0 = math.prod(p for p in prime_numbers.make_prime_factor_list(m) if a % p != 0)
         l = self.evaluate(x0, y0)
         return l, x0, y0
-    
-
-    @classmethod
-    def compose(cls, bqf1: typing.Self, bqf2: typing.Self) -> typing.Self:
-        """
-        Return the reduced composition of two reduced primitive
-        indefinite forms with the same positive discriminant.
-
-        Cohen, A Course in Computational Algebraic Number Theory
-        Algorithm 5.6.8
-        
-        Keeps all coefficients ≤ √D during the whole computation.
-        """
-        if bqf1.D != bqf2.D:
-            raise ValueError("Discriminants must match.")
-        if not (bqf1.is_reduced and bqf2.is_reduced):
-            raise ValueError("Both inputs must be reduced forms.")
-
-        a1, b1, _ = bqf1
-        a2, b2, _ = bqf2
-        D = bqf1.D # common discriminant
-
-        # Step 1. g = gcd(a₁, a₂, (b₁+b₂)/2)
-        r  = (b1 + b2) // 2 # b1, b2 have same parity
-        g  = math.gcd(a1, a2, r)
-
-        # Step 2. Divide the inputs by g
-        a1_, a2_, r_ = a1 // g, a2 // g, r // g # pairwise coprime
-
-        d = math.gcd(a1_, a2_)
-        if d > 1:
-            a1_, a2_, r_ = a1_ // d, a2_ // d, r_ // d
-            g *= d
-
-        # Step 3. Solve  a1_·s + a2_·t = r_  via Bézout
-        eea = cflib.EEA(a1_, a2_)                 # a1_·x + a2_·y = 1
-        s0, _ = eea.bezout_x, eea.bezout_y
-
-        s  = (s0 * r_) % a2_                      # 0 ≤ s < a2_
-        t  = (r_ - s * a1_) // a2_                # ensures equality
-
-        # Step 4. Compose
-        a3 = g * a1_ * a2_ - s * t
-        b3 = b1 + 2 * a1 * s
-        # Keep b₃ within (−a₃, a₃] to ease the final reduction
-        b3 = (b3 + a3) % (2 * a3) - a3
-
-        c3 = (b3 * b3 - D) // (4 * a3)
-
-        composed = cls(a3, b3, c3)
-
-        # Step 5.  Final reduction (≤ 2 iterations)
-        reduced = composed.reduced()
-
-        # # Step 6.  Canonical choice: ensure a > 0
-        # if reduced.a < 0:
-        #     reduced = reduced.reduced_right_neighbor()
-
-        return reduced
 
 
     def inverse(self: typing.Self) -> typing.Self:
@@ -745,15 +689,18 @@ def classnumber_h(D: int) -> int:
         # a must be positive;  2a > lower  and  2a < upper
         a_min = lower // 2 + 1
         a_max = (upper - 1) // 2              # strict inequality
-        for a in range(a_min, a_max + 1):
-            n = b * b - D
-            den = 4 * a
-            if n % den:                       # 4a ∤ b² − D  ⇒  not a form
-                continue
-            c = n // den
-            if math.gcd(a, b, c) != 1:        # primitive only
-                continue
-            forms.append(IndefiniteBQF(a, b, c))
+        for A in range(a_min, a_max + 1):          #  1 ≤ A ≤ A_max
+            for sgn in (+1, -1):                  #  take  +A  *and*  −A
+                a = sgn * A
+                n   = b*b - D
+                den = 4 * a
+                if n % den:
+                    continue
+                c = n // den
+                if math.gcd(a, b, c) != 1:
+                    continue
+                forms.append(IndefiniteBQF(a, b, c))
+
 
     # Group reduced forms into neighbour-cycles
     visited: set[IndefiniteBQF] = set()
@@ -807,81 +754,13 @@ def genus_group_order_by_divisors(D: int) -> int:
     return 2 ** (s - 1)
 
 
-class ProperEquivalenceClass(abc.Container):
-    def __init__(self, bqf: IndefiniteBQF) -> None:
-        reduced_bqf, _ = bqf.reduced_with_exponent_list()
-        self.bqf = reduced_bqf
+def compose_bqf(bqf1: IndefiniteBQF, bqf2: IndefiniteBQF) -> IndefiniteBQF:
+    """
+    Duncan A. Buel, Binary Quadratic Forms: Classical Theory and Modern Computations 
+    Springer, 1989
+    Theorem 4.10, p. 62.
+    """
 
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.bqf})"
-
-    def __eq__(self, other: typing.Self) -> typing.Self:
-        return self.bqf == other.bqf
-    
-    def __hash__(self) -> int:
-        return hash(self.bqf)
-    
-    def __contains__(self, item: IndefiniteBQF) -> bool:
-        return IndefiniteBQF.are_equivalent(self.bqf, item)
-
-    @property
-    def D(self) -> int:
-        return self.bqf.D
-
-    @classmethod
-    def identity(cls, D: int) -> typing.Self:
-        if not D % 4 in [0, 1]:
-            raise ValueError(f"{D=} must be a discriminant.")
-        if D % 4 == 0:
-            bqf = IndefiniteBQF(1, 0, -D // 4)
-            return cls(bqf)
-        elif D % 4 == 1:
-            bqf = IndefiniteBQF(1, 1, -(D - 1) // 4)
-            return cls(bqf)
-        
-    def inverse(self) -> typing.Self:
-        bqf_inverse = self.bqf.inverse()
-        return type(self)(bqf_inverse)
-    
-    def __mul__(self, other: typing.Self) -> typing.Self:
-        bqf_composed = IndefiniteBQF.compose(self.bqf, other.bqf)
-        return type(self)(bqf_composed)
-    
-    def __rmul__(self, other: typing.Self) -> typing.Self:
-        bqf_composed = IndefiniteBQF.compose(other.bqf, self.bqf)
-        return type(self)(bqf_composed)
-
-    def __truediv__(self, other: typing.Self) -> typing.Self:
-        if self.D != other.D:
-            raise ValueError(f"{self} and {other} must be associated with the same discriminant.")
-        return self * other.inverse()
-    
-    def __rtruediv__(self, other: typing.Self) -> typing.Self:
-        if self.D != other.D:
-            raise ValueError(f"{self} and {other} must be associated with the same discriminant.")
-        return other * self.inverse()
-    
-    @classmethod
-    def class_group(cls, D: int) -> list[typing.Self]:
-        H = [] # class group
-        bqf0 = IndefiniteBQF.principal_bqf_for_discriminant(D)
-        f = bqf0.reduced() # first reduced form in its cycle
-        g = f
-        while True:
-            H.append(ProperEquivalenceClass(g))
-            g = g.reduced_right_neighbor() # step once around the cycle
-            if g == f:
-                break
-        return H
-    
-    @classmethod
-    def genus_group(cls, D: int) -> list[typing.Self]:
-        G = {}
-        H = cls.class_group(D)
-        for C in H:
-            key = frozenset(C.bqf.image_mod_D())
-            G.setdefault(key, []).append(C) # setdefault returns default value, mutable list
-        return G
 
 
 if __name__ == "__main__":
@@ -1033,28 +912,3 @@ if __name__ == "__main__":
         assert False, "Expected ValueError for non-primitive lift."
     except ValueError: # correct behaviour
         pass
-
-    bqf = IndefiniteBQF(2, 8, -5)
-    C = ProperEquivalenceClass(bqf)
-    assert bqf in C
-
-    # D = 17, reduced
-    bqf1 = IndefiniteBQF(1, 3, -2)
-    bqf2 = IndefiniteBQF(2, 1, -2)
-    bqf_composed = IndefiniteBQF.compose(bqf1, bqf2)
-    C1 = ProperEquivalenceClass(bqf1)
-    C2 = ProperEquivalenceClass(bqf2)
-    assert C1 * C2 == ProperEquivalenceClass(bqf_composed)
-
-    D = 105
-    H = ProperEquivalenceClass.class_group(D)
-    G = ProperEquivalenceClass.genus_group(D)
-
-    P = ProperEquivalenceClass.identity(D) # (1,0,−D/4) or (1,1,−(D−1)/4)
-    principal_genus_key = frozenset(P.bqf.image_mod_D())
-    principal_forms     = G[principal_genus_key]
-
-    squares = {C * C for C in H} # class squaring is composition
-    print(set(principal_forms))
-    print(squares)
-    print(set(principal_forms) == squares)

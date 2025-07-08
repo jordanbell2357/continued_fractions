@@ -13,6 +13,7 @@ import typing
 import gl2z
 import prime_numbers
 from quadratic_fields import RealQuadraticNumber, RealQuadraticField
+import binary_quadratic_forms
 
 
 class NonzeroIdeal(abc.Container):

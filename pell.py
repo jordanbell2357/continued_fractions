@@ -259,10 +259,11 @@ if __name__ == "__main__":
 
     # Example
     d = 5
-    print(f"Pell equation x² - {d}y² = 4 has the following fundamental solution:")
+    print(f"Pell equation t² - {d}u² = 4 has the following fundamental solution:")
     x, y = solve_pell_equation(d)
-    x *= 2
-    y *= 2
-    assert x ** 2 - d * y ** 2 == 4
+    t = 2 * x
+    u = 2 * y
+    print(t, u)
+    assert t ** 2 - d * u ** 2 == 4
 
 
