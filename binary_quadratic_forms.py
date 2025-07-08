@@ -67,6 +67,8 @@ class IndefiniteBQF(abc.Hashable):
     def D(self: typing.Self) -> int:
         """
         Discriminant.
+        D = b^2 - 4ac
+        D ≡ 0, 1 (mod 4) because D ≡ b^2 (mod 4) and b^2 ≡ 0, 1 (mod 4)
         """
         return self.b ** 2 - 4 * self.a * self.c
 
@@ -641,81 +643,33 @@ class IndefiniteBQF(abc.Hashable):
         # If both loops fail (should never happen):
         raise ArithmeticError("Descent failed: no suitable GL₂(ℤ) shear found.")
 
-
-def classnumber_h(D: int) -> int:
-    """
-    Number of proper equivalence classes of primitive indefinite
-    binary quadratic forms of fundamental discriminant D > 0.
-
-    The routine enumerates all reduced forms
-
-        (a, b, c)   with
-            0 < b < √D                  and
-            √D − b < 2|a| < √D + b      and
-            4ac = b² − D,   gcd(a,b,c)=1
-
-    then partitions them into cycles under the right-neighbour map,
-    each cycle corresponding to one proper class.
-
-    Parameters
-    ----------
-    D : int
-        Positive, non-square, *fundamental* discriminant.
-
-    Returns
-    -------
-    int
-        Dirichlet class number h(D) (proper classes).
-
-    Raises
-    ------
-    ValueError
-        If D is not a positive fundamental discriminant.
-
-    Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-    Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
-    Chapter I, Section 4, "Composition of Forms, Class Group", pp. 24-31.
-    """
-    if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
-        raise ValueError(f"{D} must be a positive fundamental discriminant.")
-
-    sqrtD  = math.isqrt(D)                    # ⌊√D⌋  (integer)
-    forms  : list[IndefiniteBQF] = []
-
-    # Enumerate every Knapp-reduced primitive form exactly once
-    for b in range(1, sqrtD + 1):             # 0 < b < √D  ⇒  b ≤ ⌊√D⌋
-        lower = sqrtD - b                     # left inequality bound
-        upper = sqrtD + b                     # right inequality bound
-        # a must be positive;  2a > lower  and  2a < upper
-        a_min = lower // 2 + 1
-        a_max = (upper - 1) // 2              # strict inequality
-        for A in range(a_min, a_max + 1):          #  1 ≤ A ≤ A_max
-            for sgn in (+1, -1):                  #  take  +A  *and*  −A
-                a = sgn * A
-                n   = b*b - D
-                den = 4 * a
-                if n % den:
-                    continue
-                c = n // den
-                if math.gcd(a, b, c) != 1:
-                    continue
-                forms.append(IndefiniteBQF(a, b, c))
-
-
-    # Group reduced forms into neighbour-cycles
-    visited: set[IndefiniteBQF] = set()
-    cycles = 0
-    for f in forms:
-        if f in visited:
-            continue
-        cycles += 1
-        g = f
-        while True:
-            visited.add(g)
-            g = g.reduced_right_neighbor()
-            if g == f:
-                break
-    return cycles
+    @classmethod
+    def compose_bqf(cls, bqf1: typing.Self, bqf2: typing.Self) -> typing.Self:
+        """
+        Duncan A. Buel, Binary Quadratic Forms: Classical Theory and Modern Computations 
+        Springer, 1989
+        Theorem 4.10, p. 62.
+        """
+        if bqf1.D != bqf2.D:
+            raise ValueError(f"{bqf1} and {bqf2} must have the same discriminant.")
+        D = bqf1.D
+        a1, b1, _, a2, b2, _ = *bqf1, *bqf2
+        beta = (b1 + b2) // 2
+        eea = cflib.EEA(a1, a2)
+        m = eea.gcd
+        t1, t2 = eea.bezout_x, eea.bezout_y
+        # t1 a1 + t2 a2 = m
+        eea = cflib.EEA(m, beta)
+        n = eea.gcd # n = math.gcd(a1, a2, beta)
+        u1, u2 = eea.bezout_x, eea.bezout_y
+        # u1 m + u2 beta = n
+        # u1(t1 a1 + t2 a2) + u2 beta = n
+        t, u, v = u1 * t1, u1 * t2, u2
+        A = a1 * a2 // n ** 2
+        B = (a1 * b2 * t + a2 * b1 * u + v * (b1 * b2 + D) // 2) // n
+        # D = B^2 - 4AC => C = (B^2 - D) / (4A)
+        C = (B ** 2 - D) // (4 * A)
+        return cls(A, B, C)
 
 
 def genus_group_order(D: int) -> int:
@@ -754,12 +708,9 @@ def genus_group_order_by_divisors(D: int) -> int:
     return 2 ** (s - 1)
 
 
-def compose_bqf(bqf1: IndefiniteBQF, bqf2: IndefiniteBQF) -> IndefiniteBQF:
-    """
-    Duncan A. Buel, Binary Quadratic Forms: Classical Theory and Modern Computations 
-    Springer, 1989
-    Theorem 4.10, p. 62.
-    """
+
+    
+
 
 
 
@@ -912,3 +863,8 @@ if __name__ == "__main__":
         assert False, "Expected ValueError for non-primitive lift."
     except ValueError: # correct behaviour
         pass
+
+    bqf1 = IndefiniteBQF(1, 3, -2)
+    bqf2 = IndefiniteBQF(2, 1, -2)
+    bqf = IndefiniteBQF.compose_bqf(bqf2, bqf2)
+    print(bqf)
