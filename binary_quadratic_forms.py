@@ -155,8 +155,11 @@ class IndefiniteBQF(abc.Hashable):
         "Let us call a primitive form (a, b, c) of discriminant D > 0 reduced when it satisfies the conditions
         0 < b < √D and √D − b < 2|a| < √D + b."
         """
-        sqrtD = math.sqrt(self.D)
-        return abs(sqrtD - 2 * abs(self.a)) < self.b < sqrtD
+        a, b, c = self
+        D = self.D
+        sqrtD = math.sqrt(D)
+        # return abs(sqrtD - 2 * abs(self.a)) < self.b < sqrtD
+        return 0 < b < sqrtD and sqrtD - b < 2 * abs(a) < sqrtD + b
 
     
     def reduce_with_exponent(self: typing.Self) -> tuple[typing.Self, int]:
@@ -213,9 +216,17 @@ class IndefiniteBQF(abc.Hashable):
         """
         Proper (SL2Z) equivalence.
         """
-        bqf1_reduced = bqf1.reduced()
-        bqf2_reduced = bqf2.reduced()
-        return bqf1_reduced == bqf2_reduced
+        r1 = bqf1.reduced()
+        r2 = bqf2.reduced()
+        if r1 == r2:
+            return True                    # same representative
+
+        rn = r1.reduced_right_neighbor()  # step once round the cycle
+        while rn != r1:                   # finite because cycles are finite
+            if rn == r2:
+                return True
+            rn = rn.reduced_right_neighbor()
+        return False                       # walked full cycle – different class
 
 
     def equivalent_bqf_with_word(self: typing.Self) -> tuple[typing.Self, str]:
@@ -732,6 +743,57 @@ class IndefiniteBQF(abc.Hashable):
         else: # n < 0
             bqf_inverse = self.inverse()
             return ft.reduce(operator.mul, (-n) * [bqf_inverse])
+        
+
+def class_group(D: int) -> list[IndefiniteBQF]:
+    """
+    For a positive *fundamental* discriminant *D* return **one reduced
+    representative per proper equivalence class** of primitive indefinite
+    binary quadratic forms of discriminant *D*.
+
+    Theory
+    ------
+    A primitive form (a,b,c) with D = b²-4ac > 0 is when  
+        0 < b < √D  and  |√D − 2a| <  b.
+
+    Every class contains exactly one reduced form, so listing all reduced
+    forms – modulo equality – gives the whole class group.
+
+    Algorithm
+    ---------
+    1.  Loop through  1 ≤ b < √D  with the parity constraint  b² ≡ D (mod 4).
+    2.  For each such b, loop through 1 ≤ a < √D, keep those that satisfy  
+           √D − b < 2a < √D + b   and   c = (b² − D)/(4a) ∈ ℤ.
+    3.  Require gcd(a,b,c)=1 (primitivity) and a>0 (always true for reduced
+        forms).  Append IndefiniteBQF(a,b,c).reduced() to set.
+    """
+
+    if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
+        raise ValueError(f"{D=} must be a positive fundamental discriminant.")
+
+    sqrtD = math.sqrt(D)
+    isqrtD = math.isqrt(D)
+    bqf_list: list[IndefiniteBQF] = []
+
+    for b in range(1, isqrtD + 1):
+        if (b ** 2 - D) % 4: # b² ≡ D (mod 4)
+            continue
+        for a in range(1, isqrtD + 1):
+            if not (sqrtD - b < 2 * a < sqrtD + b): # 2a < √D + b < 2√D
+                continue
+            numerator = b * b - D # negative
+            denominator = 4 * a # positive
+            if numerator % denominator != 0:
+                continue
+            c = numerator // denominator # c < 0
+            if math.gcd(a, b, c) != 1: # continue if not primitive
+                continue
+            bqf = IndefiniteBQF(a, b, c).reduced()   # canonical triple
+            if not any(IndefiniteBQF.are_equivalent(bqf, bqfi) for bqfi in bqf_list):
+                bqf_list.append(bqf)
+
+    bqf_list = sorted(bqf_list, key=lambda bqf: (bqf.a, bqf.b, bqf.c)) # lexicographic order
+    return bqf_list
 
 
 def genus_group_order(D: int) -> int:
@@ -769,6 +831,58 @@ def genus_group_order_by_divisors(D: int) -> int:
     if D % 4 == 1 or D % 8 in [0, 4]:
         s += 1
     return 2 ** (s - 1)
+
+
+def genus_group(D: int) -> list[list[IndefiniteBQF]]:
+    """
+    For a positive *fundamental* discriminant *D* return the list of genera,
+    each genus being given as a list of reduced representatives of the
+    SL₂(ℤ)-classes it contains.
+
+    Theory
+    ------
+    *  The form class group **H** is the set of proper-equivalence classes of
+       primitive forms of discriminant *D*.
+    *  Every form f has an “image set”
+          f.image_mod_D() ⊆ (ℤ/Dℤ)*
+       and two classes lie in the **same genus** ⇔ their image sets coincide
+       (Knapp I§5).  Thus a genus is determined by that residue set.
+    *  The number of distinct genera is
+          |G| = genus_group_order(D)
+
+    Algorithm
+    ---------
+    1.  Get one reduced representative for every class with class_group.
+    2.  Bucket those representatives by the key  
+           key(f) := frozenset(f.image_mod_D()).
+        Each bucket is a genus.
+    3.  Sort the lists.
+
+    Returns
+    -------
+    A list whose length is `genus_group_order(D)`;  each entry is a
+    list of `IndefiniteBQF` instances belonging to one genus,
+    with the first list always the *principal* genus (it contains the
+    principal form (1,1,(1−D)/4) or (1,0,−D/4)).
+
+    """
+    if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
+        raise ValueError(f"{D=} must be a positive fundamental discriminant.")
+
+    # 1.  All classes
+    classes = class_group(D)
+
+    # 2.  Bucket by genus key
+    genus_buckets: dict[frozenset[int], list[IndefiniteBQF]] = {}
+    for f in classes:
+        key = frozenset(f.image_mod_D())
+        genus_buckets.setdefault(key, []).append(f)
+
+    # 3.  Normalise / pretty-print
+    genus_list = [sorted(bucket, key=lambda g: (g.a, g.b, g.c))
+                  for bucket in genus_buckets.values()]
+    genus_list.sort(key=lambda bucket: (bucket[0].a, bucket[0].b, bucket[0].c))
+    return genus_list
 
 
 if __name__ == "__main__":
@@ -935,12 +1049,11 @@ if __name__ == "__main__":
 
     assert IndefiniteBQF.primitively_represent_odd_prime(5, 3) is None
 
-    bqf_list = IndefiniteBQF.primitively_represent_odd_prime(13, 3)
-    print(bqf_list)
-
     bqf_list = IndefiniteBQF.primitively_represent_odd_prime(205, 3)
-    print(bqf_list)
     assert len(bqf_list) == 2                 # both inequivalent orbits returned
     assert not IndefiniteBQF.are_equivalent(*bqf_list)
     for g in bqf_list:                        # sanity: coefficient a=p and disc=D
         assert g.a == 3 and g.D == 205
+
+    D = 17
+    print(class_group(D))
