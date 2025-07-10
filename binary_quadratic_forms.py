@@ -837,7 +837,7 @@ def genus_group(D: int) -> list[list[IndefiniteBQF]]:
     """
     For a positive *fundamental* discriminant *D* return the list of genera,
     each genus being given as a list of reduced representatives of the
-    SL₂(ℤ)-classes it contains.
+    SL₂(𝐙)-classes it contains.
 
     Theory
     ------
@@ -878,7 +878,7 @@ def genus_group(D: int) -> list[list[IndefiniteBQF]]:
         key = frozenset(f.image_mod_D())
         genus_buckets.setdefault(key, []).append(f)
 
-    # 3.  Normalise / pretty-print
+    # 3.  Normalise
     genus_list = [sorted(bucket, key=lambda g: (g.a, g.b, g.c))
                   for bucket in genus_buckets.values()]
     genus_list.sort(key=lambda bucket: (bucket[0].a, bucket[0].b, bucket[0].c))
@@ -886,7 +886,7 @@ def genus_group(D: int) -> list[list[IndefiniteBQF]]:
 
 
 if __name__ == "__main__":
-    bqf = IndefiniteBQF(2, 0, -5) # primitive indefinite BQF
+    bqf = IndefiniteBQF(2, 0, -5) # primitive indefinite BQF over 𝐙
     assert (
         (bqf.is_reduced
             and (0 < float(bqf.real_quadratic_number_associate) < 1
