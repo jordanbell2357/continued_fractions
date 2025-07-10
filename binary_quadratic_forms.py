@@ -821,16 +821,14 @@ def genus_group_order(D: int) -> int:
     if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
         raise ValueError(f"{D} must be a positive fundamental discriminant.")
     bqf = IndefiniteBQF.principal_bqf_for_discriminant(D)
-    return prime_numbers.euler_totient(D) // len(bqf.image_mod_D())
+    return prime_numbers.euler_totient(D) // len(bqf.image_mod_D()) // 2
 
 
 def genus_group_order_by_divisors(D: int) -> int:
     if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
         raise ValueError(f"{D} must be a positive fundamental discriminant.")
-    s = prime_numbers.prime_little_omega(D)
-    if D % 4 == 1 or D % 8 in [0, 4]:
-        s += 1
-    return 2 ** (s - 1)
+    omega = prime_numbers.prime_little_omega(D)
+    return 2 ** (omega - 1)
 
 
 def genus_group(D: int) -> list[list[IndefiniteBQF]]:
@@ -1055,5 +1053,5 @@ if __name__ == "__main__":
     for g in bqf_list:                        # sanity: coefficient a=p and disc=D
         assert g.a == 3 and g.D == 205
 
-    D = 17
-    print(class_group(D))
+    D = 37
+    assert len(genus_group(D)) == genus_group_order_by_divisors(D)
