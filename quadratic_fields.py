@@ -443,11 +443,9 @@ class RealQuadraticCompositum:
     """
 
 # ─── init ────────────────────────────────────────────────────────────
-    def __init__(
-        self,
-        rational_part: Rational = 0,
-        surd_terms: dict[frozenset[int] | int, PureQuadraticSurd] | None = None,
-    ) -> None:
+    def __init__(self,
+                 rational_part: Rational = 0,
+                 surd_terms: dict[frozenset[int] | int, PureQuadraticSurd] | None = None) -> None:
 
         self.rational_part: Fraction = Fraction(rational_part)
         self.surd_terms: dict[frozenset[int], PureQuadraticSurd] = {}
@@ -993,7 +991,6 @@ if __name__ == "__main__":
     x1 = RealQuadraticCompositum(1, {frozenset([2]): PureQuadraticSurd(2, 5)})
     x2 = RealQuadraticCompositum(1, {frozenset([3]): PureQuadraticSurd(3, 5)})
     x1 * x2
-    print((x2 * x2.inverse()).surd_terms)
     assert (x2 * x2.inverse()).surd_terms == {}       # product is rational
     assert (x1 / x2) * x2 == x1                       # division round-trip
 

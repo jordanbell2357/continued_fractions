@@ -128,8 +128,12 @@ class FordCircle(abc.Container):
     
     @classmethod
     def try_find_point_of_tangency(cls, circle1: typing.Self, circle2: typing.Self) -> tuple[Fraction, Fraction]:
-        """
-        """
+        if not cls.are_tangent(circle1, circle2):
+            return None
+        p1, p2 = intersect_circles(circle1, circle2)
+        assert p1 == p2
+        return p1
+
         
     
     def lft_GL2Z(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self:
@@ -179,3 +183,7 @@ if __name__ == "__main__":
     offset = 9
     fraction1, fraction0, fraction2 = farey.farey_list(n)[offset: offset + 3]
     print(FordCircle(fraction1), FordCircle(fraction0), FordCircle(fraction2))
+
+    circle1 = FordCircle(Fraction(1, 2))
+    circle2 = FordCircle(Fraction(2, 3))
+    print(FordCircle.try_find_point_of_tangency(circle1, circle2))

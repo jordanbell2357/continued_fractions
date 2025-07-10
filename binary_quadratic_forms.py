@@ -3,6 +3,8 @@ from fractions import Fraction
 from numbers import Rational
 from collections import Counter
 from collections import abc
+import functools as ft
+import operator
 import itertools as it
 import typing
 
@@ -211,8 +213,8 @@ class IndefiniteBQF(abc.Hashable):
         """
         Proper (SL2Z) equivalence.
         """
-        bqf1_reduced, _ = bqf1.reduced_with_exponent_list()
-        bqf2_reduced, _ = bqf2.reduced_with_exponent_list()
+        bqf1_reduced = bqf1.reduced()
+        bqf2_reduced = bqf2.reduced()
         return bqf1_reduced == bqf2_reduced
 
 
@@ -353,8 +355,8 @@ class IndefiniteBQF(abc.Hashable):
         then b² ≡ D mod 4p for some integer b, and representatives of these classes may
         be taken to be (p, ±b, (b² - D) / 4p).
         """
-        if not cls.is_fundamental_discriminant(D):
-            raise ValueError(f"{D=} must be a fundamental discriminant.")
+        if D % 4 not in [0, 1]:
+            raise ValueError(f"{D=} must be a discriminant.")
         if p == 2 or not prime_numbers.isprime(p):
             raise ValueError(f"{p=} must be an odd prime.")
         if prime_numbers.kronecker_symbol(D, 4 * p) != 1:
@@ -424,20 +426,20 @@ class IndefiniteBQF(abc.Hashable):
         c = (b ** 2 - D) // (4 * a)
         return type(self)(a, b, c)
 
-
+    
     @classmethod
-    def count_reduced_bqf_fundamental_discriminant(cls, D: int) -> int:
+    def list_reduced_bqf_fundamental_discriminant(cls, D: int) -> int:
         if not cls.is_fundamental_discriminant(D):
             raise ValueError(f"{D=} must be a fundamental discriminant.")
-        reduced_bqf_count = 0
+        reduced_bqf_list = []
         bqf = cls.principal_bqf_for_discriminant(D)
-        reduced_bqf, _ = bqf.reduced_with_exponent_list()
-        reduced_bqf_count += 1
+        reduced_bqf= bqf.reduced()
+        reduced_bqf_list.append(reduced_bqf)
         right_neighbor = reduced_bqf.reduced_right_neighbor()
         while right_neighbor != reduced_bqf:
+            reduced_bqf_list.append(right_neighbor)
             right_neighbor = right_neighbor.reduced_right_neighbor()
-            reduced_bqf_count += 1
-        return reduced_bqf_count
+        return reduced_bqf_list
 
 
     def primitively_represent(self, m: int) -> tuple[int, int, int]:
@@ -483,7 +485,7 @@ class IndefiniteBQF(abc.Hashable):
 
     def min_abs_image(self: typing.Self) -> set[int]:
         """
-        m(f)=inf|f(x,y)|,  x,y∈Z²,  (x,y)≠(0,0)
+        m(f)=inf|f(x,y)|,  x,y∈𝐙²,  (x,y)≠(0,0)
         """
         D = self.D
         domain_DxD = it.product(range(-math.isqrt(D) - 1, math.isqrt(D) + 1), repeat=2)
@@ -559,19 +561,18 @@ class IndefiniteBQF(abc.Hashable):
 
     def lift(self, f: int) -> typing.Self:
         """
-        Return a *primitive* form whose discriminant is f²·D.
+        Return a primitive form whose discriminant is f²·D.
 
         Strategy
         --------
-        Two standard lifts are possible:
+        Two lifts are possible:
 
         *  y ↦ f·y  →  (a,  f·b,  f²·c)
         *  x ↦ f·x  →  (f²·a,  f·b,   c)
 
         Exactly one of them is guaranteed to stay primitive
         (because a primitive triple (a,b,c) cannot have *both*
-        a and c divisible by f² when f>1).  We try the first
-        orientation; if `gcd`>1 we switch to the second.
+        a and c divisible by f² when f > 1).
 
         Parameters
         ----------
@@ -585,7 +586,7 @@ class IndefiniteBQF(abc.Hashable):
         if not isinstance(f, int) or f <= 0:
             raise ValueError(f"{f=} must be a positive integer.")
 
-        if f == 1:                    # nothing to do
+        if f == 1:
             return self
 
         a, b, c = self.a, self.b, self.c
@@ -600,48 +601,46 @@ class IndefiniteBQF(abc.Hashable):
         if math.gcd(a2, b2, c2) == 1:
             return type(self)(a2, b2, c2)
 
-        raise ValueError(f"lift by {f=} does not preserve primitivity.")
+        # occurs when lifted form is not primitive
+        raise ValueError(f"Lift by conductor {f=} does not preserve primitivity.")
 
 
     def descend(self) -> typing.Self:
         """
-        Use elementary GL₂(ℤ) shears to drop the conductor f of the
-        discriminant  Δ = f²·Δ₀  to obtain a primitive form of the
+        Use SL₂(𝐙) shear to drop the conductor f of the
+        discriminant Δ = f²·Δ₀ to obtain a primitive form of the
         fundamental discriminant Δ₀.
 
-        The procedure tries, for n = 0,…,f−1:
+        The procedure tries, for n = 0,...,f−1:
 
-        1.  Right shear  Tⁿ = (1 n; 0 1):
-                succeeds if  c' ≡ 0 (mod f²).
-            We then return (a , b'/f , c'/f²).
+        1.  Right shear Tⁿ = (1 n 0 1):
+            succeeds if c' ≡ 0 (mod f²).
+            Return (a , b'/f , c'/f²).
 
-        2.  Left  shear  Uⁿ = (1 0; n 1):
-                succeeds if  a' ≡ 0 (mod f²).
-            We then return (a'/f² , b'/f , c ).
-
-        Either branch is guaranteed to work by elementary genus theory.
+        2.  Left shear Uⁿ = (1 0 n 1): (orientation 2)
+            succeeds if a' ≡ 0 (mod f²).
+            Return (a'/f² , b'/f , c).
         """
         f = self.conductor
-        if f == 1:                         # already fundamental
+        if f == 1:
             return self
-        f2 = f * f
 
-        # -------- orientation 1 : look for  c' divisible by f² -------------
+        # Right shear
         for n in range(f):
-            g  = gl2z.GL2Z.N(n)            # (1 n; 0 1)
-            F1 = self.GL2Z_action(g)       # coefficients (a , b', c')
-            if F1.b % f == 0 and F1.c % f2 == 0:
-                return type(self)(F1.a, F1.b // f, F1.c // f2)
+            g = gl2z.GL2Z.N(n)            # (1 n; 0 1)
+            bqf = self.GL2Z_action(g)       # coefficients (a , b', c')
+            if bqf.b % f == 0 and bqf.c % f ** 2 == 0:
+                return type(self)(bqf.a, bqf.b // f, bqf.c // f ** 2)
 
-        # -------- orientation 2 : look for  a' divisible by f² -------------
+        # Left shear
         for n in range(f):
-            g  = gl2z.GL2Z(1, 0, n, 1)     # (1 0; n 1)
-            F2 = self.GL2Z_action(g)       # coefficients (a', b', c )
-            if F2.b % f == 0 and F2.a % f2 == 0:
-                return type(self)(F2.a // f2, F2.b // f, F2.c)
+            g = gl2z.GL2Z(1, 0, n, 1)     # (1 0; n 1)
+            bqf = self.GL2Z_action(g)       # coefficients (a', b', c )
+            if bqf.b % f == 0 and bqf.a % f ** 2 == 0:
+                return type(self)(bqf.a // f ** 2, bqf.b // f, bqf.c)
 
-        # If both loops fail (should never happen):
-        raise ArithmeticError("Descent failed: no suitable GL₂(ℤ) shear found.")
+        # If both loops fail (should not happen if implemented correctly, by theory)
+        raise ArithmeticError("Descent failed: no suitable SL₂(𝐙) shear found.")
 
     @classmethod
     def compose_bqf(cls, bqf1: typing.Self, bqf2: typing.Self) -> typing.Self:
@@ -652,6 +651,8 @@ class IndefiniteBQF(abc.Hashable):
         """
         if bqf1.D != bqf2.D:
             raise ValueError(f"{bqf1} and {bqf2} must have the same discriminant.")
+        bqf1 = bqf1.reduced()
+        bqf2 = bqf2.reduced()
         D = bqf1.D
         a1, b1, _, a2, b2, _ = *bqf1, *bqf2
         beta = (b1 + b2) // 2
@@ -669,7 +670,68 @@ class IndefiniteBQF(abc.Hashable):
         B = (a1 * b2 * t + a2 * b1 * u + v * (b1 * b2 + D) // 2) // n
         # D = B^2 - 4AC => C = (B^2 - D) / (4A)
         C = (B ** 2 - D) // (4 * A)
-        return cls(A, B, C)
+        return cls(A, B, C).reduced()
+
+
+    @classmethod
+    def compose(cls, bqf1: typing.Self, bqf2: typing.Self) -> typing.Self:
+        """
+        Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
+        Definition 5.4.6, p. 246.
+        """
+        if bqf1.D != bqf2.D:
+            raise ValueError(f"{bqf1} and {bqf2} must have the same discriminant.")
+        bqf1 = bqf1.reduced()
+        bqf2 = bqf2.reduced()
+        D = bqf1.D
+        a1, b1, c1, a2, b2, c2 = *bqf1, *bqf2
+        s = (b1 + b2) // 2
+        n = (b1 - b2) // 2
+        eea = cflib.EEA(a1, a2)
+        u1, v1 = eea.bezout_x, eea.bezout_y
+        d1 = eea.gcd
+        eea = cflib.EEA(d1, s)
+        u2, v2 = eea.bezout_x, eea.bezout_y
+        d = eea.gcd
+        # u1 a1 + v1 a2 = d1
+        # u2 d1 + v2 s = d
+        # u2(u1 * a1 + v1 * a2) + v2 * s = d
+        # u1u2 a1 + v1u2 a2 + v2 s = d
+        u, v, w = u1 * u2, v1 * u2, v2
+        d0 = math.gcd(d, c1, c2, n)
+        a3 = d0 * a1 * a2 // d ** 2
+        b3 = b2 + 2 * a2 // d * (v * (s - b2) - w * c2)
+        c3 = (b3 ** 2 - D) // (4 * a3)
+        return cls(a3, b3, c3).reduced()
+    
+    
+    def __mul__(self, other: typing.Self) -> typing.Self:
+        return type(self).compose(self, other)
+
+    def __rmul__(self, other: typing.Self) -> typing.Self:
+        return type(self).compose(other, self)
+    
+    def __truediv__(self, other: typing.Self) -> typing.Self:
+        bqf1 = self
+        bqf2 = other.inverse()
+        return bqf1 * bqf2
+
+    def __rtruediv__(self, other: typing.Self) -> typing.Self:
+        bqf1 = other
+        bqf2 = self.inverse()
+        return bqf1 * bqf2
+    
+    def __pow__(self, n: int) -> typing.Self:
+        if not isinstance(n, int):
+            raise TypeError(f"Exponent {n=} must be integer.")
+        if n == 0:
+            return type(self).principal_bqf_for_discriminant(self.D)
+        elif n > 0:
+            bqf = self
+            return ft.reduce(operator.mul, n * [bqf])
+        else: # n < 0
+            bqf_inverse = self.inverse()
+            return ft.reduce(operator.mul, (-n) * [bqf_inverse])
 
 
 def genus_group_order(D: int) -> int:
@@ -693,6 +755,7 @@ def genus_group_order(D: int) -> int:
     of G is a power of 2. Problems 25–29 at the end of the chapter show that the
     order of G is 2g, where g + 1 is the number of distinct prime factors of D.
     """
+
     if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
         raise ValueError(f"{D} must be a positive fundamental discriminant.")
     bqf = IndefiniteBQF.principal_bqf_for_discriminant(D)
@@ -708,16 +771,25 @@ def genus_group_order_by_divisors(D: int) -> int:
     return 2 ** (s - 1)
 
 
-
-    
-
-
-
-
 if __name__ == "__main__":
     bqf = IndefiniteBQF(2, 0, -5) # primitive indefinite BQF
-    assert bqf.is_reduced and (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1) or \
-        not bqf.is_reduced and not (0 < float(bqf.real_quadratic_number_associate) < 1 and -float(bqf.real_quadratic_number_associate.conjugate()) > 1)
+    assert (
+        (bqf.is_reduced
+            and (0 < float(bqf.real_quadratic_number_associate) < 1
+            and -float(bqf.real_quadratic_number_associate.conjugate()) > 1))
+            or
+        (not bqf.is_reduced
+         and not (0 < float(bqf.real_quadratic_number_associate) < 1
+         and -float(bqf.real_quadratic_number_associate.conjugate())) > 1)
+         )
+    
+    bqf = IndefiniteBQF(3, 11, 2)
+    equivalent_bqf, word = bqf.equivalent_bqf_with_word()
+    assert abs(equivalent_bqf.b) <= abs(equivalent_bqf.a) <= abs(equivalent_bqf.c)
+    assert 3 * abs(equivalent_bqf.a * equivalent_bqf.c) <= abs(equivalent_bqf.D)
+    assert abs(equivalent_bqf.a) <= abs(equivalent_bqf.D) and \
+        abs(equivalent_bqf.b) <= abs(equivalent_bqf.D) and \
+        abs(equivalent_bqf.c) <= abs(equivalent_bqf.D)
 
     d = 5  # positive integer that is not a perfect square
     bqf = IndefiniteBQF(1, 0, -d)
@@ -746,40 +818,32 @@ if __name__ == "__main__":
     assert bqf_transformed.a == bqf.a and bqf_transformed.b == 2 * bqf.a * n + bqf.b
 
     bqf = IndefiniteBQF(3, 11, 2)
-    equivalent_bqf, word = bqf.equivalent_bqf_with_word()
-    assert abs(equivalent_bqf.b) <= abs(equivalent_bqf.a) <= abs(equivalent_bqf.c)
-    assert 3 * abs(equivalent_bqf.a * equivalent_bqf.c) <= abs(equivalent_bqf.D)
-    assert abs(equivalent_bqf.a) <= abs(equivalent_bqf.D) and \
-        abs(equivalent_bqf.b) <= abs(equivalent_bqf.D) and \
-        abs(equivalent_bqf.c) <= abs(equivalent_bqf.D)
-    
-    bqf = IndefiniteBQF(3, 11, 2)
-    reduced_bqf, _ = bqf.reduced_with_exponent_list()
+    reduced_bqf = bqf.reduced()
     right_neighbor = reduced_bqf.reduced_right_neighbor()
     m = gl2z.GL2Z(0, -1, 1, (reduced_bqf.b + right_neighbor.b) // (2 * reduced_bqf.c))
     reduced_bqf_transformed = reduced_bqf.GL2Z_action(m)
     assert reduced_bqf_transformed == right_neighbor
 
     D = 97
-    assert IndefiniteBQF.count_reduced_bqf_fundamental_discriminant(D) % 2 == 0
+    assert len(IndefiniteBQF.list_reduced_bqf_fundamental_discriminant(D)) % 2 == 0
 
     bqf = IndefiniteBQF(2, 8, -5)
-    bqf_reduced, _ = bqf.reduced_with_exponent_list()
+    bqf_reduced = bqf.reduced()
     assert bqf_reduced.is_reduced
 
     bqf = IndefiniteBQF(1, 0, -26)
-    bqf_reduced, _ = bqf.reduced_with_exponent_list()
+    bqf_reduced = bqf.reduced()
     assert IndefiniteBQF.are_equivalent(bqf, bqf_reduced)
 
     m = 87
     bqf = IndefiniteBQF(2,8,-5)
-    bqf_reduced, _ = bqf.reduced_with_exponent_list()
+    bqf_reduced = bqf.reduced()
     _, x0, y0 = bqf_reduced.primitively_represent(m)
     assert math.gcd(x0, y0) == 1
 
     m = 87
     bqf = IndefiniteBQF(2, 8, -5)
-    bqf_reduced, _ = bqf.reduced_with_exponent_list()
+    bqf_reduced = bqf.reduced()
     _, x0, y0 = bqf_reduced.primitively_represent(m)
     bqf_equivalent = bqf_reduced.equivalent_bqf_to_evaluate(x0, y0)
     assert bqf_equivalent.evaluate(1, 0) == bqf_equivalent.a
@@ -829,42 +893,54 @@ if __name__ == "__main__":
     assert bqf2.D == bqf1.D // bqf1.conductor ** 2
 
     # 1.  Round-trip sanity:  descend ∘ lift ≡ identity  (checks both directions)
-    F0 = IndefiniteBQF.principal_bqf_for_discriminant(5)       # fundamental Δ0=5
-    F1 = F0.lift(3)                                            # Δ = 3²·5 = 45
-    assert IndefiniteBQF.are_equivalent(F1.descend(), F0)      # proper-equivalence test
+    D = 5
+    f = 3 # conductor
+    bqf = IndefiniteBQF.principal_bqf_for_discriminant(D)       # fundamental Δ0=5
+    bqf_lift = bqf.lift(f)                                            # Δ = 3²·5 = 45
+    assert IndefiniteBQF.are_equivalent(bqf_lift.descend(), bqf)      # proper-equivalence test
 
     # 2.  Discriminant-vs-conductor consistency after a lift
-    assert F1.D == 9 * F0.D                                    # Δ scales by f²
-    assert F1.conductor == 3                                   # f(Δ)=3 after the lift
-    assert math.gcd(F1.a, F1.b, F1.c) == 1                     # primitivity preserved
+    assert bqf_lift.D == f ** 2 * bqf.D                                    # Δ scales by f²
+    assert bqf_lift.conductor == f                                   # f(Δ)=3 after the lift
+    assert math.gcd(bqf_lift.a, bqf_lift.b, bqf_lift.c) == 1                     # primitivity preserved
 
-    # 3.  Fundamentalization:  a non-fundamental form descends to conductor 1
-    G  = IndefiniteBQF.principal_bqf_for_discriminant(20)      # Δ=20, conductor f=2
-    H  = G.descend()                                           # should drop to Δ0=5
-    assert G.conductor == 2 and H.conductor == 1               # before / after check
-    assert H.D == G.D // (G.conductor ** 2)                    # Δ0 = Δ/f²
-
+    # 3.  To fundamental discriminant: a non-fundamental form descends to conductor 1
+    bqf  = IndefiniteBQF.principal_bqf_for_discriminant(20)      # Δ=20, conductor f=2
+    bqf_descend  = bqf.descend()                                           # should drop to Δ0=5
+    assert bqf.conductor == 2 and bqf_descend.conductor == 1               # before / after check
+    assert bqf_descend.D == bqf.D // (bqf.conductor ** 2)                    # Δ0 = Δ/f²
 
     # 4.  Even discriminant with f = 2  (checks descent after a 4-factor)
-    G2 = IndefiniteBQF.principal_bqf_for_discriminant(32)      # (1,0,−8)  Δ = 32
-    assert IndefiniteBQF.are_equivalent(G2.descend(),
-                                        IndefiniteBQF.principal_bqf_for_discriminant(8))   # Δ₀ = 8
+    D = 32
+    bqf = IndefiniteBQF.principal_bqf_for_discriminant(D)      # (1,0,−8)  Δ = 32
+    assert IndefiniteBQF.are_equivalent(bqf.descend(),
+                                        IndefiniteBQF.principal_bqf_for_discriminant(D // bqf.conductor ** 2))   # Δ₀ = 8
 
     # 5.  Round-trip with a composite conductor 6 = 2·3
-    F0  = IndefiniteBQF.principal_bqf_for_discriminant(13)     # fundamental  Δ₀ = 13
-    L   = F0.lift(6)                                           # Δ = 6²·13 = 468 (orientation chosen automatically)
-    assert L.conductor == 6 and L.D == 36 * F0.D
-    assert IndefiniteBQF.are_equivalent(L.descend(), F0)       # back to fundamental form
+    D = 13
+    f = 6
+    bqf = IndefiniteBQF.principal_bqf_for_discriminant(D)     # fundamental  Δ₀ = 13
+    bqf_lift = bqf.lift(f)                                           # Δ = 6²·13 = 468 (orientation chosen automatically)
+    assert bqf_lift.conductor == f and bqf_lift.D == f ** 2 * bqf.D
+    assert IndefiniteBQF.are_equivalent(bqf_lift.descend(), bqf)       # back to fundamental form
 
     # 6.  A lift that *must* fail (a and c already share the prime factor 2)
-    F_bad = IndefiniteBQF(2, 1, -2)    # primitive, Δ = 17 (fundamental)
+    bqf = IndefiniteBQF(2, 1, -2)    # primitive, reduced, Δ = 17 (fundamental)
+    f_invalid = 2
     try:
-        F_bad.lift(2)
-        assert False, "Expected ValueError for non-primitive lift."
+        bqf.lift(f_invalid)
+        assert False, "Must raise ValueError for invalid conductor (non-primitive lift)."
     except ValueError: # correct behaviour
         pass
 
-    bqf1 = IndefiniteBQF(1, 3, -2)
-    bqf2 = IndefiniteBQF(2, 1, -2)
-    bqf = IndefiniteBQF.compose_bqf(bqf2, bqf2)
-    print(bqf)
+    assert IndefiniteBQF.primitively_represent_odd_prime(5, 3) is None
+
+    bqf_list = IndefiniteBQF.primitively_represent_odd_prime(13, 3)
+    print(bqf_list)
+
+    bqf_list = IndefiniteBQF.primitively_represent_odd_prime(205, 3)
+    print(bqf_list)
+    assert len(bqf_list) == 2                 # both inequivalent orbits returned
+    assert not IndefiniteBQF.are_equivalent(*bqf_list)
+    for g in bqf_list:                        # sanity: coefficient a=p and disc=D
+        assert g.a == 3 and g.D == 205
