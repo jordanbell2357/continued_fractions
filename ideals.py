@@ -16,6 +16,7 @@ from quadratic_fields import RealQuadraticNumber, RealQuadraticField
 import binary_quadratic_forms
 
 
+
 class NonzeroIdeal(abc.Container):
     """
     Nonzero ideal in the ring of integers 𝓞_K of K=𝐐(√d).
@@ -44,7 +45,7 @@ class NonzeroIdeal(abc.Container):
     integer a > 0 and some r in R.
     """
 
-    __slots__ = ["d", "a", "r"]
+    __slots__ = ["r1", "r2"]
 
 
     @staticmethod
@@ -56,16 +57,27 @@ class NonzeroIdeal(abc.Container):
         return r1 * r2.conjugate() - r1.conjugate() * r2
 
     
-    def __init__(self, d: int, r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> None:
-        """
-        """
-        self.d = d
-        self.a = r1
-        self.r = r2
+    def __init__(self, r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> None:
+        if type(self).orientation(r1, r2) > 0:
+            self.r1, self.r2 = r1, r2
+        elif type(self).orientation(r1, r2) < 0:
+            self.r1, self.r2 = r2, r1
+        else:
+            raise ValueError(f"{r1} and {r2} must have nonzero orientation.")
+        
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.r1}, {self.r2})"
+    
+    def __hash__(self) -> int:
+        return hash((self.r1, self.r2))
+        
+    @property
+    def d(self) -> int:
+        return self.r1.d
 
     @property
     def oriented_volume(self) -> RealQuadraticNumber:
-        return type(self).orientation(self.a, self.r)
+        return type(self).orientation(self.r1, self.r2)
     
     @property
     def volume(self) -> RealQuadraticNumber:
@@ -121,25 +133,83 @@ class NonzeroIdeal(abc.Container):
             return True
         return False
     
-    def __le__(self, other: typing.Self) -> typing.Self:
-        if self.a in other and self.r in other:
-            return True
-        return False
+
+    def bqf(self) -> binary_quadratic_forms.IndefiniteBQF:
+        """
+        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+        Chapter I, Section 7, "Relationship of Quadratic Forms to Ideals", pp. 38-50.
+        Return the primitive binary quadratic form that Knapp (Ch. I §7, pp 42-43)
+        attaches to the ideal I = ⟨r1, r2⟩.
+
+            a =  N(r1) / N(I)
+            b =  Tr(r1 * 𝜎(r2)) / N(I)
+            c =  N(r2) / N(I)
+
+        The trace makes b rational; we then clear any remaining denominators
+        and divide out the overall gcd so that (a,b,c) is primitive.
+        """
+        r1, r2 = self.r1, self.r2
+        N_I = self.norm
+
+        A = Fraction(r1.norm, N_I)
+        B = Fraction((r1 * r2.conjugate()).trace, N_I)
+        C = Fraction(r2.norm, N_I)
+
+        denominator_lcm = math.lcm(A.denominator, B.denominator, C.denominator)
+        a = (A * denominator_lcm).numerator
+        b = (B * denominator_lcm).numerator
+        c = (C * denominator_lcm).numerator
+
+        g = math.gcd(a, b, c)
+
+        return binary_quadratic_forms.IndefiniteBQF(a // g, b // g, c // g)
+
+
+    @classmethod
+    def bqf_to_ideal(cls, bqf: binary_quadratic_forms.IndefiniteBQF) -> typing.Self:
+        """
+        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
+        Chapter I, Section 7, "Relationship of Quadratic Forms to Ideals", pp. 38-50.
+        p. 43.        
+        """
+        D = bqf.D
+        delta = RealQuadraticField(D).delta
+        b0 = Fraction(bqf.b - delta.trace, 2).numerator
+        a = bqf.a
+        if a > 0:
+            r1 = RealQuadraticNumber(D, a, 0)
+            r2 = b0 + delta
+        elif a < 0:
+            r1 = a * delta
+            r2 = delta * (b0 + delta)
+        return cls(r1, r2)
     
-    def __lt__(self, other: typing.Self) -> typing.Self:
-        if self.a in other and self.r in other and self != other:
-            return True
-        return False
+    def __eq__(self, other: typing.Self) -> bool:
+        return binary_quadratic_forms.IndefiniteBQF.are_equivalent(self.bqf(), other.bqf())
     
-    def __ge__(self, other: typing.Self) -> typing.Self:
-        if other.a in self and other.r in self:
-            return True
-        return False
+    def __mul__(self, other: typing.Self) -> typing.Self:
+        bqf_self, bqf_other = self.bqf(), other.bqf()
+        bqf_composed = bqf_self * bqf_other
+        ideal_multiplied = type(self).bqf_to_ideal(bqf_composed)
+        return ideal_multiplied
     
-    def __gt__(self, other: typing.Self) -> typing.Self:
-        if other.a in self and other.r in self and self != other:
-            return True
-        return False
+    def __rmul__(self, other: typing.Self) -> typing.Self:
+        bqf_self, bqf_other = self.bqf(), other.bqf()
+        bqf_composed = bqf_other * bqf_self
+        ideal_multiplied = type(self).bqf_to_ideal(bqf_composed)
+        return ideal_multiplied
+    
+    def inverse(self) -> typing.Self:
+        bqf = self.bqf()
+        bqf_inverse = bqf.inverse()
+        inverse_ideal = type(self).bqf_to_ideal(bqf_inverse)
+        return inverse_ideal
+    
+    def __truediv__(self, other: typing.Self) -> typing.Self:
+        return self * other.inverse()
+    
+    def __rtruediv__(self, other: typing.Self) -> typing.Self:
+        return other * self.inverse()
 
     @classmethod
     def prime_ideal(cls, d: int, p: int, t_sgn: int = 1) -> typing.Self:
@@ -178,3 +248,13 @@ class NonzeroIdeal(abc.Container):
             return cls(p, r)
         else:
             raise ArithmeticError("Supporting ingredients are broken.")
+        
+
+if __name__ == "__main__":
+    d = 19
+    q1 = RealQuadraticNumber(d, 1, 0)
+    q2 = RealQuadraticNumber(d, 0, 1)
+    ideal = NonzeroIdeal(q1, q2)
+    bqf = ideal.bqf()
+    assert NonzeroIdeal.bqf_to_ideal(bqf) == ideal
+    assert NonzeroIdeal.bqf_to_ideal(bqf).bqf() == bqf

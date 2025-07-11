@@ -442,7 +442,6 @@ class RealQuadraticCompositum:
         surd_terms : dict[frozenset[int] | int, PureQuadraticSurd]
     """
 
-# ─── init ────────────────────────────────────────────────────────────
     def __init__(self,
                  rational_part: Rational = 0,
                  surd_terms: dict[frozenset[int] | int, PureQuadraticSurd] | None = None) -> None:
@@ -484,8 +483,6 @@ class RealQuadraticCompositum:
             elif radset in self.surd_terms:                # cancellation to zero
                 del self.surd_terms[radset]
 
-
-    # ─── representation ─────────────────────────────────────────────────
     def __repr__(self) -> str:
         return (f"{type(self).__name__}(rational_part={self.rational_part!r}, "
                 f"surd_terms={self.surd_terms!r})")
@@ -502,7 +499,6 @@ class RealQuadraticCompositum:
             parts.append(f"{sign} {mag_s}√{math.prod(rs)}")
         return " ".join(parts).lstrip("+ ").replace("+ -", "- ")
 
-    # ─── basic ops ───────────────────────────────────────────────────────
     def __eq__(self, other: typing.Self | Rational) -> bool:
         if isinstance(other, Rational):
             other = type(self)(other)
@@ -563,7 +559,6 @@ class RealQuadraticCompositum:
     def __sub__(self, other):  return self + (-other)
     def __rsub__(self, other): return type(self)(other) - self
 
-    # ─── multiplication ────────────────────────────────────────────────
     def __mul__(self, other: typing.Self | Rational) -> typing.Self:
         if isinstance(other, Rational):
             other = type(self)(other)
@@ -593,7 +588,6 @@ class RealQuadraticCompositum:
 
     __rmul__ = __mul__
 
-    # ─── Galois conjugates / trace / norm ───────────────────────────────
     def conjugates(self) -> list[typing.Self]:
         if not self.surd_terms:
             return [self]
@@ -628,7 +622,6 @@ class RealQuadraticCompositum:
             raise ArithmeticError("norm didn’t clear surds")
         return prod.rational_part
 
-    # ─── inverse / division ────────────────────────────────────────────
     def inverse(self) -> typing.Self:
         if self.rational_part == 0 and not self.surd_terms:
             raise ZeroDivisionError("division by zero")
@@ -972,9 +965,6 @@ if __name__ == "__main__":
     assert sqrtd in O_K
     assert epsilon_d in O_K
 
-
-
-    # ───────────────────────────────── PureQuadraticSurd ───────────────────────────
     # 1. square-factor is pulled out:  √8  →  2√2  so coefficient triples (3*2)
     s = PureQuadraticSurd(8, 3)
     assert s.d == 2
@@ -996,8 +986,6 @@ if __name__ == "__main__":
     assert u ** 5 * u ** (-5) == 1
     assert u.norm ** 2 == (u ** 2).norm
 
-
-    # ───────────────────────────── RealQuadraticCompositum ─────────────────────────
     x1 = RealQuadraticCompositum(1, {frozenset([2]): PureQuadraticSurd(2, 5)})
     x2 = RealQuadraticCompositum(1, {frozenset([3]): PureQuadraticSurd(3, 5)})
     x1 * x2
@@ -1026,7 +1014,6 @@ if __name__ == "__main__":
 
     # 6. division round-trip (non-trivial radicands 2 & 3)
     assert (c / d) * d == c
-
 
     # 1. Adding rational numbers (within the field):
     assert RealQuadraticCompositum(5) + RealQuadraticCompositum(2) == RealQuadraticCompositum(7)  # 5 + 2 = 7
@@ -1060,8 +1047,3 @@ if __name__ == "__main__":
     assert a.trace == 2                 # two conjugates (±√2)
     assert b.norm  == -12               # N(2√3)=−4·3
     assert (a * b).inverse() * (a * b) == RealQuadraticCompositum(1)
-
-    d = 5
-    K = RealQuadraticField(d)
-    delta = K.delta
-    print(delta.norm)
