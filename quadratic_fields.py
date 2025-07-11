@@ -775,6 +775,16 @@ class RealQuadraticField(abc.Container):
         # 𝓞_𝐐(√d) = 𝐙[ω]
         D = self.D
         return RealQuadraticNumber(self.D, Fraction(D, 2), Fraction(1, 2))
+    
+    @property
+    def delta(self: typing.Self) -> RealQuadraticNumber:
+        # 𝓞_𝐐(√d) = 𝐙[𝛿]
+        d = self.d
+        if d % 4 in [2, 3]:
+            return RealQuadraticNumber(d, 0, -1)
+        elif d % 4 == 1:
+            return RealQuadraticNumber(d, Fraction(1, 2), -Fraction(1, 2))
+
 
     @property
     def integral_basis(self: typing.Self) -> tuple[RealQuadraticNumber, RealQuadraticNumber]:
@@ -1050,3 +1060,8 @@ if __name__ == "__main__":
     assert a.trace == 2                 # two conjugates (±√2)
     assert b.norm  == -12               # N(2√3)=−4·3
     assert (a * b).inverse() * (a * b) == RealQuadraticCompositum(1)
+
+    d = 5
+    K = RealQuadraticField(d)
+    delta = K.delta
+    print(delta.norm)
