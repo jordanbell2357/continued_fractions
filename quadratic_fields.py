@@ -767,7 +767,7 @@ class RealQuadraticField(abc.Container):
     def omega(self: typing.Self) -> RealQuadraticNumber:
         # 𝓞_𝐐(√d) = 𝐙[ω]
         D = self.D
-        return RealQuadraticNumber(self.D, Fraction(D, 2), Fraction(1, 2))
+        return RealQuadraticNumber(D, Fraction(D, 2), Fraction(1, 2))
     
     @property
     def delta(self: typing.Self) -> RealQuadraticNumber:
