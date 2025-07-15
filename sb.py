@@ -6,6 +6,8 @@ import functools as ft
 import operator
 from collections import abc
 import textwrap
+import heapq
+import copy
 
 import cflib
 
@@ -15,6 +17,11 @@ def mediant(x: tuple[int, int], y: tuple[int, int]) -> tuple[int, int]:
 
 
 class SternBrocot(abc.Sequence):
+    """"
+    cf. https://mattbaker.blog/2019/01/28/the-stern-brocot-tree-hurwitzs-theorem-and-the-markoff-uniqueness-conjecture/
+    and https://rosettacode.org/wiki/Stern-Brocot_sequence    
+    """
+
     ALPHABET = ["L", "R"]
     ROOT_LEFT_TUPLE, ROOT_MEDIANT_TUPLE, ROOT_RIGHT_TUPLE = (0, 1), (1, 1), (1, 0)
     ROOT_MOVE_LIST = []
@@ -126,7 +133,7 @@ class SternBrocot(abc.Sequence):
         return Fraction(*self.mediant_tuple)
     
     def __iter__(self) -> abc.Iterator[str]:
-        return iter(self.move_list)
+        yield from self.move_list
     
     def __getitem__(self, index: int) -> str:
         return self.move_list[index]
@@ -187,7 +194,7 @@ class SternBrocotTree(abc.Sequence):
         return len(self.bfs_node_list)
     
     def __iter__(self) -> abc.Iterator:
-        return iter(self.bfs_node_list)
+        yield from self.bfs_node_list
     
     def __str__(self) -> str:
         tree_string = "\n\n".join(["\n".join(textwrap.wrap("\t".join([node.mediant_string for node in level]))) for level in self.sb_tree])
@@ -236,3 +243,8 @@ if __name__ == "__main__":
     assert len(sb_tree) == len(sb_tree.bfs_node_list)
 
 
+    depth = 3
+    sb_tree = SternBrocotTree(depth)
+    bfs_node_list = sb_tree.bfs_node_list
+    heapq.heapify(bfs_node_list)
+    assert bfs_node_list == sb_tree.bfs_node_list

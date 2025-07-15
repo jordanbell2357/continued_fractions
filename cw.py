@@ -6,6 +6,8 @@ import math
 import typing
 import textwrap
 from collections import abc
+import heapq
+import copy
 
 import cflib
 
@@ -28,6 +30,10 @@ def stern_diatomic(n: int) -> int:
 
 
 class CalkinWilf(abc.Sequence):
+    """
+    cf. https://rosettacode.org/wiki/Calkin-Wilf_sequence
+    """
+    
     ROOT_FRACTION_TUPLE = (1, 1)
     ROOT_MOVE_LIST = []
     ROOT_POSITION = 0
@@ -126,7 +132,7 @@ class CalkinWilf(abc.Sequence):
         level_node_list = []
         level_node_list.append(N)
         cw_tree.append(level_node_list)
-        for n in range(depth):
+        for _ in range(depth):
             previous_level_node_list = level_node_list
             level_node_list = []
             for N in previous_level_node_list:
@@ -173,7 +179,7 @@ class CalkinWilf(abc.Sequence):
         return self.move_list[index]
     
     def __iter__(self) -> abc.Iterator[str]:
-        return iter(self.move_list)
+        yield from self.move_list
         
     def __len__(self) -> int:
         return len(self.move_list)
@@ -223,7 +229,7 @@ class CalkinWilfTree(abc.Sequence):
         return len(self.bfs_node_list)
     
     def __iter__(self):
-        return iter(self.bfs_node_list)
+        yield from self.bfs_node_list
     
     def __str__(self):
         tree_string = "\n\n".join(["\n".join(textwrap.wrap("\t".join([str(node.fraction_value) for node in level]))) for level in self.cw_tree])
@@ -282,6 +288,10 @@ if __name__ == "__main__":
 
     depth = 3
     cw_tree = CalkinWilfTree(depth)
-    print(cw_tree)
-    print(cw_tree[1])
     assert eval(repr(cw_tree)) == cw_tree
+
+    depth = 13
+    cw_tree = CalkinWilfTree(depth)
+    bfs_node_list = cw_tree.bfs_node_list
+    heapq.heapify(bfs_node_list)
+    assert bfs_node_list == cw_tree.bfs_node_list

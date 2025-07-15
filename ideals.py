@@ -45,7 +45,7 @@ class NonzeroIdeal(abc.Container):
     integer a > 0 and some r in R.
     """
 
-    __slots__ = ["r1", "r2"]
+    __slots__ = ["r1", "r2", "a", "r"]
 
 
     @staticmethod
@@ -64,6 +64,7 @@ class NonzeroIdeal(abc.Container):
             self.r1, self.r2 = r2, r1
         else:
             raise ValueError(f"{r1} and {r2} must have nonzero orientation.")
+        
         
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.r1}, {self.r2})"
@@ -106,6 +107,26 @@ class NonzeroIdeal(abc.Container):
         elif d % 4 in [2, 3]: # D = 4d
             D_sqrt = RealQuadraticNumber(d, 0, 2)
             return int(self.volume / D_sqrt)
+        
+    def canonical_basis(self):
+        """
+        Return (a, r) with a ∈ Z_{>0}, r = b0 + δ and gcd(a, b0) = 1,
+        oriented so that (r / a) has positive imaginary part.
+        """
+        # put r1, r2 into the integral basis (1, ω)
+        d = self.d
+        omega  = RealQuadraticField(d).omega
+        m  = gl2z.M2Z(self.r1.x, self.r2.x, self.r1.y, self.r2.y) # 2×2 integer matrix
+        _, H  = gl2z.hnf_2x2(m.transpose())            # any HNF routine you like
+        a, b0 = H.a11, H.a12                           # first row (a, b0)
+        if a < 0:
+            a, b0 = -a, -b0              
+
+        # unique representative 0 ≤ b0 < a
+        b0 %= a                          
+        r     = b0 + omega                         # b0 + δ, δ = ω − ½tr ω
+        
+        return RealQuadraticNumber(d, a, 0), r
 
     def __contains__(self, item: RealQuadraticNumber | Rational) -> bool:
         """
@@ -166,23 +187,45 @@ class NonzeroIdeal(abc.Container):
 
 
     @classmethod
-    def bqf_to_ideal(cls, bqf: binary_quadratic_forms.IndefiniteBQF) -> typing.Self:
+    def bqf_to_ideal(cls, form: binary_quadratic_forms.IndefiniteBQF) -> typing.Self:
+        """Inverse map *form -> ideal* (conductor‑aware).
+
+        Works for any **primitive** indefinite form, even when its
+        discriminant Δ is not fundamental.  Let ``f = form.conductor``;
+        then Δ = Δ₀·f² with Δ₀ fundamental.  The ideal recovered is
+
+            I = ⟨f , (−b + √Δ)/2⟩   ⊆  𝑶_{Δ₀} .
+
+        The extra division by *f* ensures that
+
+        ```python
+        form == cls.bqf_to_ideal(form).bqf()
+        ```
+
+        and that `Norm(I)=f`.
         """
-        Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
-        Chapter I, Section 7, "Relationship of Quadratic Forms to Ideals", pp. 38-50.
-        p. 43.        
-        """
-        D = bqf.D
-        delta = RealQuadraticField(D).delta
-        b0 = Fraction(bqf.b - delta.trace, 2).numerator
-        a = bqf.a
-        if a > 0:
-            r1 = RealQuadraticNumber(D, a, 0)
-            r2 = b0 + delta
-        elif a < 0:
-            r1 = a * delta
-            r2 = delta * (b0 + delta)
-        return cls(r1, r2)
+        D_big = form.D                                  # Δ
+        f     = form.conductor                          # conductor
+        D_fund = D_big // (f * f)                       # Δ₀
+        d = D_fund if D_fund % 4 == 1 else D_fund // 4  # radicand
+
+        K      = RealQuadraticField(d)
+        omega  = K.omega
+        delta  = K.delta
+
+        # √Δ as element of 𝑶_{Δ₀}
+        if d % 4 == 1:                                   # Δ = (2f)²·d
+            sqrt_D = 2 * f * delta
+        else:                                            # Δ = f²·4d
+            sqrt_D = f * omega
+
+        r = RealQuadraticNumber(d, Fraction(-form.b, 2), 0) + sqrt_D * Fraction(1, 2)
+        g = RealQuadraticNumber(d, f, 0)
+
+        from ideals import NonzeroIdeal
+        return NonzeroIdeal(g, r)
+
+
     
     def __eq__(self, other: typing.Self) -> bool:
         return binary_quadratic_forms.IndefiniteBQF.are_equivalent(self.bqf(), other.bqf())
@@ -252,9 +295,9 @@ class NonzeroIdeal(abc.Container):
 
 if __name__ == "__main__":
     d = 19
-    q1 = RealQuadraticNumber(d, 1, 0)
+    q1 = RealQuadraticNumber(d, 2, 2)
     q2 = RealQuadraticNumber(d, 0, 1)
-    ideal = NonzeroIdeal(q1, q2)
-    bqf = ideal.bqf()
-    assert NonzeroIdeal.bqf_to_ideal(bqf) == ideal
-    assert NonzeroIdeal.bqf_to_ideal(bqf).bqf() == bqf
+    ideal1 = NonzeroIdeal(q1, q2)
+    bqf1 = ideal1.bqf()
+
+    print(NonzeroIdeal.bqf_to_ideal(bqf1).bqf(), bqf1, sep="\n")

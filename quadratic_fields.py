@@ -762,21 +762,37 @@ class RealQuadraticField(abc.Container):
     @property
     def sqrtd(self: typing.Self) -> RealQuadraticNumber:
         return RealQuadraticNumber(self.d, 0, 1)
-
+    
     @property
-    def omega(self: typing.Self) -> RealQuadraticNumber:
+    def omega(self):
+        # 𝓞_𝐐(√d) = 𝐙[ω]
+        d = self.d
+        if d % 4 == 1:                # integral basis (1, (1+√d)/2)
+            return RealQuadraticNumber(d, Fraction(1, 2), Fraction(1, 2))
+        else:                         # basis (1, √d)
+            return RealQuadraticNumber(d, 0, 1)
+        
+    @property
+    def omega_order(self: typing.Self) -> RealQuadraticNumber:
         # 𝓞_𝐐(√d) = 𝐙[ω]
         D = self.D
         return RealQuadraticNumber(D, Fraction(D, 2), Fraction(1, 2))
-    
+
+
     @property
-    def delta(self: typing.Self) -> RealQuadraticNumber:
-        # 𝓞_𝐐(√d) = 𝐙[𝛿]
+    def delta(self):
+        """
+        δ = ω – Tr(ω)/2
+        • For d ≡ 1 (mod 4) we have ω = (1+√d)/2          ⇒ δ = (√d–1)/2
+        • For d ≡ 2,3 (mod 4) we have ω = √d               ⇒ δ = √d
+        𝓞_𝐐(√d) = 𝐙[𝛿]
+        """
         d = self.d
-        if d % 4 in [2, 3]:
-            return RealQuadraticNumber(d, 0, -1)
-        elif d % 4 == 1:
+        if d % 4 == 1:
             return RealQuadraticNumber(d, Fraction(1, 2), -Fraction(1, 2))
+        else:                           # d ≡ 2,3  →  ω = √d,  Tr ω = 0
+            return RealQuadraticNumber(d, 0, 1)
+
 
 
     @property
