@@ -45,7 +45,7 @@ class NonzeroIdeal(abc.Container):
     integer a > 0 and some r in R.
     """
 
-    __slots__ = ["r1", "r2", "a", "r"]
+    __slots__ = ["d", "a", "r"]
 
 
     @staticmethod
@@ -55,30 +55,69 @@ class NonzeroIdeal(abc.Container):
         if r1.d != r2.d:
             raise ValueError(f"{r1=} and {r2=} must belong to same ring of integers 𝓞_𝐐(√d).")
         return r1 * r2.conjugate() - r1.conjugate() * r2
+    
+    @staticmethod
+    def coords_Z_in_1_omega(r: RealQuadraticNumber) -> tuple[int, int]:
+        if not r.is_integral:
+            raise ValueError(f"{r} must belong to ring of integers 𝓞_𝐐(√d).")
+        """Return the (𝐙,𝐙)‑coordinates of an integral element r in the basis (1, ω)."""
+        if r.d % 4 == 1:         # fundamental discriminant of the form 1 mod 4
+            s = r.x - r.y        # integer
+            t = 2 * r.y          # integer
+        else:                    # d ≡ 2,3  (basis is already (1, √d))
+            s = r.x
+            t = r.y
+        if Fraction(s).denominator != 1 or Fraction(t).denominator != 1:
+            raise ValueError("non‑integral coordinates – logic error")
+        return int(s), int(t)
 
     
     def __init__(self, r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> None:
+        """
+        Return (a, r) with a ∈ Z_{>0}, r = b0 + δ and gcd(a, b0) = 1,
+        oriented so that (r / a) has positive imaginary part.
+        """
         if type(self).orientation(r1, r2) > 0:
-            self.r1, self.r2 = r1, r2
+            r1, r2 = r1, r2
         elif type(self).orientation(r1, r2) < 0:
-            self.r1, self.r2 = r2, r1
+            r1, r2 = r2, r1
         else:
             raise ValueError(f"{r1} and {r2} must have nonzero orientation.")
-        
-        
+
+        # put r1, r2 into the integral basis (1, ω)
+        d = r1.d
+        omega  = RealQuadraticField(d).omega
+        x1, y1 = type(self).coords_Z_in_1_omega(r1)
+        x2, y2 = type(self).coords_Z_in_1_omega(r2)
+        m  = gl2z.M2Z(x1, x2, y1, y2) # 2×2 integer matrix
+        _, H  = gl2z.hnf_2x2(m.transpose())
+        a, b0 = H.a11, H.a12
+        if a < 0:
+            a, b0 = -a, -b0
+
+        # g = math.gcd(a, b0)
+        # if g > 1:
+        #     a //= g
+        #     b0 //= g     
+
+        # unique representative 0 ≤ b0 < a
+        b0 %= a                          
+        r = b0 + omega # b0 + δ, δ = ω − ½tr ω
+
+        self.d = d
+        self.a = RealQuadraticNumber(d, a, 0)
+        self.r = r
+
+
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.r1}, {self.r2})"
+        return f"{type(self).__name__}({self.a}, {self.r})"
     
     def __hash__(self) -> int:
-        return hash((self.r1, self.r2))
-        
-    @property
-    def d(self) -> int:
-        return self.r1.d
+        return hash((self.a, self.r))
 
     @property
     def oriented_volume(self) -> RealQuadraticNumber:
-        return type(self).orientation(self.r1, self.r2)
+        return type(self).orientation(self.a, self.r)
     
     @property
     def volume(self) -> RealQuadraticNumber:
@@ -107,26 +146,6 @@ class NonzeroIdeal(abc.Container):
         elif d % 4 in [2, 3]: # D = 4d
             D_sqrt = RealQuadraticNumber(d, 0, 2)
             return int(self.volume / D_sqrt)
-        
-    def canonical_basis(self):
-        """
-        Return (a, r) with a ∈ Z_{>0}, r = b0 + δ and gcd(a, b0) = 1,
-        oriented so that (r / a) has positive imaginary part.
-        """
-        # put r1, r2 into the integral basis (1, ω)
-        d = self.d
-        omega  = RealQuadraticField(d).omega
-        m  = gl2z.M2Z(self.r1.x, self.r2.x, self.r1.y, self.r2.y) # 2×2 integer matrix
-        _, H  = gl2z.hnf_2x2(m.transpose())            # any HNF routine you like
-        a, b0 = H.a11, H.a12                           # first row (a, b0)
-        if a < 0:
-            a, b0 = -a, -b0              
-
-        # unique representative 0 ≤ b0 < a
-        b0 %= a                          
-        r     = b0 + omega                         # b0 + δ, δ = ω − ½tr ω
-        
-        return RealQuadraticNumber(d, a, 0), r
 
     def __contains__(self, item: RealQuadraticNumber | Rational) -> bool:
         """
@@ -169,12 +188,12 @@ class NonzeroIdeal(abc.Container):
         The trace makes b rational; we then clear any remaining denominators
         and divide out the overall gcd so that (a,b,c) is primitive.
         """
-        r1, r2 = self.r1, self.r2
+        a, r = self.a, self.r
         N_I = self.norm
 
-        A = Fraction(r1.norm, N_I)
-        B = Fraction((r1 * r2.conjugate()).trace, N_I)
-        C = Fraction(r2.norm, N_I)
+        A = Fraction(a.norm, N_I)
+        B = Fraction((a * r.conjugate()).trace, N_I)
+        C = Fraction(r.norm, N_I)
 
         denominator_lcm = math.lcm(A.denominator, B.denominator, C.denominator)
         a = (A * denominator_lcm).numerator
@@ -188,48 +207,60 @@ class NonzeroIdeal(abc.Container):
 
     @classmethod
     def bqf_to_ideal(cls, form: binary_quadratic_forms.IndefiniteBQF) -> typing.Self:
-        """Inverse map *form -> ideal* (conductor‑aware).
-
-        Works for any **primitive** indefinite form, even when its
-        discriminant Δ is not fundamental.  Let ``f = form.conductor``;
-        then Δ = Δ₀·f² with Δ₀ fundamental.  The ideal recovered is
-
-            I = ⟨f , (−b + √Δ)/2⟩   ⊆  𝑶_{Δ₀} .
-
-        The extra division by *f* ensures that
-
-        ```python
-        form == cls.bqf_to_ideal(form).bqf()
-        ```
-
-        and that `Norm(I)=f`.
         """
-        D_big = form.D                                  # Δ
-        f     = form.conductor                          # conductor
-        D_fund = D_big // (f * f)                       # Δ₀
-        d = D_fund if D_fund % 4 == 1 else D_fund // 4  # radicand
+        Invert NonzeroIdeal.bqf() for a *primitive* indefinite form (a,b,c).
 
-        K      = RealQuadraticField(d)
-        omega  = K.omega
-        delta  = K.delta
+        Works for every discriminant D (≡ 0 or 1 mod 4) without assuming the
+        ideal is principal.  No hidden HNF step: a is left unchanged.
+        """
 
-        # √Δ as element of 𝑶_{Δ₀}
-        if d % 4 == 1:                                   # Δ = (2f)²·d
-            sqrt_D = 2 * f * delta
-        else:                                            # Δ = f²·4d
-            sqrt_D = f * omega
+        # ------------------------------------------------------------
+        # 1. Basic data
+        # ------------------------------------------------------------
+        a, b = form.a, form.b
+        D    = form.D
+        f    = form.conductor            # conductor with Buchmann–Vollmer defn.
 
-        r = RealQuadraticNumber(d, Fraction(-form.b, 2), 0) + sqrt_D * Fraction(1, 2)
-        g = RealQuadraticNumber(d, f, 0)
+        D0 = D // (f * f)                # fundamental part  D = f²·D₀
+        if D0 % 4 == 1:                  # ω = ½(1+√d)
+            d  = D0
+            K  = RealQuadraticField(d)
+            y_coeff = f                  # √D = f·√d
+        else:                            # D₀ = 4d, ω = √d
+            d  = D0 // 4
+            K  = RealQuadraticField(d)
+            y_coeff = 2 * f              # √D = f·2√d
 
-        from ideals import NonzeroIdeal
-        return NonzeroIdeal(g, r)
+        # ------------------------------------------------------------
+        # 2.  r = (-b + √D)/2   (in Q(√d))
+        # ------------------------------------------------------------
+        # √D  in the chosen field
+        sqrt_D = RealQuadraticNumber(d, 0, y_coeff)
+
+        # divide by 2  →  just halve the y‑coefficient
+        r = RealQuadraticNumber(d, Fraction(-b, 2), Fraction(y_coeff, 2))
+
+        # if r is half‑integral (parity clash between b and f), fix it
+        if not r.is_integral:
+            r += RealQuadraticNumber(d, Fraction(f, 2), 0)   # still same ideal
+
+        # ------------------------------------------------------------
+        # 3.  Assemble I = <a, r>  without HNF
+        # ------------------------------------------------------------
+        I = cls.__new__(cls)            # bypass __init__
+        I.d = d
+        I.a = RealQuadraticNumber(d, a, 0)
+        I.r = r
+        return I
 
 
-    
+
+
+
+
     def __eq__(self, other: typing.Self) -> bool:
         return binary_quadratic_forms.IndefiniteBQF.are_equivalent(self.bqf(), other.bqf())
-    
+
     def __mul__(self, other: typing.Self) -> typing.Self:
         bqf_self, bqf_other = self.bqf(), other.bqf()
         bqf_composed = bqf_self * bqf_other
@@ -299,5 +330,45 @@ if __name__ == "__main__":
     q2 = RealQuadraticNumber(d, 0, 1)
     ideal1 = NonzeroIdeal(q1, q2)
     bqf1 = ideal1.bqf()
+    assert NonzeroIdeal.bqf_to_ideal(bqf1) == ideal1
 
-    print(NonzeroIdeal.bqf_to_ideal(bqf1).bqf(), bqf1, sep="\n")
+    q1 = RealQuadraticNumber(d, 2, 3)
+    q2 = RealQuadraticNumber(d, 0, 2)
+    ideal2 = NonzeroIdeal(q1, q2)
+    bqf2 = ideal2.bqf()
+    assert NonzeroIdeal.bqf_to_ideal(bqf2) == ideal2
+
+    bqf3 = bqf1 * bqf2
+    ideal3 = ideal1 * ideal2
+    assert NonzeroIdeal.bqf_to_ideal(bqf3) == ideal3
+    bqf4 = ideal3.bqf()
+    assert binary_quadratic_forms.IndefiniteBQF.are_equivalent(bqf3, bqf4) == True
+
+    d = 17
+    q1 = RealQuadraticNumber(d, 3, 2)
+    q2 = RealQuadraticNumber(d, 0, 3)
+    ideal1 = NonzeroIdeal(q1, q2)
+    bqf1 = ideal1.bqf()
+    assert NonzeroIdeal.bqf_to_ideal(bqf1) == ideal1
+
+    q1 = RealQuadraticNumber(d, 5, 0)
+    q2 = RealQuadraticNumber(d, 0, 5)
+    ideal2 = NonzeroIdeal(q1, q2)
+    bqf2 = ideal2.bqf()
+    assert NonzeroIdeal.bqf_to_ideal(bqf2) == ideal2
+
+    bqf3 = bqf1 * bqf2
+    ideal3 = ideal1 * ideal2
+    assert NonzeroIdeal.bqf_to_ideal(bqf3) == ideal3
+    bqf4 = ideal3.bqf()
+    assert binary_quadratic_forms.IndefiniteBQF.are_equivalent(bqf3, bqf4) == True
+
+    d = 17
+    q1 = RealQuadraticNumber(d, 3, 0)
+    q2 = RealQuadraticNumber(d, 0, 3)
+    ideal1 = NonzeroIdeal(q1, q2)
+    print(ideal1.norm)
+
+
+
+

@@ -507,7 +507,7 @@ class IndefiniteBQF(abc.Hashable):
 
     def min_abs_image_by_reduction(self: typing.Self) -> int:
         """
-        m(f) = min { |f(x,y)| : |f(x,y)| != 0, x,y in Z }
+        m(f) = min { |f(x,y)| : |f(x,y)| != 0, x,y in 𝐙 }
 
         Johannes Buchmann and Ulrich Vollmer
         Binary Quadratic Forms: An Algorithmic Approach
