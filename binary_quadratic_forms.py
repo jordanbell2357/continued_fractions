@@ -714,13 +714,15 @@ class IndefiniteBQF(abc.Hashable):
         b3 = b2 + 2 * a2 // d * (v * (s - b2) - w * c2)
         c3 = (b3 ** 2 - D) // (4 * a3)
         return cls(a3, b3, c3).reduced()
-    
-    
-    def __mul__(self, other: typing.Self) -> typing.Self:
-        return type(self).compose(self, other)
 
-    def __rmul__(self, other: typing.Self) -> typing.Self:
-        return type(self).compose(other, self)
+    def __mul__(self, other: typing.Self) -> typing.Self:
+        if self.D == other.D:
+            return type(self).compose(self, other)
+
+        f = math.lcm(self.conductor, other.conductor)
+        self = self  if self.conductor  == f else self.lift(f // self .conductor)
+        other = other if other.conductor == f else other.lift(f // other.conductor)
+        return type(self).compose(self, other)
     
     def __truediv__(self, other: typing.Self) -> typing.Self:
         bqf1 = self
