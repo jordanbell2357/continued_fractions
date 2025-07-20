@@ -61,10 +61,10 @@ class NonzeroIdeal(abc.Container):
         """
         if not r.is_integral:
             raise ValueError(f"{r} must belong to ring of integers 𝓞_𝐐(√d).")
-        if r.d % 4 == 1:         # d ≡ 1 (mod 4)
+        if r.d % 4 == 1: # d ≡ 1 (mod 4)
             s = r.x - r.y
             t = 2 * r.y
-        else:                    # d ≡ 2, 3 (mod 4) (basis is already (1, √d))
+        else: # d ≡ 2, 3 (mod 4) (basis is already (1, √d))
             s = r.x
             t = r.y
         if Fraction(s).denominator != 1 or Fraction(t).denominator != 1:
@@ -289,9 +289,6 @@ class NonzeroIdeal(abc.Container):
     
     def __truediv__(self, other: typing.Self) -> typing.Self:
         return self * other.inverse()
-    
-    def __rtruediv__(self, other: typing.Self) -> typing.Self:
-        return other * self.inverse()
         
 
 if __name__ == "__main__":
@@ -351,14 +348,14 @@ if __name__ == "__main__":
 
     d = 29 # 29 ≡ 1 (mod 4)
     ideal = NonzeroIdeal(
-                RealQuadraticNumber(d, 4, 1), # ⟨4 , 1+√29⟩   (norm 4)
+                RealQuadraticNumber(d, 4, 1), # ⟨4 , 1+√29⟩ (norm 4)
                 RealQuadraticNumber(d, 0, 4))
     ideal = ideal.reduce()
     assert NonzeroIdeal.bqf_to_ideal(ideal.bqf()) == ideal
 
     d = 6 # 6 ≡ 2 (mod 4)
     ideal = NonzeroIdeal(
-                RealQuadraticNumber(d, 3, 1), # ⟨3 , 1+√6⟩   (norm 3)
+                RealQuadraticNumber(d, 3, 1), # ⟨3 , 1+√6⟩ (norm 3)
                 RealQuadraticNumber(d, 0, 3))
     ideal = ideal.reduce()
     assert NonzeroIdeal.bqf_to_ideal(ideal.bqf()) == ideal

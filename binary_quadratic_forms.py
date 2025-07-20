@@ -1052,3 +1052,6 @@ if __name__ == "__main__":
     tau = bqf.real_quadratic_number_associate
     # The BQF is equal to 0 when (x,y) = (τ,1).
     assert bqf.evaluate(tau, 1) == quadratic_fields.RealQuadraticNumber(bqf.D, 0, 0)
+    f = bqf.conductor
+    bqf_descend = bqf.descend()
+    assert bqf_descend.D == bqf.D // f ** 2
