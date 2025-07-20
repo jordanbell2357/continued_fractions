@@ -209,24 +209,6 @@ class IndefiniteBQF(abc.Hashable):
     def reduced(self: typing.Self) -> typing.Self:
         bqf_reduced, _ = self.reduced_with_exponent_list()
         return bqf_reduced
-    
-
-    @staticmethod
-    def are_equivalent(bqf1: typing.Self, bqf2: typing.Self) -> bool:
-        """
-        Proper (SL2Z) equivalence.
-        """
-        r1 = bqf1.reduced()
-        r2 = bqf2.reduced()
-        if r1 == r2:
-            return True                    # same representative
-
-        rn = r1.reduced_right_neighbor()  # step once round the cycle
-        while rn != r1:                   # finite because cycles are finite
-            if rn == r2:
-                return True
-            rn = rn.reduced_right_neighbor()
-        return False                       # walked full cycle – different class
 
 
     def equivalent_bqf_with_word(self: typing.Self) -> tuple[typing.Self, str]:
@@ -436,6 +418,24 @@ class IndefiniteBQF(abc.Hashable):
 
         c = (b ** 2 - D) // (4 * a)
         return type(self)(a, b, c)
+
+
+    @staticmethod
+    def are_equivalent(bqf1: typing.Self, bqf2: typing.Self) -> bool:
+        """
+        Proper (SL2Z) equivalence.
+        """
+        r1 = bqf1.reduced()
+        r2 = bqf2.reduced()
+        if r1 == r2:
+            return True                    # same representative
+
+        rn = r1.reduced_right_neighbor()  # step once round the cycle
+        while rn != r1:                   # finite because cycles are finite
+            if rn == r2:
+                return True
+            rn = rn.reduced_right_neighbor()
+        return False                       # walked full cycle – different class
 
     
     @classmethod
@@ -706,7 +706,7 @@ class IndefiniteBQF(abc.Hashable):
         # u2 d1 + v2 s = d
         # u2(u1 * a1 + v1 * a2) + v2 * s = d
         # u1u2 a1 + v1u2 a2 + v2 s = d
-        u, v, w = u1 * u2, v1 * u2, v2
+        u, v, w = u1 * u2, v1 * u2, v2 # u is not used
         d0 = math.gcd(d, c1, c2, n)
         a3 = d0 * a1 * a2 // d ** 2
         b3 = b2 + 2 * a2 // d * (v * (s - b2) - w * c2)
@@ -716,7 +716,6 @@ class IndefiniteBQF(abc.Hashable):
     def __mul__(self, other: typing.Self) -> typing.Self:
         if self.D == other.D:
             return type(self).compose(self, other)
-
         f = math.lcm(self.conductor, other.conductor)
         self = self  if self.conductor  == f else self.lift(f // self .conductor)
         other = other if other.conductor == f else other.lift(f // other.conductor)
@@ -842,7 +841,7 @@ def genus_group(D: int) -> list[list[IndefiniteBQF]]:
     *  The form class group **H** is the set of proper-equivalence classes of
        primitive forms of discriminant *D*.
     *  Every form f has an “image set”
-          f.image_mod_D() ⊆ (ℤ/Dℤ)*
+          f.image_mod_D() ⊆ (𝐙/D𝐙)*
        and two classes lie in the **same genus** ⇔ their image sets coincide
        (Knapp I§5).  Thus a genus is determined by that residue set.
     *  The number of distinct genera is
@@ -902,12 +901,6 @@ if __name__ == "__main__":
     assert abs(equivalent_bqf.a) <= abs(equivalent_bqf.D) and \
         abs(equivalent_bqf.b) <= abs(equivalent_bqf.D) and \
         abs(equivalent_bqf.c) <= abs(equivalent_bqf.D)
-
-    d = 5  # positive integer that is not a perfect square
-    bqf = IndefiniteBQF(1, 0, -d)
-    tau = bqf.real_quadratic_number_associate
-    # The BQF is equal to 0 when (x,y) = (τ,1).
-    assert bqf.evaluate(tau, 1) == quadratic_fields.RealQuadraticNumber(bqf.D, 0, 0)
 
     bqf = IndefiniteBQF(3, 11, 2)
     reduced_bqf, exponent_list = bqf.reduced_with_exponent_list()
@@ -1004,54 +997,58 @@ if __name__ == "__main__":
     assert bqf2.conductor == 1
     assert bqf2.D == bqf1.D // bqf1.conductor ** 2
 
-    # 1.  Round-trip sanity:  descend ∘ lift ≡ identity  (checks both directions)
+    # descend ∘ lift ≡ identity
     D = 5
     f = 3 # conductor
-    bqf = IndefiniteBQF.principal_bqf_for_discriminant(D)       # fundamental Δ0=5
-    bqf_lift = bqf.lift(f)                                            # Δ = 3²·5 = 45
-    assert IndefiniteBQF.are_equivalent(bqf_lift.descend(), bqf)      # proper-equivalence test
+    bqf = IndefiniteBQF.principal_bqf_for_discriminant(D) # fundamental Δ0=5
+    bqf_lift = bqf.lift(f) # Δ = 3²·5 = 45
+    assert IndefiniteBQF.are_equivalent(bqf_lift.descend(), bqf)
 
-    # 2.  Discriminant-vs-conductor consistency after a lift
-    assert bqf_lift.D == f ** 2 * bqf.D                                    # Δ scales by f²
-    assert bqf_lift.conductor == f                                   # f(Δ)=3 after the lift
-    assert math.gcd(bqf_lift.a, bqf_lift.b, bqf_lift.c) == 1                     # primitivity preserved
+    assert bqf_lift.D == f ** 2 * bqf.D
+    assert bqf_lift.conductor == f  # f(Δ)=3 after the lift
+    assert math.gcd(bqf_lift.a, bqf_lift.b, bqf_lift.c) == 1
 
-    # 3.  To fundamental discriminant: a non-fundamental form descends to conductor 1
-    bqf  = IndefiniteBQF.principal_bqf_for_discriminant(20)      # Δ=20, conductor f=2
-    bqf_descend  = bqf.descend()                                           # should drop to Δ0=5
-    assert bqf.conductor == 2 and bqf_descend.conductor == 1               # before / after check
-    assert bqf_descend.D == bqf.D // (bqf.conductor ** 2)                    # Δ0 = Δ/f²
+    bqf  = IndefiniteBQF.principal_bqf_for_discriminant(20) # Δ=20, conductor f=2
+    bqf_descend  = bqf.descend()
+    assert bqf.conductor == 2 and bqf_descend.conductor == 1
+    assert bqf_descend.D == bqf.D // (bqf.conductor ** 2) # Δ0 = Δ/f²
 
-    # 4.  Even discriminant with f = 2  (checks descent after a 4-factor)
+    # Even discriminant with f = 2
     D = 32
-    bqf = IndefiniteBQF.principal_bqf_for_discriminant(D)      # (1,0,−8)  Δ = 32
+    bqf = IndefiniteBQF.principal_bqf_for_discriminant(D) # (1,0,−8)  Δ = 32
     assert IndefiniteBQF.are_equivalent(bqf.descend(),
                                         IndefiniteBQF.principal_bqf_for_discriminant(D // bqf.conductor ** 2))   # Δ₀ = 8
 
-    # 5.  Round-trip with a composite conductor 6 = 2·3
+    # Composite conductor 6 = 2·3
     D = 13
     f = 6
-    bqf = IndefiniteBQF.principal_bqf_for_discriminant(D)     # fundamental  Δ₀ = 13
-    bqf_lift = bqf.lift(f)                                           # Δ = 6²·13 = 468 (orientation chosen automatically)
+    bqf = IndefiniteBQF.principal_bqf_for_discriminant(D) # fundamental  Δ₀ = 13
+    bqf_lift = bqf.lift(f) # Δ = 6²·13 = 468
     assert bqf_lift.conductor == f and bqf_lift.D == f ** 2 * bqf.D
-    assert IndefiniteBQF.are_equivalent(bqf_lift.descend(), bqf)       # back to fundamental form
+    assert IndefiniteBQF.are_equivalent(bqf_lift.descend(), bqf)
 
-    # 6.  A lift that *must* fail (a and c already share the prime factor 2)
-    bqf = IndefiniteBQF(2, 1, -2)    # primitive, reduced, Δ = 17 (fundamental)
+    # A lift that fails: a and c already share the prime factor 2
+    bqf = IndefiniteBQF(2, 1, -2) # primitive, reduced, Δ = 17 (fundamental)
     f_invalid = 2
     try:
         bqf.lift(f_invalid)
         assert False, "Must raise ValueError for invalid conductor (non-primitive lift)."
-    except ValueError: # correct behaviour
+    except ValueError:
         pass
 
     assert IndefiniteBQF.primitively_represent_odd_prime(5, 3) is None
 
     bqf_list = IndefiniteBQF.primitively_represent_odd_prime(205, 3)
-    assert len(bqf_list) == 2                 # both inequivalent orbits returned
+    assert len(bqf_list) == 2 # both inequivalent orbits returned
     assert not IndefiniteBQF.are_equivalent(*bqf_list)
-    for g in bqf_list:                        # sanity: coefficient a=p and disc=D
+    for g in bqf_list: # coefficient a=p and discriminant=D
         assert g.a == 3 and g.D == 205
 
     D = 37
     assert len(genus_group(D)) == genus_group_order_by_divisors(D)
+
+    d = 5  # positive integer that is not a perfect square
+    bqf = IndefiniteBQF(1, 0, -d)
+    tau = bqf.real_quadratic_number_associate
+    # The BQF is equal to 0 when (x,y) = (τ,1).
+    assert bqf.evaluate(tau, 1) == quadratic_fields.RealQuadraticNumber(bqf.D, 0, 0)

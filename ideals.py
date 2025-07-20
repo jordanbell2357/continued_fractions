@@ -57,19 +57,18 @@ class NonzeroIdeal(abc.Container):
     @staticmethod
     def coords_Z_in_1_omega(r: RealQuadraticNumber) -> tuple[int, int]:
         """
-        Return the (𝐙, 𝐙)‑coordinates of an integral element r in the basis (1, ω).
+        Return the (𝐙, 𝐙)‑coordinates of an integral element r in the basis ⟨1, ω⟩.
         """
         if not r.is_integral:
             raise ValueError(f"{r} must belong to ring of integers 𝓞_𝐐(√d).")
-        if r.d % 4 == 1:         # fundamental discriminant of the form 1 mod 4
-            s = r.x - r.y        # integer
-            t = 2 * r.y          # integer
-        else:                    # d ≡ 2,3  (basis is already (1, √d))
+        if r.d % 4 == 1:         # d ≡ 1 (mod 4)
+            s = r.x - r.y
+            t = 2 * r.y
+        else:                    # d ≡ 2, 3 (mod 4) (basis is already (1, √d))
             s = r.x
             t = r.y
         if Fraction(s).denominator != 1 or Fraction(t).denominator != 1:
-            raise ArithmeticError("non‑integral coordinates – logic error")
-
+            raise ArithmeticError("Non‑integral coordinates – implementation error.")
         return int(s), int(t)
 
     def __init__(self, a: RealQuadraticNumber | Rational, r: RealQuadraticNumber) -> None:
@@ -84,7 +83,7 @@ class NonzeroIdeal(abc.Container):
 
     def reduce(self: typing.Self) -> typing.Self:
         """
-        Return (a, r) with a ∈ Z_{>0}, r = b0 + δ and gcd(a, b0) = 1,
+        Return (a, r) with a ∈ 𝐙_{>0}, r = b0 + δ and gcd(a, b0) = 1,
         oriented so that (r / a) has positive imaginary part.
         """
         # put a, r into the integral basis (1, ω)
@@ -206,6 +205,7 @@ class NonzeroIdeal(abc.Container):
 
         return binary_quadratic_forms.IndefiniteBQF(a // g, b // g, c // g)
 
+
     @classmethod
     def bqf_to_ideal(cls, form: binary_quadratic_forms.IndefiniteBQF) -> typing.Self:
         a, b = form.a, form.b
@@ -251,7 +251,7 @@ class NonzeroIdeal(abc.Container):
             b0 = x_r
 
         if k.denominator != 1 or b0.denominator != 1:
-            raise ValueError("Internal error: r not integral after normalisation.")
+            raise ArithmeticError("Implementation error: r not integral after normalisation.")
 
         k  = int(k)
         b0 = int(b0)
@@ -273,16 +273,13 @@ class NonzeroIdeal(abc.Container):
         # ---------------------------------------------------------------------
         return cls(a, r_final)
 
+
     def __eq__(self, other: typing.Self) -> bool:
         return binary_quadratic_forms.IndefiniteBQF.are_equivalent(self.bqf(), other.bqf())
 
     def __mul__(self, other: typing.Self) -> typing.Self:
         bqf_self, bqf_other = self.bqf(), other.bqf()
         return type(self).bqf_to_ideal(bqf_self * bqf_other)
-    
-    def __rmul__(self, other: typing.Self) -> typing.Self:
-        bqf_self, bqf_other = self.bqf(), other.bqf()
-        return type(self).bqf_to_ideal(bqf_other * bqf_self)
     
     def inverse(self) -> typing.Self:
         bqf = self.bqf()
@@ -353,18 +350,18 @@ if __name__ == "__main__":
     assert ideal3.norm == ideal1.norm * ideal2.norm
 
     d = 29 # 29 ≡ 1 (mod 4)
-    ideal_A = NonzeroIdeal(
+    ideal = NonzeroIdeal(
                 RealQuadraticNumber(d, 4, 1), # ⟨4 , 1+√29⟩   (norm 4)
                 RealQuadraticNumber(d, 0, 4))
-    ideal_A = ideal_A.reduce()
-    assert NonzeroIdeal.bqf_to_ideal(ideal_A.bqf()) == ideal_A
+    ideal = ideal.reduce()
+    assert NonzeroIdeal.bqf_to_ideal(ideal.bqf()) == ideal
 
     d = 6 # 6 ≡ 2 (mod 4)
-    ideal_B = NonzeroIdeal(
+    ideal = NonzeroIdeal(
                 RealQuadraticNumber(d, 3, 1), # ⟨3 , 1+√6⟩   (norm 3)
                 RealQuadraticNumber(d, 0, 3))
-    ideal_B = ideal_B.reduce()
-    assert NonzeroIdeal.bqf_to_ideal(ideal_B.bqf()) == ideal_B
+    ideal = ideal.reduce()
+    assert NonzeroIdeal.bqf_to_ideal(ideal.bqf()) == ideal
 
     d = 19
     # ⟨2 , 1+√19⟩
