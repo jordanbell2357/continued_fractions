@@ -550,19 +550,17 @@ class IndefiniteBQF(abc.Hashable):
 
         for p, v in factor_D.items():
             if p == 2:
-                # ----------- subtle 2-adic cases -------------------------
                 t = D // (2 ** v)               # t ≡ 1 or 3 (mod 4)
-                if t % 4 == 1:                  # Case 1
+                if t % 4 == 1:                  # t ≡ 1 (mod 4)
                     if v % 2 == 0:              #   v even
                         e = v // 2
                     else:                       #   v odd
                         e = 0 if v < 3 else (v - 3) // 2
-                else:                           # t % 4 == 3   (Case 2)
+                else:                           # t ≡ 3 (mod 4)
                     e = (v - v % 2 - 2) // 2
                 if e > 0:
                     factor_f[2] = e
             else:
-                # ----------- odd primes: floor(v/2) ----------------------
                 if v >= 2:
                     factor_f[p] = v // 2
 
