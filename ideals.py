@@ -45,7 +45,7 @@ class NonzeroIdeal(abc.Container):
     integer a > 0 and some r in R.
     """
 
-    __slots__ = ["d", "a", "r", "k"]
+    __slots__ = ["d", "a", "r"]
 
     @staticmethod
     def orientation(r1: RealQuadraticNumber, r2: RealQuadraticNumber) -> RealQuadraticNumber:
@@ -82,7 +82,6 @@ class NonzeroIdeal(abc.Container):
             raise ValueError(f"({a}, {r}) must have nonzero orientation.")
 
         # put a, r into the integral basis (1, ω)
-
         omega  = RealQuadraticField(d).omega
         x1, y1 = type(self).coords_Z_in_1_omega(a)
         x2, y2 = type(self).coords_Z_in_1_omega(r)
@@ -105,8 +104,6 @@ class NonzeroIdeal(abc.Container):
         self.d = d
         self.a = RealQuadraticNumber(d, a, 0)
         self.r = r
-        self.k = 1
-
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.a}, {self.r})"
@@ -125,8 +122,9 @@ class NonzeroIdeal(abc.Container):
         return self.oriented_volume
 
     @property
-    def D(self: typing.Self) -> int: # discriminant
+    def D(self: typing.Self) -> int:
         """
+        Discriminant.
         Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
         p. 167:
 
@@ -138,15 +136,13 @@ class NonzeroIdeal(abc.Container):
 
     @property
     def norm(self) -> int:
-        # d = self.d
-        # if d % 4 == 1: # D = d
-        #     D_sqrt = RealQuadraticNumber(d, 0, 1)
-        #     return int(self.volume / D_sqrt)
-        # elif d % 4 in [2, 3]: # D = 4d
-        #     D_sqrt = RealQuadraticNumber(d, 0, 2)
-        #     return int(self.volume / D_sqrt)
-        return abs(int(self.a.x)) * abs(int(getattr(self, "k", 1)))
-        
+        d = self.d
+        if d % 4 == 1: # D = d
+            D_sqrt = RealQuadraticNumber(d, 0, 1)
+            return int(self.volume / D_sqrt)
+        elif d % 4 in [2, 3]: # D = 4d
+            D_sqrt = RealQuadraticNumber(d, 0, 2)
+            return int(self.volume / D_sqrt)        
 
 
     def __contains__(self, item: RealQuadraticNumber | Rational) -> bool:
@@ -174,7 +170,6 @@ class NonzeroIdeal(abc.Container):
         if a1.denominator == 1 and a2.denominator == 1:
             return True
         return False
-    
 
     def bqf(self) -> binary_quadratic_forms.IndefiniteBQF:
         """
@@ -205,7 +200,6 @@ class NonzeroIdeal(abc.Container):
         g = math.gcd(a, b, c)
 
         return binary_quadratic_forms.IndefiniteBQF(a // g, b // g, c // g)
-    
 
     @classmethod
     def bqf_to_ideal(cls, form: binary_quadratic_forms.IndefiniteBQF) -> typing.Self:
@@ -226,16 +220,14 @@ class NonzeroIdeal(abc.Container):
         The routine returns the canonical `NonzeroIdeal` produced by the public
         constructor, so all orientation/HNF conventions match those of `__init__`.
         """
-        from fractions import Fraction
-
         a, b        = form.a, form.b
-        Δ           = form.D
+        D           = form.D
         f           = form.conductor                         # Buchmann–Vollmer defn.
 
         # ---------------------------------------------------------------------
         # 1. Decide the fundamental part D₀ and the actual quadratic field
         # ---------------------------------------------------------------------
-        D0 = Δ // (f * f)
+        D0 = D // (f * f)
         if D0 % 4 == 1:                                     # D₀ = d  (ω = (1+√d)/2)
             d          = D0
             x_r        = Fraction(-b, 2)                    # x‑coord of r  before /g
@@ -284,7 +276,7 @@ class NonzeroIdeal(abc.Container):
             a  //= h
             b0 //= h
 
-        b0 %= a                                            # unique representative
+        b0 %= a # unique representative
         omega   = RealQuadraticField(d).omega
         r_final = RealQuadraticNumber(d, b0, 0) + k * omega
 
@@ -295,13 +287,7 @@ class NonzeroIdeal(abc.Container):
         I.d   = d
         I.a   = RealQuadraticNumber(d, a, 0)
         I.r   = r_final
-        I.k   = k                              # <= NEW
         return I
-
-
-
-
-
 
     def __eq__(self, other: typing.Self) -> bool:
         return binary_quadratic_forms.IndefiniteBQF.are_equivalent(self.bqf(), other.bqf())
@@ -353,51 +339,6 @@ class NonzeroIdeal(abc.Container):
             𝔭₁ = ⟨p , (-b+√D)/2⟩,  𝔭₂ = ⟨p , (b+√D)/2⟩,
             where b²≡D (mod p).  Choose the sign of b via t_sgn ∈ {±1}.
         """
-        from fractions import Fraction
-
-        if p <= 1 or not prime_numbers.isprime(p):
-            raise ValueError("p must be a prime ≥ 2")
-
-        K      = RealQuadraticField(d)
-        D      = K.D                       # fundamental discriminant
-        ω      = K.omega                   # integral generator of 𝒪_K
-        symbol = prime_numbers.kronecker_symbol(D, p)
-
-        # ------------------------------------------------------------------
-        # (1)  p | D   (ramified)
-        # ------------------------------------------------------------------
-        if symbol == 0:
-            if p == 2 and D % 16 == 12:            # exceptional (2,12) case
-                r = ω + 1                          # 1 + ω
-            else:
-                r = ω                              # plain ω
-            return cls(p, r)
-
-        # ------------------------------------------------------------------
-        # (2)  (D/p) = –1   (inert)        principal ideal (p) is already prime
-        # ------------------------------------------------------------------
-        if symbol == -1:
-            return cls(p, p * ω)                   # ⟨p , p ω⟩  ⇒  N = p
-
-        # ------------------------------------------------------------------
-        # (3)  (D/p) = +1   (split)       need one of the two conjugate factors
-        # ------------------------------------------------------------------
-        if symbol == 1:
-            # find a square root  b  of  D  modulo  p  and choose ± by t_sgn
-            b = prime_numbers.solve_quadratic_congruence(D, p)
-            b *= t_sgn                          # pick which root → which prime
-
-            # r = (-b + √D) / 2  expressed as a RealQuadraticNumber
-            if d % 4 == 1:                      # D = d,  √D = √d
-                r = RealQuadraticNumber(d, Fraction(-b, 2), Fraction(1, 2))
-            else:                               # D = 4d, √D = 2√d
-                r = RealQuadraticNumber(d, Fraction(-b, 2), 1)
-
-            return cls(p, r)
-
-        # Should never get here
-        raise ArithmeticError("Unexpected Kronecker symbol value.")
-
         
 
 if __name__ == "__main__":
@@ -406,11 +347,6 @@ if __name__ == "__main__":
     q2 = RealQuadraticNumber(d, 0, 1)
     ideal1 = NonzeroIdeal(q1, q2)
     bqf1 = ideal1.bqf()
-    # print(ideal1)
-    # print(NonzeroIdeal.bqf_to_ideal(bqf1))
-    # print(bqf1)
-    # print(ideal1.bqf())
-    # print(binary_quadratic_forms.IndefiniteBQF.are_equivalent(bqf1, ideal1.bqf()))
     assert NonzeroIdeal.bqf_to_ideal(bqf1) == ideal1
 
     q1 = RealQuadraticNumber(d, 2, 3)
@@ -452,34 +388,20 @@ if __name__ == "__main__":
     q2 = RealQuadraticNumber(d, 0, 5)
     ideal2 = NonzeroIdeal(q1, q2)
     ideal3 = ideal1 * ideal2
-    # print(ideal1.norm)
-    # print(ideal2.norm)
-    # print(ideal3.norm)
     assert ideal3.norm == ideal1.norm * ideal2.norm
 
-    # ----------------------------------------------------------------------
-    # (A)  d ≡ 1 (mod 4)  – fundamental discriminant D = d
-    #     check round‑trip ideal ↔ form
-    # ----------------------------------------------------------------------
-    d = 29                                 # 29 ≡ 1 (mod 4)
+    d = 29 # 29 ≡ 1 (mod 4)
     ideal_A = NonzeroIdeal(
-                RealQuadraticNumber(d, 4, 1),   # ⟨4 , 1+√29⟩   (norm 4)
+                RealQuadraticNumber(d, 4, 1), # ⟨4 , 1+√29⟩   (norm 4)
                 RealQuadraticNumber(d, 0, 4))
-    assert NonzeroIdeal.bqf_to_ideal(ideal_A.bqf()) == ideal_A      # round‑trip
+    assert NonzeroIdeal.bqf_to_ideal(ideal_A.bqf()) == ideal_A
 
-    # ----------------------------------------------------------------------
-    # (B)  d ≡ 2 (mod 4)  – fundamental discriminant D = 4d
-    #     conductor f = 2, so gcd(a,f)=a  (tests the g=a branch)
-    # ----------------------------------------------------------------------
-    d = 6                                  # 6 ≡ 2 (mod 4)
+    d = 6 # 6 ≡ 2 (mod 4)
     ideal_B = NonzeroIdeal(
-                RealQuadraticNumber(d, 3, 1),   # ⟨3 , 1+√6⟩   (norm 3)
+                RealQuadraticNumber(d, 3, 1), # ⟨3 , 1+√6⟩   (norm 3)
                 RealQuadraticNumber(d, 0, 3))
-    assert NonzeroIdeal.bqf_to_ideal(ideal_B.bqf()) == ideal_B      # round‑trip
+    assert NonzeroIdeal.bqf_to_ideal(ideal_B.bqf()) == ideal_B
 
-    # ----------------------------------------------------------------------
-    # (C)  multiplicative inverse –  I · I⁻¹  is principal of norm 1
-    # ----------------------------------------------------------------------
     d = 19
     I   = NonzeroIdeal(
             RealQuadraticNumber(d, 2, 1),     # ⟨2 , 1+√19⟩
@@ -489,26 +411,3 @@ if __name__ == "__main__":
     assert P == NonzeroIdeal(
                 RealQuadraticNumber(d, 1, 0),  # ⟨1 , √19⟩  principal
                 RealQuadraticNumber(d, 0, 1))
-    
-
-    # (1) ramified: norm p
-    d, p = 19, 19
-    𝔯 = NonzeroIdeal.make_prime_ideal(d, p)
-    assert 𝔯.norm == p
-
-    # (2) inert: norm p   (not p**2)
-    d, p = 5, 3               # (D/p) = –1
-    𝔦 = NonzeroIdeal.make_prime_ideal(d, p)
-    assert 𝔦.norm == p
-    assert 𝔦 == NonzeroIdeal(RealQuadraticNumber(d, p, 0),
-                            RealQuadraticNumber(d, 0, p))
-
-    # (3) split: each factor norm p, product norm p
-    d, p = 13, 3              # (D/p) = +1
-    prime_ideal_1 = NonzeroIdeal.make_prime_ideal(d, p,  1)
-    prime_ideal_2 = NonzeroIdeal.make_prime_ideal(d, p, -1)
-    print(prime_ideal_1.norm)
-    print(prime_ideal_2.norm)
-    print((prime_ideal_1 * prime_ideal_2).norm)
-    assert prime_ideal_1.norm == p and prime_ideal_2.norm == p
-    assert (prime_ideal_1 * prime_ideal_2).norm == p
