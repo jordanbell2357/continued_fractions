@@ -17,6 +17,15 @@ def detM2(alpha: Rational, beta: Rational, gamma: Rational, delta: Rational) -> 
 
 
 class GL2Z(abc.Hashable):
+    """
+    Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
+    Cambridge University Press, 1994.
+    Chapter 8: Abelian groups, pp. 319-382.
+
+    Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
+    Chapter 14: Integer Matrices and Their Applications, pp. 365-404.
+    """
+
     __slots__ = ("alpha", "beta", "gamma", "delta")
 
     def __init__(self: typing.Self, alpha: int, beta: int, gamma: int, delta: int) -> None:
@@ -128,7 +137,7 @@ class GL2Z(abc.Hashable):
         (e) B is a product of elementary matrices.
         """
         return cls(0, 1, 1, 0)
-        
+
     @classmethod
     def elementary_matrix_multiply_row(cls, i: int, sgn: int) -> typing.Self:
         if sgn not in [-1, 1]:
@@ -229,7 +238,6 @@ RELATIONS_GL2Z = {
 
 RELATIONS_GL2Z_REGEX = re.compile('|'.join(sorted(RELATIONS_GL2Z, key=len, reverse=True)))
 
-
 def rewrite_word(word: str) -> str:
     """
     Apply one relation from left, if possible.
@@ -244,7 +252,9 @@ def rewrite_word(word: str) -> str:
     return RELATIONS_GL2Z_REGEX.sub(lambda m: RELATIONS_GL2Z[m.group()], word, count=1)
 
 def reduce_word(word: str) -> str:
-    """Repeatedly apply rewrite_once until fixed point reached."""
+    """
+    Repeatedly apply rewrite_word until fixed point reached.
+    """
     while True:
         new_word = rewrite_word(word)
         if new_word == word:
@@ -565,7 +575,7 @@ class GL2Q(abc.Hashable):
 
 class M2Z(abc.Hashable):
     """
-    𝐙-algebra M_2(𝐙).
+    𝐙-algebra M₂(𝐙).
     """
 
     __slots__ = ("a11", "a12", "a21", "a22")
@@ -741,7 +751,7 @@ def hnf_2x2(mA: M2Z) -> tuple[GL2Z, M2Z]:
     Chapter 8: Abelian groups, pp. 319-382.
     Procedure ROW_REDUCE for integer row reduction, p. 323.
 
-    Given 2x2 matrix A in M2Z, find U in GL2Z and H in M2Z such that H=UA
+    Given 2x2 matrix A in M₂(𝐙), find U in GL₂(𝐙) and H in M₂(𝐙) such that H=UA
     where H is in row Hermite normal form.
 
     Returns U, H.
@@ -750,7 +760,7 @@ def hnf_2x2(mA: M2Z) -> tuple[GL2Z, M2Z]:
     if isinstance(mA, GL2Z):
         mA = M2Z(mA.alpha, mA.beta, mA.gamma, mA.delta)
     if not isinstance(mA, M2Z):
-        raise TypeError(f"{mA=} must be an instance of M2Z.")
+        raise TypeError(f"{mA=} must be an instance of M₂(𝐙).")
     mU = M2Z(1, 0, 0, 1) # I in M2Z; accumulator
     mH = mA
     i, j = 1, 1
@@ -822,16 +832,14 @@ def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
     if isinstance(m, GL2Z):
         m = M2Z(m.alpha, m.beta, m.gamma, m.delta)
     if not isinstance(m, M2Z):
-        raise TypeError(f"{m=} must be an instance of M2Z.")
+        raise TypeError(f"{m=} must be an instance of M₂(𝐙).")
 
     mSNF = m
-    mU = M2Z(1, 0, 0, 1)   # left accumulator (rows)
-    mV = M2Z(1, 0, 0, 1)   # right accumulator (columns)
+    mU = M2Z(1, 0, 0, 1) # left accumulator (rows)
+    mV = M2Z(1, 0, 0, 1) # right accumulator (columns)
 
     while True:
-        # --------------------------------------------------------------
         # Make mSNF[0,0] non‑zero by swapping rows/columns
-        # --------------------------------------------------------------
         if mSNF.a11 == 0:
             if mSNF.a12 != 0:  # swap the two columns
                 mT = GL2Z.elementary_matrix_interchange_columns()
@@ -851,9 +859,7 @@ def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
                 mV = mV * mT
             else:  # zero matrix
                 break
-        # --------------------------------------------------------------
         # Clear the sub‑diagonal entry mSNF[1,0] via EEA (row ops)
-        # --------------------------------------------------------------
         if mSNF.a21 != 0:
             q = mSNF.a11 // mSNF.a21
             mT = GL2Z.elementary_matrix_add_multiple_of_row(1, 2, -q)
@@ -864,9 +870,7 @@ def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
             mSNF = mT * mSNF
             mU = mT * mU
             continue  # repeat
-        # --------------------------------------------------------------
         # Clear the super‑diagonal entry mSNF[0,1] (column ops)
-        # --------------------------------------------------------------
         if mSNF.a12 != 0:
             q = mSNF.a11 // mSNF.a12
             mT = GL2Z.elementary_matrix_add_multiple_of_column(1, 2, -q)  # col1 ← col1 − q·col2
@@ -877,9 +881,7 @@ def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
             mSNF = mSNF * mT
             mV = mV * mT
             continue  # repeat
-        # --------------------------------------------------------------
         # Now mSNF = [[d, 0], [0, e]].  Adjust signs and divisibility.
-        # --------------------------------------------------------------
         d, e = mSNF.a11, mSNF.a22
         # make d positive
         if d < 0:
@@ -909,7 +911,7 @@ def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
     gl_U = GL2Z(mU.a11, mU.a12, mU.a21, mU.a22)
     gl_V = GL2Z(mV.a11, mV.a12, mV.a21, mV.a22)
     return gl_U, mSNF, gl_V
-     
+
 
 if __name__ == "__main__":
     assert P ** (-1) == P
@@ -970,25 +972,16 @@ if __name__ == "__main__":
     reduced_word = reduce_word(word)
     assert word_to_matrix(reduced_word) == word_to_matrix(word)
 
-    # ------------------------------------------------------------------
-    # ❶  Edge case – a relation that kills the word completely
-    #     PP  →  ε   (identity matrix)
-    # ------------------------------------------------------------------
     word = "PP"
-    assert reduce_word(word) == ""                  # rewrites to empty string
-    assert word_to_matrix(word) == I               # PP = I in GL₂ℤ
+    assert reduce_word(word) == "" # rewrites to empty string
+    assert word_to_matrix(word) == I # PP = I in GL₂(𝐙)
 
-    # ------------------------------------------------------------------
-    # ❷  Classic conjugation identity – PRP  →  S
-    # ------------------------------------------------------------------
+    # Conjugation identity PRP = S
     word = "PRP"
     assert reduce_word(word) == "S"                 # single rewrite
     assert word_to_matrix(word) == S                # same group element
 
-    # ------------------------------------------------------------------
-    # ❸  Random word: idempotence of reduce_word and matrix invariance
-    # ------------------------------------------------------------------
-    random.seed(503)                           # deterministic reproducibility
+    # Random word: idempotence of reduce_word and matrix invariance
     alphabet = list(ALPHABET)
 
     rand_word1 = "".join(random.choices(alphabet, k=random.randint(5, 25)))
@@ -997,15 +990,12 @@ if __name__ == "__main__":
     assert reduce_word(reduced1) == reduced1        # fixed-point reached
     assert word_to_matrix(rand_word1) == word_to_matrix(reduced1)
 
-    # ------------------------------------------------------------------
-    # ❹  Second random word: reduction never lengthens the string
-    # ------------------------------------------------------------------
+    # Random word: reduction never lengthens the string
     rand_word2 = "".join(random.choices(alphabet, k=random.randint(5, 25)))
     reduced2   = reduce_word(rand_word2)
 
     assert len(reduced2) <= len(rand_word2)         # relations are length-non-increasing
     assert word_to_matrix(rand_word2) == word_to_matrix(reduced2)
-
 
     m = R
     max_word_len = max_word_len_linf(m)
@@ -1031,37 +1021,29 @@ if __name__ == "__main__":
     assert m_U.det in [-1, 1]
     assert m_H.det == m_A.det or m_H.det == -m_A.det
 
-
-    
-    # 1. Identity matrix – already in SNF
+    # Identity matrix: equal to SNF
     m_U, m_D, m_V = snf_2x2(M2Z(1, 0, 0, 1))
     assert m_D == M2Z(1, 0, 0, 1) and m_D == m_U * M2Z(1,0,0,1) * m_V
     assert m_U.det in (-1, 1) and m_V.det in (-1, 1)
 
-    # 2. Full-rank example (|det| = 2) – divisibility d₁ | d₂
-    m = M2Z(3, 5, 7, 11)          # det = -2
+    # Full-rank matrix SNF (|det| = 2) – divisibility d₁ | d₂
+    m = M2Z(3, 5, 7, 11) # det = -2
     m_U, m_D, m_V = snf_2x2(m)
-    assert m_D == M2Z(1, 0, 0, 2)   # expected SNF
+    assert m_D == M2Z(1, 0, 0, 2) # expected SNF
     assert m_D == m_U * m * m_V
 
-    # 3. Rank-one example – zero appears on the second diagonal
-    m_A = M2Z(2, 4, 4, 8)           # det = 0, gcd = 2
+    # rank-one example SNF
+    m_A = M2Z(2, 4, 4, 8) # det = 0, gcd = 2
     m_U, m_D, m_V = snf_2x2(m_A)
-    assert m_D == M2Z(2, 0, 0, 0)   # SNF diag(2, 0)
+    assert m_D == M2Z(2, 0, 0, 0) # SNF diag(2, 0)
     assert m_D == m_U * m_A * m_V
 
-
-
-    # ---------------------------------------------------------------------------
-    # 3.  Smith form of a unimodular 2×2 matrix is the identity.
-    # ---------------------------------------------------------------------------
+    # if  m is in GL₂(𝐙) then SNF of m is I
     g = P
     _, g_SNF_, _ = snf_2x2(M2Z.GL2Z_to_M2Z(g))
-    assert g_SNF_ == M2Z(1, 0, 0, 1)             # SNF must be diag(1,1)
+    assert g_SNF_ == M2Z(1, 0, 0, 1) # SNF is diag(1,1)
 
-    # ---------------------------------------------------------------------------
-    # 4.  First diagonal entry of the SNF is  gcd of *all* entries.
-    # ---------------------------------------------------------------------------
-    B = M2Z(6, 10, 9, 15)                             # gcd = 3
+    # First diagonal entry of the SNF is  gcd of all entries of starting matrix.
+    B = M2Z(6, 10, 9, 15) # gcd = 3
     U, D, V = snf_2x2(B)
-    assert D.a11 == B.gcd      # d₁  =  gcd(entries)
+    assert D.a11 == B.gcd # d₁  =  gcd(entries)

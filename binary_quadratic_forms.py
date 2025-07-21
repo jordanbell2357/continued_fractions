@@ -33,9 +33,14 @@ class IndefiniteBQF(abc.Hashable):
     Chapter I, Section 6, "Quadratic Number Fields and Their Units", pp. 35-38.
     Chapter I, Section 7, "Relationship of Quadratic Forms to Ideals", pp. 38-50.
 
+    Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
+    Chapter 12, "Binary Quadratic Forms", pp. 300-337.
+
     Daniel E. Flath, Introduction to Number Theory, Wiley, 1989.
 
     Franz Halter-Koch, Quadratic Irrationals: An Introduction to Classical Number Theory, CRC Press, 2013.
+
+    Franz Lemmermeyer, Quadratic Number Fields, Springer, 2017.
 
     Primes of the Form 𝑥²+𝑛𝑦²: Fermat, Class Field Theory, and Complex Multiplication. Third Edition with Solutions
     David A. Cox, with contributions by Roger Lipsett
@@ -970,27 +975,6 @@ if __name__ == "__main__":
     g = bqf.stabilizer_GL2Z()
     assert bqf.GL2Z_action(g) == bqf
 
-    bqf = IndefiniteBQF(1, 0, -14)
-    assert bqf.min_abs_image() == bqf.min_abs_image_by_reduction()
-
-    # D = 205
-    bqf1 = IndefiniteBQF(1, 13, -9)
-    bqf2 = IndefiniteBQF(-1, -13, 9)
-    bqf3 = IndefiniteBQF(3, 13, -3)
-    bqf4 = IndefiniteBQF(-3, 13, 3)
-    assert bqf1.image_mod_D() == bqf2.image_mod_D()
-    assert bqf3.image_mod_D() == bqf4.image_mod_D()
-    assert bqf1.image_mod_D() != bqf3.image_mod_D()
-
-    # D = 17, reduced, same genus
-    bqf1 = IndefiniteBQF(1, 3, -2)
-    bqf2 = IndefiniteBQF(2, 1, -2)
-    assert bqf1.image_mod_D() == bqf2.image_mod_D()
-
-    for D in range(200):
-        if IndefiniteBQF.is_fundamental_discriminant(D):
-            assert genus_group_order(D) == genus_group_order_by_divisors(D)
-
     bqf1 = IndefiniteBQF.principal_bqf_for_discriminant(45)
     fundamental_D = bqf1.to_fundamental_discriminant
     bqf2 = IndefiniteBQF.principal_bqf_for_discriminant(fundamental_D)
@@ -1043,6 +1027,27 @@ if __name__ == "__main__":
     assert not IndefiniteBQF.are_equivalent(*bqf_list)
     for g in bqf_list: # coefficient a=p and discriminant=D
         assert g.a == 3 and g.D == 205
+
+    bqf = IndefiniteBQF(1, 0, -14)
+    assert bqf.min_abs_image() == bqf.min_abs_image_by_reduction()
+
+    # D = 205
+    bqf1 = IndefiniteBQF(1, 13, -9)
+    bqf2 = IndefiniteBQF(-1, -13, 9)
+    bqf3 = IndefiniteBQF(3, 13, -3)
+    bqf4 = IndefiniteBQF(-3, 13, 3)
+    assert bqf1.image_mod_D() == bqf2.image_mod_D()
+    assert bqf3.image_mod_D() == bqf4.image_mod_D()
+    assert bqf1.image_mod_D() != bqf3.image_mod_D()
+
+    # D = 17, reduced, same genus
+    bqf1 = IndefiniteBQF(1, 3, -2)
+    bqf2 = IndefiniteBQF(2, 1, -2)
+    assert bqf1.image_mod_D() == bqf2.image_mod_D()
+
+    for D in range(200):
+        if IndefiniteBQF.is_fundamental_discriminant(D):
+            assert genus_group_order(D) == genus_group_order_by_divisors(D)
 
     D = 37
     assert len(genus_group(D)) == genus_group_order_by_divisors(D)
