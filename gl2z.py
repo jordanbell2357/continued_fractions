@@ -130,10 +130,10 @@ class GL2Z(abc.Hashable):
         Section 8.2, "Elementary matrices", p. 331:
         Proposition 2.2. Let B be an m-by-m integer matrix. The following are
         equivalent:
-        (a) det£ = ±l.
+        (a) det B = ±l.
         (b) B is in GL(m,Z).
         (c) B is row equivalent to the m-by-m identity matrix.
-        (d) S(B) = Zm.
+        (d) S(B) = Z^m.
         (e) B is a product of elementary matrices.
         """
         return cls(0, 1, 1, 0)
@@ -983,11 +983,9 @@ if __name__ == "__main__":
 
     # Random word: idempotence of reduce_word and matrix invariance
     alphabet = list(ALPHABET)
-
     rand_word1 = "".join(random.choices(alphabet, k=random.randint(5, 25)))
     reduced1   = reduce_word(rand_word1)
-
-    assert reduce_word(reduced1) == reduced1        # fixed-point reached
+    assert reduce_word(reduced1) == reduced1 # fixed-point reached
     assert word_to_matrix(rand_word1) == word_to_matrix(reduced1)
 
     # Random word: reduction never lengthens the string

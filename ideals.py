@@ -1,8 +1,5 @@
 import math
-import decimal
-from decimal import Decimal
 from fractions import Fraction
-from numbers import Number
 from numbers import Rational
 from collections import abc
 import itertools as it
