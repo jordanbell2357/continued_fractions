@@ -21,9 +21,6 @@ class GL2Z(abc.Hashable):
     Charles C. Sims, Computation with finitely presented groups, Encyclopedia of Mathematics and Its Applications, volume 48,
     Cambridge University Press, 1994.
     Chapter 8: Abelian groups, pp. 319-382.
-
-    Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
-    Chapter 14: Integer Matrices and Their Applications, pp. 365-404.
     """
 
     __slots__ = ("alpha", "beta", "gamma", "delta")
@@ -755,6 +752,10 @@ def hnf_2x2(mA: M2Z) -> tuple[GL2Z, M2Z]:
     where H is in row Hermite normal form.
 
     Returns U, H.
+
+    Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
+    Chapter 14: Integer Matrices and Their Applications, pp. 365-404.
+    Theorem 1.3, p. 368.
     """
 
     if isinstance(mA, GL2Z):
@@ -827,6 +828,10 @@ def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
 
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
     Algorithm 2.4.14 (Smith Normal Form), p. 77.
+
+    Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
+    Chapter 14: Integer Matrices and Their Applications, pp. 365-404.
+    Theorem 1.5, p. 369.
     """
 
     if isinstance(m, GL2Z):

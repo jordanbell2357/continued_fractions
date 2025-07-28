@@ -17,7 +17,7 @@ import prime_numbers
 
 class IndefiniteBQF(abc.Hashable):
     """
-    Primitive indefinite binary quadratic forms.
+    Primitive indefinite binary quadratic forms over 𝐙.
 
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
     Definition 5.2.3, p. 225, for binary quadratic forms.
@@ -36,28 +36,28 @@ class IndefiniteBQF(abc.Hashable):
     Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
     Chapter 12, "Binary Quadratic Forms", pp. 300-337.
 
-    Daniel E. Flath, Introduction to Number Theory, Wiley, 1989.
-
-    Franz Halter-Koch, Quadratic Irrationals: An Introduction to Classical Number Theory, CRC Press, 2013.
-
-    Franz Lemmermeyer, Quadratic Number Fields, Springer, 2017.
-
     Primes of the Form 𝑥²+𝑛𝑦²: Fermat, Class Field Theory, and Complex Multiplication. Third Edition with Solutions
     David A. Cox, with contributions by Roger Lipsett
     AMS Chelsea Publishing: An Imprint of the American Mathematical Society, 2022
     § 1.2.A, "Lagrange, Legendre and Quadratic Forms", pp. 20-22
     § 1.2.C, "Elementary Genus Theory", pp. 27-31
+
+    Daniel E. Flath, Introduction to Number Theory, Wiley, 1989.
+
+    Franz Halter-Koch, Quadratic Irrationals: An Introduction to Classical Number Theory, CRC Press, 2013.
+
+    Franz Lemmermeyer, Quadratic Number Fields, Springer, 2017.
     """
 
     __slots__ = ["a", "b", "c"]
 
     def __init__(self: typing.Self, a: int, b: int, c: int) -> None:
         if not all(isinstance(x, int) for x in [a, b, c]):
-            raise TypeError("a, b, c must all be integers.")
-        if a==0 or c == 0:
-            raise ValueError(f"For indefinite binary quadratic form ax²+bx+c, a and c must be nonzero: {a=}, {c=}.")
+            raise TypeError(f"{a=}, {b=}, {c=} must all be integers.")
+        if a == 0 or c == 0:
+            raise ValueError(f"For a primitive indefinite binary quadratic form ax²+bx+c, a and c must be nonzero: {a=}, {c=}.")
         if math.gcd(a, b, c) > 1:
-            raise ValueError(f"Primitive requires gcd(a, b, c) = 1: {math.gcd(a, b, c)=}")
+            raise ValueError(f"Primitivity requires gcd(a, b, c) = 1: {math.gcd(a, b, c)=}")
         D = b ** 2 - 4 * a * c
         if D <= 0:
             raise ValueError(f"Discriminant {D=} must be positive.")
@@ -101,10 +101,12 @@ class IndefiniteBQF(abc.Hashable):
         
         p. 12:
         axx + bxy + cyy
-        == a(alpha x + beta y)(alpha x + beta y) + b(alpha x + beta y)(gamma x + delta y) + c(gamma x + delta y)(gamma x + delta y)
+        == a(alpha x + beta y)(alpha x + beta y)
+        + b(alpha x + beta y)(gamma x + delta y)
+        + c(gamma x + delta y)(gamma x + delta y)
         == (a*alpha**2 + b*alpha*gamma + c*gamma**2) xx
-           + (2*a*alpha*beta + b**alpha*delta + b*beta*gamma + 2*c*gamma*delta) xy
-           + (a*beta**2 + b*beta*delta + c*delta**2) yy
+        + (2*a*alpha*beta + b**alpha*delta + b*beta*gamma + 2*c*gamma*delta) xy
+        + (a*beta**2 + b*beta*delta + c*delta**2) yy
         == Axx + Bxy + Cyy
         """
         if matrix.det not in [-1, 1]:
@@ -174,7 +176,6 @@ class IndefiniteBQF(abc.Hashable):
 
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
         Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
-
         p. 22:
         Theorem 1.8. Fix a positive nonsquare discriminant D.
         (a) Each form of discriminant D is properly equivalent to some reduced form
@@ -183,7 +184,7 @@ class IndefiniteBQF(abc.Hashable):
 
         def r(D: int, b: int, a: int) -> int:
             if a == 0:
-                raise ValueError(f"{a=} must be nonzero")
+                raise ValueError(f"{a=} must be nonzero.")
             if abs(a) > math.sqrt(D):
                 for r0 in range(-abs(a) + 1, abs(a) + 1):
                     if (r0 - b) % (2 * abs(a)) == 0:
@@ -220,13 +221,18 @@ class IndefiniteBQF(abc.Hashable):
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
         Chapter I, Section 3, "Equivalence and Reduction of Quadratic Forms", pp. 12-24.
-        
         p. 14:
         Theorem 1.6. Fix a nonsquare discriminant D.
         (a) The Dirichlet class number h(D) is finite. In fact, any form of discriminant
         D is properly equivalent to a form (a, b, c) with |b| ≤ |a| ≤ |c| and therefore
         has 3|ac| ≤ |D|, and the number of forms of discriminant D satisfying all these
         inequalities is finite.
+
+        Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
+        Chapter 12, "Binary Quadratic Forms", pp. 300-337.
+        p. 302:
+        Theorem 2.1. In every class of forms there is always one which satisfies the condition
+        |b| ≤ |a| ≤ |c|.
         """
         word = ""
         bqf = self
@@ -242,7 +248,7 @@ class IndefiniteBQF(abc.Hashable):
                 bqf = bqf.GL2Z_action(gl2z.GL2Z.N(n))
                 word += "U" * n # U == T ** (-1)
             else:
-                pass # in this case, next iteration will at most add "S" to word and will be last iteration
+                pass # next iteration will at most add "S" to word and will be last iteration
         return bqf, word
 
 
@@ -255,8 +261,16 @@ class IndefiniteBQF(abc.Hashable):
         return self.real_quadratic_number_associate.minimal_polynomial()
 
 
-    def evaluate(self: typing.Self, x: Rational | quadratic_fields.RealQuadraticNumber, y: Rational | quadratic_fields.RealQuadraticNumber) -> int:
+    def evaluate(self: typing.Self,
+                 x: Rational | quadratic_fields.RealQuadraticNumber,
+                 y: Rational | quadratic_fields.RealQuadraticNumber) -> int:
         return self.a * x ** 2 + self.b * x * y + self.c * y ** 2
+    
+
+    def __call__(self: typing.Self,
+                 x: Rational | quadratic_fields.RealQuadraticNumber,
+                 y: Rational | quadratic_fields.RealQuadraticNumber) -> int:
+        return self.evaluate(x, y)
 
 
     def equivalent_bqf_to_evaluate(self: typing.Self, x0: int, y0: int) -> typing.Self:
@@ -306,7 +320,8 @@ class IndefiniteBQF(abc.Hashable):
     def to_fundamental_discriminant(self) -> int:
         """
         Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
-        Chapter 12, "Binary Quadratic Forms", p. 322.
+        Chapter 12, "Binary Quadratic Forms", pp. 300-337.
+        p. 322:
         Theorem 11.1. Each discriminant d is uniquely expressible as f * m ** 2 where f is a
         fundamental discriminant.
         """
@@ -888,17 +903,6 @@ def genus_group(D: int) -> list[list[IndefiniteBQF]]:
 
 
 if __name__ == "__main__":
-    bqf = IndefiniteBQF(2, 0, -5) # primitive indefinite BQF over 𝐙
-    assert (
-        (bqf.is_reduced
-            and (0 < float(bqf.real_quadratic_number_associate) < 1
-            and -float(bqf.real_quadratic_number_associate.conjugate()) > 1))
-            or
-        (not bqf.is_reduced
-         and not (0 < float(bqf.real_quadratic_number_associate) < 1
-         and -float(bqf.real_quadratic_number_associate.conjugate())) > 1)
-         )
-    
     bqf = IndefiniteBQF(3, 11, 2)
     equivalent_bqf, word = bqf.equivalent_bqf_with_word()
     assert abs(equivalent_bqf.b) <= abs(equivalent_bqf.a) <= abs(equivalent_bqf.c)
@@ -944,36 +948,6 @@ if __name__ == "__main__":
     bqf = IndefiniteBQF(1, 0, -26)
     bqf_reduced = bqf.reduced()
     assert IndefiniteBQF.are_equivalent(bqf, bqf_reduced)
-
-    m = 87
-    bqf = IndefiniteBQF(2,8,-5)
-    bqf_reduced = bqf.reduced()
-    _, x0, y0 = bqf_reduced.primitively_represent(m)
-    assert math.gcd(x0, y0) == 1
-
-    m = 87
-    bqf = IndefiniteBQF(2, 8, -5)
-    bqf_reduced = bqf.reduced()
-    _, x0, y0 = bqf_reduced.primitively_represent(m)
-    bqf_equivalent = bqf_reduced.equivalent_bqf_to_evaluate(x0, y0)
-    assert bqf_equivalent.evaluate(1, 0) == bqf_equivalent.a
-    assert bqf_equivalent.evaluate(1, 0) == bqf_reduced.evaluate(x0, y0)
-
-    bqf = IndefiniteBQF(1, 0, -14)
-    bqf_image = bqf.in_GL2Q()
-    assert bqf.D == -bqf_image.det
-
-    m = gl2z.S
-    bqf = IndefiniteBQF(1, 0, -14)
-    bqf_transformed = bqf.GL2Z_action(m)
-    bqf_transformed_image = bqf_transformed.in_GL2Q()
-    bqf_image = bqf.in_GL2Q()
-    bqf_image_transformed = bqf_image.transpose_action_GL2Z(m)
-    assert bqf_image_transformed  ==  bqf_transformed_image
-
-    bqf = IndefiniteBQF(1, 0, -14)
-    g = bqf.stabilizer_GL2Z()
-    assert bqf.GL2Z_action(g) == bqf
 
     bqf1 = IndefiniteBQF.principal_bqf_for_discriminant(45)
     fundamental_D = bqf1.to_fundamental_discriminant
@@ -1051,6 +1025,57 @@ if __name__ == "__main__":
 
     D = 37
     assert len(genus_group(D)) == genus_group_order_by_divisors(D)
+
+    m = 87
+    bqf = IndefiniteBQF(2, 8, -5)
+    bqf_reduced = bqf.reduced()
+    _, x0, y0 = bqf_reduced.primitively_represent(m)
+    assert math.gcd(x0, y0) == 1
+
+    m = 87
+    bqf = IndefiniteBQF(2, 8, -5)
+    bqf_reduced = bqf.reduced()
+    _, x0, y0 = bqf_reduced.primitively_represent(m)
+    bqf_equivalent = bqf_reduced.equivalent_bqf_to_evaluate(x0, y0)
+    assert bqf_equivalent.evaluate(1, 0) == bqf_equivalent.a
+    assert bqf_equivalent.evaluate(1, 0) == bqf_reduced.evaluate(x0, y0)
+
+    bqf = IndefiniteBQF(1, 0, -14)
+    bqf_image = bqf.in_GL2Q()
+    assert bqf.D == -bqf_image.det
+
+    m = gl2z.S
+    bqf = IndefiniteBQF(1, 0, -14)
+    bqf_transformed = bqf.GL2Z_action(m)
+    bqf_transformed_image = bqf_transformed.in_GL2Q()
+    bqf_image = bqf.in_GL2Q()
+    bqf_image_transformed = bqf_image.transpose_action_GL2Z(m)
+    assert bqf_image_transformed  ==  bqf_transformed_image
+
+    bqf = IndefiniteBQF(1, 0, -14)
+    g = bqf.stabilizer_GL2Z()
+    assert bqf.GL2Z_action(g) == bqf
+
+    bqf = IndefiniteBQF(1, 0, -14)
+    x, y = 2, 3
+    assert bqf(x, y) == bqf.evaluate(x, y)
+
+    bqf = IndefiniteBQF(2, 8, -5)
+    D = bqf.D
+    a, b, c = bqf
+    assert bqf(1, 0) == a 
+    assert bqf(b, -2 * a) == -D * a
+
+    bqf = IndefiniteBQF(2, 0, -5) # primitive indefinite BQF over 𝐙
+    assert (
+        (bqf.is_reduced
+            and (0 < float(bqf.real_quadratic_number_associate) < 1
+            and -float(bqf.real_quadratic_number_associate.conjugate()) > 1))
+            or
+        (not bqf.is_reduced
+         and not (0 < float(bqf.real_quadratic_number_associate) < 1
+         and -float(bqf.real_quadratic_number_associate.conjugate())) > 1)
+         )
 
     d = 5  # positive integer that is not a perfect square
     bqf = IndefiniteBQF(1, 0, -d)

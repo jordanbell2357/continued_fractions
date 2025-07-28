@@ -146,13 +146,9 @@ class FordCircle(abc.Container):
         return type(self)(target_fraction)
 
 
-
-# -------------------------------------------------------------------------
-# Quick examples
-# -------------------------------------------------------------------------
 if __name__ == "__main__":
-    x1 = quadratic_fields.RealQuadraticCompositum(1, {frozenset([2]): quadratic_fields.PureQuadraticSurd(2, 3)})   # 1 + 3√2
-    x2 = quadratic_fields.RealQuadraticCompositum(1, {frozenset([3]): quadratic_fields.PureQuadraticSurd(3, 5)})   # 1 + 5√3
+    x1 = quadratic_fields.RealQuadraticCompositum(1, {frozenset([2]): quadratic_fields.PureQuadraticSurd(2, 3)}) # 1 + 3√2
+    x2 = quadratic_fields.RealQuadraticCompositum(1, {frozenset([3]): quadratic_fields.PureQuadraticSurd(3, 5)}) # 1 + 5√3
     c1 = Circle(2, 3, 4)
     c2 = Circle(1, -1, 6)
     p1, p2 = intersect_circles(c1, c2)
@@ -160,14 +156,10 @@ if __name__ == "__main__":
     assert power_of_point_wrt_circle(p2, c1) == power_of_point_wrt_circle(p2, c2)
     assert p1 in RadicalLine(c1, c2) and p2 in RadicalLine(c1, c2)
 
-
     print("Two-point :", *intersect_circles(Circle(0, 0, 1), Circle(0, 1, 1)))
     print("Two-point:", *intersect_circles(Circle(Fraction(3, 2), Fraction(-7, 3), 5), Circle(4, 0, 3)))
     print("Tangent :", *intersect_circles(Circle(0, 0, Fraction(1, 2)), Circle(1, 0, Fraction(1, 2))))
     print("Disjoint:", intersect_circles(Circle(0, 0, 2), Circle(10, 0, 2)))
-
-
-
 
     circle1 = FordCircle(Fraction(1, 2))
     circle2 = FordCircle(Fraction(2, 3))
@@ -177,7 +169,6 @@ if __name__ == "__main__":
     m = gl2z.GL2Z(3, 2, 2, 1)
     circle2 = circle1.lft_GL2Z(m)
     print(circle1, circle2)
-
 
     n = 23
     offset = 9
