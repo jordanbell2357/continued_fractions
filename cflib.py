@@ -99,15 +99,17 @@ def distance_to_nearest_integer_reciprocal_sum(x: Decimal, n: int) -> Decimal:
 
 
 def cf_to_convergent_list(cf: list[int]) -> list[tuple[int, int]]:
-    N = len(cf)
-    if N == 0:
-        return []
+    """
+    Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
+    Chapter 10. Continued Fractions and Approximation Methods, pp. 250-275.
+    Theorem 1.1, p. 250.
+    """
     p_prev2, p_prev1 = 0, 1
     q_prev2, q_prev1 = 1, 0
     convergent_list = []
-    for k in range(N):
-        p_k = cf[k] * p_prev1 + p_prev2
-        q_k = cf[k] * q_prev1 + q_prev2
+    for ak in cf:
+        p_k = ak * p_prev1 + p_prev2
+        q_k = ak * q_prev1 + q_prev2
         convergent_list.append((p_k, q_k))
         p_prev2, p_prev1 = p_prev1, p_k
         q_prev2, q_prev1 = q_prev1, q_k

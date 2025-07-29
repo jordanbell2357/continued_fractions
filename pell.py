@@ -16,6 +16,11 @@ class PeriodicCF:
 
 
 def sqrt_periodic_cf(d: int) -> PeriodicCF:
+    """
+    Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
+    Chapter 10. Continued Fractions and Approximation Methods, pp. 250-275.
+    Chapter 11. Indeterminate Equations, pp. 276-299.
+    """
     a0 = math.isqrt(d)  # floor(sqrt(d))
     if a0 ** 2 == d:
         # d is a square, so sqrt(d) is an integer and the continued fraction has length 1
@@ -154,7 +159,7 @@ def periodic_cf_to_integral_quadratic_polynomial(periodic_cf: PeriodicCF) -> tup
     """
     Implements construction in proof of Theorem 176 of Hardy and Wright, Chapter X, pp. 184-185, sixth edition:
     "A periodic continued fraction is a quadratic surd, i.e. an irrational root of a quadratic equation with integral coefficients."
-    Theorem of Euler.
+    (Euler)
     """
 
     initial_part, periodic_part = periodic_cf.initial_part, periodic_cf.periodic_part
@@ -181,11 +186,10 @@ def is_real_reduced_surd(P: int, Q: int, D: int) -> bool:
     Corollary 5.6.7, p. 266:
     A quadratic surd (P+√D)/Q is called "reduced" when it is greater than 1,
     and its conjugate (P-√D)/Q is strictly between -1 and 0.
-    
-    Galois' theorem for quadratic surds: a quadratic surd is reduced if and only if its
-    continued fraction is purely periodic.
 
     Peter M. Neumann, The mathematical writings of Évariste Galois, European Mathematical Society, 2011.
+    Galois' theorem for quadratic surds: a quadratic surd is reduced if and only if its
+    continued fraction is purely periodic.
     II.1 A theorem on continued fractions, pp. 35-47
     Proof of a theorem on periodic continued fractions
     "If one of the roots of an equation of arbitrary degree is an immediately periodic continued fraction,
