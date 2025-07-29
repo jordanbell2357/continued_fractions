@@ -223,82 +223,80 @@ if __name__ == "__main__":
     eea = EEA(x, y)
     assert eea.convergent_list == fraction_tuple_to_convergent_list((x, y))
 
-    # # Example: gcd
-    # p = 18
-    # q = 4
+    # Example: Gauss transformation
+    x = Decimal("0.34")
+    num_terms = 5
+    n = 20
+    precision = 20
+    decimal.getcontext().prec = precision
 
-    # partial_quotients = fraction_tuple_to_cf((p, q))
-    # print(f"Partial quotients for {Fraction(p, q)}")
-    # print(partial_quotients)
-    # print(f"gcd({p}, {q}) =", partial_quotients[-1])
-
-    # print()
-
-
-    # # Example: Bezout coefficients
-    # partial_quotients = fraction_tuple_to_cf((p, q))
-    # convergents = cf_to_convergent_list(partial_quotients)
-    # n = len(convergents) - 1
-    # p_second_last, q_second_last = convergents[n - 1]
-    # s = (-1)**(n + 1) * q_second_last
-    # t = (-1)**n * p_second_last
-    # print(f"Bezout coefficients of s * {p} + t * {q} = gcd({p}, {q})")
-    # print(f"s * p + t * q = {s} * {p} + {t} * {q} = {s * p + t * q}")
-    # print(f"gcd({p}, {q}) = {s * p + t * q}")
-
-    # print()
-
-    # # Example: sqrt(n)
-    # d = 7
-    # num_terms = 20
-    # precision = 20
-    # decimal.getcontext().prec = precision
-    # sqrtd = Decimal(d).sqrt()
-    # cf_sqrtd = decimal_to_cf(sqrtd, num_terms)
-    # print(f"Partial quotients for sqrt({d})")
-    # print(f"[a_0, ..., a_{num_terms -1}]", '=', cf_sqrtd)
+    cf = decimal_to_cf(x, n)
+    a_list = decimal_to_cf_gauss_transformation(x, n)
+    assert x < 0 or x >= 1 or a_list == cf
 
 
-    # # Example: Gauss transformation
-    # x = Decimal("0.34")
-    # num_terms = 5
-    # n = 20
-    # precision = 20
-    # decimal.getcontext().prec = precision
-
-    # cf = decimal_to_cf(x, n)
-    # a_list = decimal_to_cf_gauss_transformation(x, n)
-    # assert x < 0 or x >= 1 or a_list == cf
+    # Example: distance_to_nearest_integer_sum
+    assert distance_to_nearest_integer_sum(x, n) >= n / 4 - math.log(n) ** 2
+    assert distance_to_nearest_integer_sum(x, n) <= n / 4 + math.log(n) ** 2
 
 
-    # # Example: distance_to_nearest_integer_sum
-    # assert distance_to_nearest_integer_sum(x, n) >= n / 4 - math.log(n) ** 2
-    # assert distance_to_nearest_integer_sum(x, n) <= n / 4 + math.log(n) ** 2
+    # Example: distance_to_nearest_integer_reciprocal_sum
+    assert distance_to_nearest_integer_reciprocal_sum(x, n) / (Decimal(n) * Decimal(n).ln()) <= 3
+
+    # Example: gcd
+    p = 18
+    q = 4
+
+    partial_quotients = fraction_tuple_to_cf((p, q))
+    print(f"Partial quotients for {Fraction(p, q)}")
+    print(partial_quotients)
+    print(f"gcd({p}, {q}) =", partial_quotients[-1])
+
+    print()
 
 
-    # # Example: distance_to_nearest_integer_reciprocal_sum
-    # assert distance_to_nearest_integer_reciprocal_sum(x, n) / (Decimal(n) * Decimal(n).ln()) <= 3
+    # Example: Bezout coefficients
+    partial_quotients = fraction_tuple_to_cf((p, q))
+    convergents = cf_to_convergent_list(partial_quotients)
+    n = len(convergents) - 1
+    p_second_last, q_second_last = convergents[n - 1]
+    s = (-1)**(n + 1) * q_second_last
+    t = (-1)**n * p_second_last
+    print(f"Bezout coefficients of s * {p} + t * {q} = gcd({p}, {q})")
+    print(f"s * p + t * q = {s} * {p} + {t} * {q} = {s * p + t * q}")
+    print(f"gcd({p}, {q}) = {s * p + t * q}")
+
+    print()
+
+    # Example: sqrt(n)
+    d = 7
+    num_terms = 20
+    precision = 20
+    decimal.getcontext().prec = precision
+    sqrtd = Decimal(d).sqrt()
+    cf_sqrtd = decimal_to_cf(sqrtd, num_terms)
+    print(f"Partial quotients for sqrt({d})")
+    print(f"[a_0, ..., a_{num_terms -1}]", '=', cf_sqrtd)
+
+    # Example: Decimal Convergents
+    d = 7
+    num_terms = 20
+    precision = 20
+    decimal.getcontext().prec = precision
+    sqrtd = Decimal(d).sqrt()
+    cf_sqrtd = decimal_to_cf(sqrtd, num_terms)
+    print(f"Convergents for sqrt({d})")
+    convergents = cf_to_convergent_list(cf_sqrtd)
+    print(convergents)
+
+    print()
 
 
-    # # Example: Decimal Convergents
-    # d = 7
-    # num_terms = 20
-    # precision = 20
-    # decimal.getcontext().prec = precision
-    # sqrtd = Decimal(d).sqrt()
-    # cf_sqrtd = decimal_to_cf(sqrtd, num_terms)
-    # print(f"Convergents for sqrt({d})")
-    # convergents = cf_to_convergent_list(cf_sqrtd)
-    # print(convergents)
-
-    # print()
-
-
-    # # Example: Decimal Cotes continued fraction for e
-    # num_terms = 40
-    # precision = 20
-    # decimal.getcontext().prec = precision
-    # e = Decimal(1).exp()
-    # cf_e = decimal_to_cf(e, num_terms)
-    # print("Partial quotients of e")
-    # print(cf_e)
+    # Example: Decimal Cotes continued fraction for e
+    num_terms = 40
+    precision = 20
+    decimal.getcontext().prec = precision
+    e = Decimal(1).exp()
+    cf_e = decimal_to_cf(e, num_terms)
+    print("Partial quotients of e")
+    print(cf_e)
