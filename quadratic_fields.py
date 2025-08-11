@@ -430,7 +430,6 @@ class PureQuadraticSurd:
             return self.coefficient_fraction
         else:
             return 0
-    
 
 
 class RealQuadraticCompositum:
@@ -608,14 +607,14 @@ class RealQuadraticCompositum:
             conj_list.append(type(self)(self.rational_part, conj_s))
         return conj_list
 
-    @ft.cached_property
+    @property
     def trace(self) -> Fraction:
         if not self.surd_terms:
             return self.rational_part
         n = len({p for rs in self.surd_terms for p in rs})
         return self.rational_part * (1 << n)
 
-    @ft.cached_property
+    @property
     def norm(self) -> Fraction:
         if not self.surd_terms:
             return self.rational_part
@@ -722,12 +721,14 @@ class RealQuadraticField(abc.Container):
         """
         return self.d if self.d % 4 == 1 else 4 * self.d
     
-    @ft.cached_property
+    @property
+    @ft.cache
     def fundamental_unit(self: typing.Self) -> RealQuadraticNumber:
         x, y = pell.solve_pell_equation(self.d)
         return RealQuadraticNumber(self.d, x, y)
 
-    @ft.cached_property
+    @property
+    @ft.cache
     def regulator_float(self: typing.Self) -> float:
         """
         Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
