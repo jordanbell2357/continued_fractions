@@ -556,8 +556,12 @@ class RealQuadraticCompositum:
         return type(self)(new_r, new_s)
 
     __radd__ = __add__
-    def __sub__(self, other):  return self + (-other)
-    def __rsub__(self, other): return type(self)(other) - self
+
+    def __sub__(self, other):
+        return self + (-other)
+
+    def __rsub__(self, other):
+        return type(self)(other) - self
 
     def __mul__(self, other: typing.Self | Rational) -> typing.Self:
         if isinstance(other, Rational):
@@ -604,20 +608,20 @@ class RealQuadraticCompositum:
             conj_list.append(type(self)(self.rational_part, conj_s))
         return conj_list
 
-    @property
+    @ft.cached_property
     def trace(self) -> Fraction:
         if not self.surd_terms:
             return self.rational_part
         n = len({p for rs in self.surd_terms for p in rs})
         return self.rational_part * (1 << n)
 
-    @property
+    @ft.cached_property
     def norm(self) -> Fraction:
         if not self.surd_terms:
             return self.rational_part
         prod = type(self)(1)
-        for σ in self.conjugates():
-            prod *= σ
+        for sigma in self.conjugates():
+            prod *= sigma
         if prod.surd_terms:
             raise ArithmeticError("norm didn’t clear surds")
         return prod.rational_part
@@ -629,9 +633,9 @@ class RealQuadraticCompositum:
             return type(self)(Fraction(1, self.rational_part))
 
         adj = type(self)(1)
-        for σ in self.conjugates():
-            if σ != self:
-                adj *= σ
+        for sigma in self.conjugates():
+            if sigma != self:
+                adj *= sigma
 
         nrm = self.norm
         inv_r = adj.rational_part / nrm
@@ -640,6 +644,7 @@ class RealQuadraticCompositum:
         return type(self)(inv_r, inv_s)
 
     def __truediv__(self, other):  return self * (type(self)(other) if isinstance(other, Rational) else other).inverse()
+
     def __rtruediv__(self, other): return type(self)(other) * self.inverse()
 
     def __pow__(self, exponent: int) -> typing.Self:
@@ -672,7 +677,6 @@ class RealQuadraticCompositum:
         return compositum_surd
 
 
-
 class RealQuadraticField(abc.Container):
     """
     Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
@@ -682,8 +686,6 @@ class RealQuadraticField(abc.Container):
     Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.
     Chapter I, Section 6, "Quadratic Number Fields and Their Units", pp. 35-38.
     """
-
-    __slots__ = ["d"]
 
     def __init__(self: typing.Self, d: int) -> None:
         if not isinstance(d, int):
@@ -720,12 +722,12 @@ class RealQuadraticField(abc.Container):
         """
         return self.d if self.d % 4 == 1 else 4 * self.d
     
-    @property
+    @ft.cached_property
     def fundamental_unit(self: typing.Self) -> RealQuadraticNumber:
         x, y = pell.solve_pell_equation(self.d)
         return RealQuadraticNumber(self.d, x, y)
 
-    @property
+    @ft.cached_property
     def regulator_float(self: typing.Self) -> float:
         """
         Henri Cohen, A Course in Computation Algebraic Number Theory, Graduate Texts in Mathematics, Volume 138, Springer, 1996.
@@ -794,7 +796,6 @@ class RealQuadraticField(abc.Container):
             return RealQuadraticNumber(d, 0, 1)
 
 
-
     @property
     def integral_basis(self: typing.Self) -> tuple[RealQuadraticNumber, RealQuadraticNumber]:
         b1 = RealQuadraticNumber(self.d, 1, 0)
@@ -809,6 +810,7 @@ class RealQuadraticField(abc.Container):
 
 def hilbert_theorem_90(d: int, t: Fraction) -> RealQuadraticNumber:
     return RealQuadraticNumber(d, 1, t) / RealQuadraticNumber(d, 1, -t)
+
 
 def hilbert_theorem_90_inverse(alpha: RealQuadraticNumber) -> Fraction:
     """

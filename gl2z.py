@@ -831,7 +831,7 @@ def snf_2x2(m: M2Z) -> tuple[GL2Z, M2Z, GL2Z]:
 
     Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
     Chapter 14: Integer Matrices and Their Applications, pp. 365-404.
-    Theorem 1.5, p. 369.
+    Theorem 1.5, p. 369.`
     """
 
     if isinstance(m, GL2Z):
