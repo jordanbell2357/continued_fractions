@@ -13,6 +13,7 @@ from collections import abc
 EULER_CONSTANT_30_DIGITS = Decimal("0.577215664901532860606512090082")
 EULER_CONSTANT_FLOAT = float(EULER_CONSTANT_30_DIGITS)
 
+
 def sieve_eratosthenes_list(n: int) -> list[int]:
     if n < 2:
         return []
@@ -138,6 +139,7 @@ def liouville(n: int) -> int:
 
 def invertible_mod_n(n: int) -> list[int]:
     return [k for k in range(n) if math.gcd(n, k) == 1]
+
 
 def make_factor_list(n: int) -> list[int]:
     prime_factor_counter = make_prime_factor_counter(n)
@@ -278,7 +280,6 @@ def solve_quadratic_congruence(a: int, n: int) -> int:
         if (b ** 2 - a) % n == 0:
             return b
     return None
-
 
 
 if __name__ == "__main__":
