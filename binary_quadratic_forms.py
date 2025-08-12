@@ -211,7 +211,8 @@ class IndefiniteBQF(abc.Hashable):
             bqf, mi = bqf.reduce_with_exponent()
             exponent_list.append(mi)
         return bqf, exponent_list
-    
+
+
     def reduced(self: typing.Self) -> typing.Self:
         bqf_reduced, _ = self.reduced_with_exponent_list()
         return bqf_reduced
@@ -317,6 +318,7 @@ class IndefiniteBQF(abc.Hashable):
 
 
     @property
+    @ft.cache
     def to_fundamental_discriminant(self) -> int:
         """
         Hua Loo Keng, Introduction to Number Theory, Translated from the Chinese by Peter Shiu, Springer, 1982.
@@ -407,7 +409,6 @@ class IndefiniteBQF(abc.Hashable):
         (d) Two reduced forms of discriminant D are properly equivalent if and only
         if they lie in the same cycle in the sense of (c).
         """
-
         if not self.is_reduced:
             raise ValueError(f"{self=!r} must be reduced.")
         D = self.D
@@ -554,6 +555,7 @@ class IndefiniteBQF(abc.Hashable):
 
 
     @property
+    @ft.cache
     def conductor(self) -> int:
         """
         Johannes Buchmann and Ulrich Vollmer
@@ -671,6 +673,7 @@ class IndefiniteBQF(abc.Hashable):
         # If both loops fail (should not happen if implemented correctly, by theory)
         raise ArithmeticError("Descent failed: no suitable SL₂(𝐙) shear found.")
 
+
     @classmethod
     def compose_bqf(cls, bqf1: typing.Self, bqf2: typing.Self) -> typing.Self:
         """
@@ -733,6 +736,7 @@ class IndefiniteBQF(abc.Hashable):
         c3 = (b3 ** 2 - D) // (4 * a3)
         return cls(a3, b3, c3).reduced()
 
+
     def __mul__(self, other: typing.Self) -> typing.Self:
         if self.D == other.D:
             return type(self).compose(self, other)
@@ -740,17 +744,20 @@ class IndefiniteBQF(abc.Hashable):
         self = self  if self.conductor  == f else self.lift(f // self .conductor)
         other = other if other.conductor == f else other.lift(f // other.conductor)
         return type(self).compose(self, other)
-    
+
+
     def __truediv__(self, other: typing.Self) -> typing.Self:
         bqf1 = self
         bqf2 = other.inverse()
         return bqf1 * bqf2
+
 
     def __rtruediv__(self, other: typing.Self) -> typing.Self:
         bqf1 = other
         bqf2 = self.inverse()
         return bqf1 * bqf2
     
+
     def __pow__(self, n: int) -> typing.Self:
         if not isinstance(n, int):
             raise TypeError(f"Exponent {n=} must be integer.")
@@ -786,7 +793,6 @@ def class_group(D: int) -> list[IndefiniteBQF]:
     3.  Require gcd(a,b,c)=1 (primitivity) and a>0 (always true for reduced
         forms).  Append IndefiniteBQF(a,b,c).reduced() to set.
     """
-
     if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
         raise ValueError(f"{D=} must be a positive fundamental discriminant.")
 
@@ -836,7 +842,6 @@ def genus_group_order(D: int) -> int:
     of G is a power of 2. Problems 25–29 at the end of the chapter show that the
     order of G is 2g, where g + 1 is the number of distinct prime factors of D.
     """
-
     if not IndefiniteBQF.is_fundamental_discriminant(D) or D <= 0:
         raise ValueError(f"{D} must be a positive fundamental discriminant.")
     bqf = IndefiniteBQF.principal_bqf_for_discriminant(D)
