@@ -172,6 +172,7 @@ class NonzeroIdeal(abc.Container):
             return True
         return False
 
+
     def bqf(self) -> binary_quadratic_forms.IndefiniteBQF:
         """
         Anthony W. Knapp, Advanced Algebra, Digital Second Edition, 2016.

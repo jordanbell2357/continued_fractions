@@ -134,8 +134,7 @@ class FordCircle(abc.Container):
         assert p1 == p2
         return p1
 
-        
-    
+
     def lft_GL2Z(self: typing.Self, matrix: gl2z.GL2Z) -> typing.Self:
         """
         Linear fractional transformation.

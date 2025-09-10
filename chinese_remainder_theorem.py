@@ -44,7 +44,6 @@ def crt(congruence_tuple_list: list[tuple[int, int]]) -> int:
     return ft.reduce(crt_two_moduli, congruence_tuple_list, (1, 1))
 
 
-
 if __name__ == "__main__":
     # Example: modular inverse
     n = 74
